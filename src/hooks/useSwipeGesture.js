@@ -14,7 +14,7 @@
       var pinP = Math.max(0, Math.min(1, (p - 0.35) / 0.65)), delP = Math.min(1, p / 0.55);
       if (btn1Ref.current) { btn1Ref.current.style.transform = 'translateX(' + ((1 - pinP) * 60) + 'px)'; btn1Ref.current.style.opacity = pinP; btn1Ref.current.style.pointerEvents = pinP > 0.3 ? 'auto' : 'none'; }
       if (btn2Ref.current) { btn2Ref.current.style.transform = 'translateX(' + ((1 - delP) * 30) + 'px)'; btn2Ref.current.style.opacity = delP; btn2Ref.current.style.pointerEvents = delP > 0.3 ? 'auto' : 'none'; }
-      if (wrapperRef.current) { var r = Math.max(32 * p, 2); wrapperRef.current.style.borderTopRightRadius = r + 'px'; wrapperRef.current.style.borderBottomRightRadius = r + 'px'; }
+      if (wrapperRef.current) { var r = Math.max(32 * p, 32); wrapperRef.current.style.borderTopRightRadius = r + 'px'; wrapperRef.current.style.borderBottomRightRadius = r + 'px'; }
       if (typeof onProgress === 'function') onProgress(p);
     }, [onProgress]);
 

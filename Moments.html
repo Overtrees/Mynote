@@ -52,7 +52,7 @@
 
 <script src="./src/components/LinkCard.js"></script>
 
-<script src="./src/hooks/useSwipeGesture.js"></script>
+<script src="./src/hooks/useSwipeGesture.js?v=2"></script>
 
 <script src="./src/components/BgSheet.js"></script>
 
@@ -204,6 +204,7 @@
         padding: 46px 16px calc(20px + env(safe-area-inset-bottom));
     }
     .list-group {
+    
         background: var(--glass-bg);
         backdrop-filter: blur(40px) saturate(2.5) brightness(1.15);
         -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15);
@@ -214,7 +215,7 @@
         border: 0.5px solid var(--border-color);
         box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .swipe-wrapper { position: relative; overflow: hidden; background: var(--card-bg); }
+    .swipe-wrapper { position: relative; overflow: hidden; border-radius: 32px; background: var(--card-bg);  }
     .swipe-actions {
         position: absolute; right: 0; top: 0; bottom: 0;
         display: flex; align-items: center; justify-content: flex-end;
@@ -262,13 +263,13 @@
     .item-meta { font-size: 0.75rem; color: var(--text-secondary); }
     .item-right { display: none; }
     .item-time { font-size: 0.75rem; color: var(--text-secondary); }
-    .img-card { border-bottom: 0.5px solid var(--border-color); }
+    .img-card { border-bottom: 0.5px solid var(--border-color); border-radius: 32px; }
     .img-card:last-child { border-bottom: none; }
     .img-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--border-color); -webkit-touch-callout: none; border-radius: 32px 32px 0 0; corner-shape: squircle; }
     .img-cover-fb { width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-size: 2.25rem; background: var(--btn-bg); color: var(--text-secondary); border-radius: 32px 32px 0 0; corner-shape: squircle; }
     .img-body { padding: 10px 16px 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .img-text { flex: 1; min-width: 0; }
-    .img-text .t { font-size: 0.9375rem; font-weight: 650; margin-bottom: 2px; }
+    .img-text .t { font-size: 0.9375rem; font-weight: 650;  }
     .img-text .m { font-size: 0.75rem; color: var(--text-secondary); }
     .expand-btn {
         display: inline-flex; align-items: center; gap: 4px;
@@ -4270,17 +4271,7 @@ window.getDB = getDB;
         imageRendering: "auto",
         WebkitBackfaceVisibility: "hidden"
       }
-    }) : /*#__PURE__*/React.createElement("span", {
-      style: {
-        fontSize: 44,
-        lineHeight: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "100%",
-        height: "100%"
-      }
-    }, "\uD83D\uDC7D")), /*#__PURE__*/React.createElement("div", {
+    }) : /*#__PURE__*/React.createElement("div", { style: { width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", overflow: "hidden" } }, /*#__PURE__*/React.createElement("svg", { viewBox: "0 0 512 512", width: 60, height: 60, fill: "none", stroke: "#8A9BB0", strokeWidth: 22, strokeLinecap: "round", strokeLinejoin: "round", style: { transform: "translateY(10px)" } }, /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315" }), /*#__PURE__*/React.createElement("path", { d: "M 160,330 C 180,380 230,440 280,460" }), /*#__PURE__*/React.createElement("path", { d: "M 240,365 C 220,400 240,440 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 415,135 C 425,140 435,150 435,160" }), /*#__PURE__*/React.createElement("path", { d: "M 230,115 C 260,95 310,120 355,140" }), /*#__PURE__*/React.createElement("path", { d: "M 255,140 C 255,170 290,195 320,185 C 345,175 350,150 335,135" }), /*#__PURE__*/React.createElement("path", { d: "M 290,145 C 290,165 315,165 315,150" }), /*#__PURE__*/React.createElement("path", { d: "M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228" }), /*#__PURE__*/React.createElement("path", { d: "M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348" })))), /*#__PURE__*/React.createElement("div", {
       style: {
         flexShrink: 1,
         pointerEvents: "auto",

@@ -80,7 +80,7 @@
             expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
         isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:4, flexShrink:0, paddingLeft:12 } },
           R.createElement('span', { style:{ fontSize:16, fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
-          R.createElement('span', { style:{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.2 } }, toCn(weather.city) + ' ' + (weather.condition || '')))));
+          R.createElement('span', { style:{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.2 } }, (weather.city || '') + (weather.condition ? ' ' + weather.condition : '')))));
   }
 
   w.SwipeRow = SwipeRow;
