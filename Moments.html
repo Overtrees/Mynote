@@ -60,7 +60,7 @@
 
 <script src="./src/components/SettingsView.js"></script>
 
-<script src="./src/components/SwipeRow.js?v=3"></script>
+<script src="./src/components/SwipeRow.js?v=4"></script>
 
 <script src="./src/components/ImageCard.js"></script>
 
@@ -5065,7 +5065,7 @@ var WeatherCache = {
       if (!raw) return null;
       var d = JSON.parse(raw);
       if (d.v !== 3) return null;
-      if (Date.now() - d.ts > 0) return null;
+      if (Date.now() - d.ts > 1800000) return null;
       return d;
     } catch(e) { return null; }
   },
@@ -5136,7 +5136,7 @@ async function fetchWeather() {
               }
             } catch(e3) {}
           }
-          if (!cityDisplay && ipD.city) cityDisplay = ipD.city;
+          if (!cityDisplay && ipD.city) cityDisplay = toCn(ipD.city);
         }
       } catch(e2) {}
     }
@@ -5151,7 +5151,7 @@ async function fetchWeather() {
           var area = fb.nearest_area && fb.nearest_area[0];
           if (cc && area) {
             var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
-            var r = { temp: parseInt(cc.temp_C), city: area.areaName[0].value, condition: cond };
+            var r = { temp: parseInt(cc.temp_C), city: toCn(area.areaName[0].value), condition: cond };
             WeatherCache.set(r); return r;
           }
         }
@@ -5171,7 +5171,7 @@ async function fetchWeather() {
         if (res.ok) {
           var j = await res.json();
           var cond = j.weather && j.weather[0] && j.weather[0].description || "";
-          var r = { temp: Math.round(j.main.temp), city: cityDisplay || j.name, condition: cond };
+          var r = { temp: Math.round(j.main.temp), city: cityDisplay || toCn(j.name), condition: cond };
           WeatherCache.set(r); return r;
         }
       } catch(e) {}
@@ -5188,7 +5188,7 @@ async function fetchWeather() {
         var area = j2.nearest_area && j2.nearest_area[0];
         if (cc && area) {
           var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
-          var r2 = { temp: parseInt(cc.temp_C), city: cityDisplay || area.areaName[0].value, condition: cond };
+          var r2 = { temp: parseInt(cc.temp_C), city: cityDisplay || toCn(area.areaName[0].value), condition: cond };
           WeatherCache.set(r2); return r2;
         }
       }
@@ -5216,6 +5216,16 @@ function toPy(s) {
   }
   return r.join("");
 }
+
+/* ---------- 城市名英转中 ---------- */
+var CN_CITY = {"Beijing":"北京","Shanghai":"上海","Guangzhou":"广州","Shenzhen":"深圳","Hangzhou":"杭州","Nanjing":"南京","Chengdu":"成都","Wuhan":"武汉","Tianjin":"天津","Chongqing":"重庆","Shenyang":"沈阳","Changchun":"长春","Harbin":"哈尔滨","Dalian":"大连","Qingdao":"青岛","Jinan":"济南","Zhengzhou":"郑州","Changsha":"长沙","Nanchang":"南昌","Hefei":"合肥","Fuzhou":"福州","Xiamen":"厦门","Kunming":"昆明","Guiyang":"贵阳","Lanzhou":"兰州","Xi'an":"西安","Xining":"西宁","Yinchuan":"银川","Nanning":"南宁","Haikou":"海口","Zhuhai":"珠海","Foshan":"佛山","Dongguan":"东莞","Suzhou":"苏州","Wuxi":"无锡","Ningbo":"宁波","Wenzhou":"温州","Changzhou":"常州","Zhongshan":"中山","Huizhou":"惠州","Shantou":"汕头","Zhanjiang":"湛江","Taizhou":"台州","Jiaxing":"嘉兴","Shaoxing":"绍兴","Yangzhou":"扬州","Zhenjiang":"镇江","Nantong":"南通","Xuzhou":"徐州","Luoyang":"洛阳","Guilin":"桂林","Lhasa":"拉萨","Urumqi":"乌鲁木齐","Hohhot":"呼和浩特","Macau":"澳门","Hong Kong":"香港","Taipei":"台北","Kaohsiung":"高雄","Taichung":"台中","Tainan":"台南"};
+function toCn(name) {
+  if (!name) return name;
+  var c = CN_CITY[name];
+  if (c) return c;
+  return name;
+}
+
 var __preopenNoteId = (function(){try{var m=window.location.search.match(/[?&]open=([^&]+)/);return m?decodeURIComponent(m[1]):null}catch(e){return null}})();
 function MemoList() {
   // ===== IndexedDB 主存储：先清，挂载后从 IDB 加载（localStorage 为只读备份） =====
