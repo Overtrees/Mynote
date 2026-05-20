@@ -64,15 +64,12 @@
           R.createElement('div', { className:'list-group' },
             R.createElement('div', { className:'list-item' },
               R.createElement('div', { className:'item-left' },
-                R.createElement('div', { className:'item-title' }, '\u7248\u672C')),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem' } }, '2.0.1')),
-            R.createElement('div', { className:'list-item' },
-              R.createElement('div', { className:'item-left' },
-                R.createElement('div', { className:'item-title' }, '\u8054\u7CFB\u6211\u4EEC')),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.85rem' } }, 'overcanopies@gmail.com'))),
-          R.createElement('div', { style:{ fontStyle:'italic', fontSize:12, color:'var(--text-secondary)', textAlign:'center', marginTop:12, marginBottom:4, opacity:0.8 } },
-            '\u6B64\u523B\uFF0C\u503C\u5F97\u88AB\u8BB0\u4F4F\u3002'))));
-  }
+              R.createElement("span", { style:{ color:"var(--text-secondary)", fontSize:"0.875rem", fontWeight:400 } }, "2.0.1")),'
+            R.createElement("div", { style:{ height:"0.5px", background:"var(--border-color)", marginLeft:16, marginRight:16 } }),'
+            R.createElement("div", { style:{ padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" } },'
+              R.createElement("div", { className:"item-title" }, "'联系我们"'),'
+              R.createElement("span", { style:{ color:"var(--text-secondary)", fontSize:"0.85rem" } }, "overcanopies@gmail.com"))),'
+
 
   w.SettingsView = SettingsView;
 })(window);
