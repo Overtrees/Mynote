@@ -5104,7 +5104,7 @@ async function fetchWeather() {
     /* 反向地理编码获取城市+区/县 */
     var cityDisplay = null;
     try {
-      var geoRes = await fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lng + "&format=json&zoom=14&accept-language=zh", { headers: { "User-Agent": "Mynote/1.0" }, signal: AbortSignal.timeout(4000) });
+      var geoRes = await fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lng + "&format=json&zoom=14", { headers: { "User-Agent": "Mynote/1.0", "Accept-Language": "zh" }, signal: AbortSignal.timeout(4000) });
       if (geoRes.ok) {
         var geo = await geoRes.json();
         if (geo && geo.address) {
