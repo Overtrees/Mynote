@@ -64,7 +64,7 @@
           R.createElement('div', { className:'list-group' },
             R.createElement('div', { className:'list-item' },
               R.createElement('div', { className:'item-left' },
-              R.createElement("span", { style:{ color:"var(--text-secondary)", fontSize:"0.875rem", fontWeight:400 } }, "2.0.1")),'
+              R.createElement("span", { style:{ color:"var(--text-secondary)", fontSize:"0.875rem", fontWeight:400 } }, "2.0.2")),'
             R.createElement("div", { style:{ height:"0.5px", background:"var(--border-color)", marginLeft:16, marginRight:16 } }),'
             R.createElement("div", { style:{ padding:"14px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" } },'
               R.createElement("div", { className:"item-title" }, "'联系我们"'),'
