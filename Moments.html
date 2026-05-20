@@ -5057,20 +5057,20 @@ window.getDB = getDB;
 
 /* ---------- 天气 ---------- */
 var WeatherCache = {
-  VERSION: 3,
+  VERSION: 4,
   KEY: 'weather_cache',
   get: function() {
     try {
       var raw = localStorage.getItem(this.KEY);
       if (!raw) return null;
       var d = JSON.parse(raw);
-      if (d.v !== 3) return null;
+      if (d.v !== 4) return null;
       if (Date.now() - d.ts > 1800000) return null;
       return d;
     } catch(e) { return null; }
   },
   set: function(data) {
-    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, ts: Date.now(), v: 3 })); } catch(e) {}
+    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, ts: Date.now(), v: 4 })); } catch(e) {}
   }
 };
 async function refreshGoogleAvatar() {
@@ -5091,108 +5091,87 @@ async function refreshGoogleAvatar() {
 async function fetchWeather() {
   var cached = WeatherCache.get();
   if (cached) return cached;
+  var lat, lng, cityDisplay = "";
+  /* GPS 定位 */
   try {
     var pos = await Promise.race([
       new Promise(function(resolve, reject) {
         navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
       }),
-      new Promise(function(_, reject) { setTimeout(function(){ reject(new Error('timeout')); }, 5000); })
+      new Promise(function(_, reject) { setTimeout(function(){ reject(new Error("timeout")); }, 5000); })
     ]);
-    var lat = pos.coords.latitude, lng = pos.coords.longitude;
-    localStorage.setItem('weather_lat', lat);
-    localStorage.setItem('weather_lng', lng);
-    /* 反向地理编码获取城市+区/县 */
-    var cityDisplay = null;
+    lat = pos.coords.latitude; lng = pos.coords.longitude;
+    localStorage.setItem("weather_lat", lat);
+    localStorage.setItem("weather_lng", lng);
+  } catch(e) {}
+  /* ip-api 兜底（GPS失败时） */
+  if (lat == null) {
     try {
-      var geoRes = await fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lng + "&format=json&zoom=14", { headers: { "User-Agent": "Mynote/1.0", "Accept-Language": "zh" }, signal: AbortSignal.timeout(4000) });
-      if (geoRes.ok) {
-        var geo = await geoRes.json();
-        if (geo && geo.address) {
-          var c = geo.address.city || geo.address.town || geo.address.county || "";
-          var d = geo.address.suburb || geo.address.city_district || geo.address.county || "";
-          if (d && d !== c) cityDisplay = d;
-          else if (c) cityDisplay = c;
-        }
+      var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city", { signal: AbortSignal.timeout(4000) });
+      if (ipRes.ok) {
+        var ipD = await ipRes.json();
+        if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; cityDisplay = toCn(ipD.city); }
       }
-    
-    } catch(e) {
-      try {
-        var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
-        if (ipRes.ok) {
-          var ipD = await ipRes.json();
-          if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
-          /* ip-api 拿到坐标后，尝试 Nominatim 获取中文名 */
-          if (lat != null) {
-            try {
-              var gnRes = await fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lng + "&format=json&zoom=14", { headers: { "User-Agent": "Mynote/1.0", "Accept-Language": "zh" }, signal: AbortSignal.timeout(4000) });
-              if (gnRes.ok) {
-                var gn = await gnRes.json();
-                if (gn && gn.address) {
-                  var c = gn.address.city || gn.address.town || gn.address.county || "";
-                  var d = gn.address.suburb || gn.address.city_district || gn.address.county || "";
-                  if (d && d !== c) cityDisplay = d;
-                  else if (c) cityDisplay = c;
-                }
-              }
-            } catch(e3) {}
-          }
-          if (!cityDisplay && ipD.city) cityDisplay = toCn(ipD.city);
-        }
-      } catch(e2) {}
-    }
-
-    /* \u6700\u540e\u515c\u5e95\uff1alat\u4e3a\u7a7a\u65f6\u7528 wttr.in \u81ea\u52a8 IP */
-    if (lat == null) {
-      try {
-        var fbRes = await fetch("https://wttr.in/?lang=zh&format=j1", { signal: AbortSignal.timeout(6000) });
-        if (fbRes.ok) {
-          var fb = await fbRes.json();
-          var cc = fb.current_condition && fb.current_condition[0];
-          var area = fb.nearest_area && fb.nearest_area[0];
-          if (cc && area) {
-            var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
-            var r = { temp: parseInt(cc.temp_C), city: toCn(area.areaName[0].value), condition: cond };
-            WeatherCache.set(r); return r;
-          }
-        }
-      } catch(e3) {}
-      return null;
-    }
-
-
-    /* 主 API：OpenWeatherMap */
-    var owmKey = window.CikeConstants && window.CikeConstants.OPENWEATHER_API_KEY;
-    if (owmKey && owmKey !== 'YOUR_API_KEY') {
-      try {
-        var ctrl = new AbortController();
-        var t1 = setTimeout(function(){ ctrl.abort(); }, 3000);
-        var res = await fetch('https://api.openweathermap.org/data/2.5/weather?lat=' + lat + '&lon=' + lng + '&appid=' + owmKey + '&units=metric', { signal: ctrl.signal });
-        clearTimeout(t1);
-        if (res.ok) {
-          var j = await res.json();
-          var cond = j.weather && j.weather[0] && j.weather[0].description || "";
-          var r = { temp: Math.round(j.main.temp), city: cityDisplay || toCn(j.name), condition: cond };
-          WeatherCache.set(r); return r;
-        }
-      } catch(e) {}
-    }
-    /* 兜底：wttr.in */
+    } catch(e2) {}
+  }
+  /* GPS 和 ip-api 都失败 → wttr.in 自动 IP */
+  if (lat == null) {
     try {
-      var ctrl2 = new AbortController();
-      var t2 = setTimeout(function(){ ctrl2.abort(); }, 5000);
-      var res2 = await fetch('https://wttr.in/' + lat + ',' + lng + '?lang=zh&format=j1', { signal: ctrl2.signal });
-      clearTimeout(t2);
-      if (res2.ok) {
-        var j2 = await res2.json();
-        var cc = j2.current_condition && j2.current_condition[0];
-        var area = j2.nearest_area && j2.nearest_area[0];
+      var fbRes = await fetch("https://wttr.in/?lang=zh&format=j1", { signal: AbortSignal.timeout(6000) });
+      if (fbRes.ok) {
+        var fb = await fbRes.json();
+        var cc = fb.current_condition && fb.current_condition[0];
+        var area = fb.nearest_area && fb.nearest_area[0];
         if (cc && area) {
           var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
-          var r2 = { temp: parseInt(cc.temp_C), city: cityDisplay || toCn(area.areaName[0].value), condition: cond };
-          WeatherCache.set(r2); return r2;
+          var r = { temp: parseInt(cc.temp_C), city: toCn(area.areaName[0].value), condition: cond };
+          WeatherCache.set(r); return r;
         }
       }
-    } catch(e) {}
+    } catch(e3) {}
+    return null;
+  }
+  /* 主 API：和风天气 */
+  var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
+  if (qwKey && qwKey !== "YOUR_API_KEY") {
+    try {
+      var qwRes = await fetch("https://devapi.qweather.com/v7/weather/now?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+      if (qwRes.ok) {
+        var qwJ = await qwRes.json();
+        if (qwJ && qwJ.code === "200" && qwJ.now) {
+          var qwCond = qwJ.now.text || "";
+          var qwTemp = parseInt(qwJ.now.temp);
+          /* 获取中文城市名 */
+          if (!cityDisplay) {
+            try {
+              var geoRes = await fetch("https://geoapi.qweather.com/v2/city/lookup?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+              if (geoRes.ok) {
+                var geoJ = await geoRes.json();
+                if (geoJ && geoJ.code === "200" && geoJ.location && geoJ.location[0]) {
+                  cityDisplay = geoJ.location[0].adm2 ? geoJ.location[0].adm2 + geoJ.location[0].name : geoJ.location[0].name;
+                }
+              }
+            } catch(ge) {}
+          }
+          var r = { temp: qwTemp, city: cityDisplay || "", condition: qwCond };
+          if (r.city) { WeatherCache.set(r); return r; }
+        }
+      }
+    } catch(qe) {}
+  }
+  /* 兜底：wttr.in */
+  try {
+    var res2 = await fetch("https://wttr.in/" + lat + "," + lng + "?lang=zh&format=j1", { signal: AbortSignal.timeout(5000) });
+    if (res2.ok) {
+      var j2 = await res2.json();
+      var cc2 = j2.current_condition && j2.current_condition[0];
+      var area2 = j2.nearest_area && j2.nearest_area[0];
+      if (cc2 && area2) {
+        var cond2 = cc2.weatherDesc && cc2.weatherDesc[0] && cc2.weatherDesc[0].value || "";
+        var r2 = { temp: parseInt(cc2.temp_C), city: cityDisplay || toCn(area2.areaName[0].value), condition: cond2 };
+        WeatherCache.set(r2); return r2;
+      }
+    }
   } catch(e) {}
   return null;
 }
@@ -5628,22 +5607,21 @@ function MemoList() {
       width: 72,
       height: 72,
       borderRadius: "50%",
-      background: "var(--glass-bg)",
-      backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
-      WebkitBackdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
+      background: "var(--card-bg)",
       border: "0.5px solid var(--glass-border)",
       display: "flex",
-      alignItems: "center",
+      alignItems: "flex-end",
       justifyContent: "center",
       overflow: "hidden"
     }
   }, /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 512 512",
+    style: { transform: "translateY(10px)" },
     width: 64,
     height: 64,
     fill: "none",
     stroke: "#8A9BB0",
-    strokeWidth: 18,
+    strokeWidth: 22,
     strokeLinecap: "round",
     strokeLinejoin: "round"
   }, /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315" }),
