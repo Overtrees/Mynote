@@ -5121,7 +5121,22 @@ async function fetchWeather() {
         if (ipRes.ok) {
           var ipD = await ipRes.json();
           if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
-          if (lat != null && ipD.city) cityDisplay = ipD.city;
+          /* ip-api 拿到坐标后，尝试 Nominatim 获取中文名 */
+          if (lat != null) {
+            try {
+              var gnRes = await fetch("https://nominatim.openstreetmap.org/reverse?lat=" + lat + "&lon=" + lng + "&format=json&zoom=14", { headers: { "User-Agent": "Mynote/1.0", "Accept-Language": "zh" }, signal: AbortSignal.timeout(4000) });
+              if (gnRes.ok) {
+                var gn = await gnRes.json();
+                if (gn && gn.address) {
+                  var c = gn.address.city || gn.address.town || gn.address.county || "";
+                  var d = gn.address.suburb || gn.address.city_district || gn.address.county || "";
+                  if (d && d !== c) cityDisplay = d;
+                  else if (c) cityDisplay = c;
+                }
+              }
+            } catch(e3) {}
+          }
+          if (!cityDisplay && ipD.city) cityDisplay = ipD.city;
         }
       } catch(e2) {}
     }
