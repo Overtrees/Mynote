@@ -78,9 +78,9 @@
               (isNewCard ? '\u73B0\u5728' : (typeof w.timeAgo === 'function' ? w.timeAgo(memo.updatedAt) : memo.updatedAt)),
               '\u00A0\u00A0', isNewCard ? '\u70B9\u51FB\u8BB0\u5F55\u4F60\u7684\u77AC\u95F4' : preview),
             expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
-        isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:1, flexShrink:0, paddingLeft:12 } },
+        isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:4, flexShrink:0, paddingLeft:12 } },
           R.createElement('span', { style:{ fontSize:16, fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
-          R.createElement('span', { style:{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.2 } }, weather.city))));
+          R.createElement('span', { style:{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.2 } }, weather.city + ' ' + (weather.condition || '')))));
   }
 
   w.SwipeRow = SwipeRow;

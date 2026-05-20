@@ -60,7 +60,7 @@
 
 <script src="./src/components/SettingsView.js"></script>
 
-<script src="./src/components/SwipeRow.js"></script>
+<script src="./src/components/SwipeRow.js?v=3"></script>
 
 <script src="./src/components/ImageCard.js"></script>
 
@@ -5057,20 +5057,20 @@ window.getDB = getDB;
 
 /* ---------- 天气 ---------- */
 var WeatherCache = {
-  VERSION: 2,
+  VERSION: 3,
   KEY: 'weather_cache',
   get: function() {
     try {
       var raw = localStorage.getItem(this.KEY);
       if (!raw) return null;
       var d = JSON.parse(raw);
-      if (d.v !== 2) return null;
+      if (d.v !== 3) return null;
       if (Date.now() - d.ts > 1800000) return null;
       return d;
     } catch(e) { return null; }
   },
   set: function(data) {
-    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, ts: Date.now(), v: 2 })); } catch(e) {}
+    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, ts: Date.now(), v: 3 })); } catch(e) {}
   }
 };
 async function refreshGoogleAvatar() {
@@ -5110,7 +5110,7 @@ async function fetchWeather() {
         if (geo && geo.address) {
           var c = geo.address.city || geo.address.town || geo.address.county || "";
           var d = geo.address.suburb || geo.address.city_district || geo.address.county || "";
-          if (c && d && d !== c) cityDisplay = c + "\u2022" + d;
+          if (d && d !== c) cityDisplay = d;
           else if (c) cityDisplay = c;
         }
       }
@@ -5121,8 +5121,7 @@ async function fetchWeather() {
         if (ipRes.ok) {
           var ipD = await ipRes.json();
           if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
-          if (lat != null && ipD.city && ipD.regionName) cityDisplay = ipD.city + "\u2022" + ipD.regionName;
-          else if (lat != null && ipD.city) cityDisplay = ipD.city;
+          if (lat != null && ipD.city) cityDisplay = ipD.city;
         }
       } catch(e2) {}
     }
@@ -5136,7 +5135,8 @@ async function fetchWeather() {
           var cc = fb.current_condition && fb.current_condition[0];
           var area = fb.nearest_area && fb.nearest_area[0];
           if (cc && area) {
-            var r = { temp: parseInt(cc.temp_C), city: area.areaName[0].value };
+            var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
+            var r = { temp: parseInt(cc.temp_C), city: area.areaName[0].value, condition: cond };
             WeatherCache.set(r); return r;
           }
         }
@@ -5155,7 +5155,8 @@ async function fetchWeather() {
         clearTimeout(t1);
         if (res.ok) {
           var j = await res.json();
-          var r = { temp: Math.round(j.main.temp), city: cityDisplay || j.name };
+          var cond = j.weather && j.weather[0] && j.weather[0].description || "";
+          var r = { temp: Math.round(j.main.temp), city: cityDisplay || j.name, condition: cond };
           WeatherCache.set(r); return r;
         }
       } catch(e) {}
@@ -5171,7 +5172,8 @@ async function fetchWeather() {
         var cc = j2.current_condition && j2.current_condition[0];
         var area = j2.nearest_area && j2.nearest_area[0];
         if (cc && area) {
-          var r2 = { temp: parseInt(cc.temp_C), city: cityDisplay || area.areaName[0].value };
+          var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
+          var r2 = { temp: parseInt(cc.temp_C), city: cityDisplay || area.areaName[0].value, condition: cond };
           WeatherCache.set(r2); return r2;
         }
       }
@@ -5590,16 +5592,16 @@ function MemoList() {
     src: localStorage.getItem('google_avatar'),
     alt: "",
     style: {
-      width: 66,
-      height: 66,
+      width: 72,
+      height: 72,
       borderRadius: "50%",
       display: "block",
       objectFit: "cover"
     }
   }) : /*#__PURE__*/React.createElement("div", {
     style: {
-      width: 66,
-      height: 66,
+      width: 72,
+      height: 72,
       borderRadius: "50%",
       background: "var(--glass-bg)",
       backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
@@ -5612,8 +5614,8 @@ function MemoList() {
     }
   }, /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 512 512",
-    width: 44,
-    height: 44,
+    width: 64,
+    height: 64,
     fill: "none",
     stroke: "#8A9BB0",
     strokeWidth: 18,
@@ -5632,7 +5634,7 @@ function MemoList() {
     style: {
       position: "absolute",
       right: 20,
-      top: 11,
+      top: 7,
       height: 66,
       display: "flex",
       alignItems: "center",
@@ -5678,7 +5680,7 @@ function MemoList() {
     style: {
       position: "absolute",
       right: 20,
-      top: 11,
+      top: 7,
       height: 66,
       display: "flex",
       alignItems: "center",
