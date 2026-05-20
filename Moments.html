@@ -5065,7 +5065,7 @@ var WeatherCache = {
       if (!raw) return null;
       var d = JSON.parse(raw);
       if (d.v !== 3) return null;
-      if (Date.now() - d.ts > 1800000) return null;
+      if (Date.now() - d.ts > 0) return null;
       return d;
     } catch(e) { return null; }
   },
