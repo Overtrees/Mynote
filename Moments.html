@@ -5146,6 +5146,23 @@ async function fetchWeather() {
       WeatherCache.set(r); return r;
     }
   } catch(qe) {}
+  /* 兜底：彩云天气 */
+  var cyKey = "ra9S9mrT9pwaF94A";
+  try {
+    var cyRes = await fetch("https://api.caiyunapp.com/v2.6/" + cyKey + "/" + lng + "," + lat + "/weather.jsonp?callback=MYCALLBACK", { signal: AbortSignal.timeout(4000) });
+    if (cyRes.ok) {
+      var cyRaw = await cyRes.text();
+      var cyJ = JSON.parse(cyRaw.replace(/^MYCALLBACK(/, "").replace(/)$/, ""));
+      if (cyJ && cyJ.status === "ok" && cyJ.result && cyJ.result.realtime) {
+        var cyRt = cyJ.result.realtime;
+        var cyTemp = Math.round(cyRt.temperature);
+        var condMap = {"CLEAR_DAY":"晴","CLEAR_NIGHT":"晴","PARTLY_CLOUDY_DAY":"多云","PARTLY_CLOUDY_NIGHT":"多云","CLOUDY":"阴","LIGHT_RAIN":"小雨","MODERATE_RAIN":"中雨","HEAVY_RAIN":"大雨","STORM_RAIN":"暴雨","THUNDER_SHOWER":"雷阵雨","SLEET":"雨夹雪","LIGHT_SNOW":"小雪","MODERATE_SNOW":"中雪","HEAVY_SNOW":"大雪","STORM_SNOW":"暴雪","HAIL":"冰雹","LIGHT_HAZE":"薄雾","MODERATE_HAZE":"中度雾","HEAVY_HAZE":"浓雾","FOG":"雾","DUST":"沙尘","WIND":"大风"};
+        var cyCond = condMap[cyRt.skycon] || cyRt.skycon;
+        var cyR = { temp: cyTemp, city: ipD && ipD.city ? ipD.city + (ipD.regionName ? " " + ipD.regionName : "") : "", condition: cyCond, lat: lat, lng: lng };
+        WeatherCache.set(cyR); return cyR;
+      }
+    }
+  } catch(ce) {}
   return null;
 }
 /* ---------- 纯色背景选择浮层 ---------- */
