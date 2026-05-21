@@ -5133,7 +5133,7 @@ async function fetchWeather() {
       var r = { temp: qwTemp, city: "", condition: qwCond, lat: lat, lng: lng };
       /* 尝试获取城市名 */
       try {
-        var geoRes = await fetch("https://jq3dna235e.re.qweatherapi.com/v2/city/lookup?location=" + lat + "," + lng + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+        var geoRes = await fetch("https://jq3dna235e.re.qweatherapi.com/geo/v2/city/lookup?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
         if (geoRes.ok) {
           var geoJ = await geoRes.json();
           if (geoJ && geoJ.code === "200" && geoJ.location && geoJ.location[0]) {
