@@ -2464,7 +2464,7 @@ window.getDB = getDB;
     setClosing(true);
     setTimeout(() => {
       onClose();
-    }, 280);
+    }, 350);
   };
   const handleAvatarSelected = async e => {
     const file = e.target.files && e.target.files[0];
@@ -5541,7 +5541,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: isEditorOpen ? "fixed" : "static", left: isEditorOpen ? "-200%" : "auto", visibility: isEditorOpen ? "hidden" : "visible", pointerEvents: isEditorOpen ? "none" : "auto", width: isEditorOpen ? "0" : "auto", height: isEditorOpen ? "0" : "auto", overflow: "hidden" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
@@ -5758,7 +5758,7 @@ function MemoList() {
     onDelete: deleteMemo,
     expandText: mi === group.textMemos.length - 1 && group.textMemos.length > 2 ? '▲ 收起' : undefined,
     onExpand: () => toggleBlock(`${gi}-txt`)
-  })))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
+  }))))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
     memo: editingMemo,
     onClose: closeEditor,
     onSave: saveMemo,
