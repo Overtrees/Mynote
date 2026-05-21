@@ -5092,88 +5092,42 @@ async function refreshGoogleAvatar() {
 async function fetchWeather() {
   var cached = WeatherCache.get();
   if (cached) return cached;
-  var lat, lng, cityDisplay = "";
-  /* GPS 定位 */
+  var lat, lng;
+  /* ip-api 获取坐标和城市名 */
   try {
-    var pos = await Promise.race([
-      new Promise(function(resolve, reject) {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
-      }),
-      new Promise(function(_, reject) { setTimeout(function(){ reject(new Error("timeout")); }, 5000); })
-    ]);
-    lat = pos.coords.latitude; lng = pos.coords.longitude;
-    localStorage.setItem("weather_lat", lat);
-    localStorage.setItem("weather_lng", lng);
-  } catch(e) {}
-  /* ip-api 兜底（GPS失败时） */
-  if (lat == null) {
-    try {
-      var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city", { signal: AbortSignal.timeout(4000) });
-      if (ipRes.ok) {
-        var ipD = await ipRes.json();
-        if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; cityDisplay = toCn(ipD.city); }
-      }
-    } catch(e2) {}
-  }
-  /* GPS 和 ip-api 都失败 → wttr.in 自动 IP */
-  if (lat == null) {
-    try {
-      var fbRes = await fetch("https://wttr.in/?lang=zh&format=j1", { signal: AbortSignal.timeout(6000) });
-      if (fbRes.ok) {
-        var fb = await fbRes.json();
-        var cc = fb.current_condition && fb.current_condition[0];
-        var area = fb.nearest_area && fb.nearest_area[0];
-        if (cc && area) {
-          var cond = cc.weatherDesc && cc.weatherDesc[0] && cc.weatherDesc[0].value || "";
-          var r = { temp: parseInt(cc.temp_C), city: toCn(area.areaName[0].value), condition: cond };
-          WeatherCache.set(r); return r;
-        }
-      }
-    } catch(e3) {}
-    return null;
-  }
-  /* 主 API：和风天气 */
-  var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
-  if (qwKey && qwKey !== "YOUR_API_KEY") {
-    try {
-      var qwRes = await fetch("https://jq3dna235e.re.qweatherapi.com/v7/weather/now?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
-      if (qwRes.ok) {
-        var qwJ = await qwRes.json();
-        if (qwJ && qwJ.code === "200" && qwJ.now) {
-          var qwCond = qwJ.now.text || "";
-          var qwTemp = parseInt(qwJ.now.temp);
-          /* 获取中文城市名 */
-          if (!cityDisplay) {
-            try {
-              var geoRes = await fetch("https://geoapi.qweather.com/v2/city/lookup?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
-              if (geoRes.ok) {
-                var geoJ = await geoRes.json();
-                if (geoJ && geoJ.code === "200" && geoJ.location && geoJ.location[0]) {
-                  cityDisplay = geoJ.location[0].adm2 ? geoJ.location[0].adm2 + geoJ.location[0].name : geoJ.location[0].name;
-                }
-              }
-            } catch(ge) {}
-          }
-          var r = { temp: qwTemp, city: cityDisplay || "", condition: qwCond, lat: lat, lng: lng };
-          WeatherCache.set(r); return r;
-        }
-      }
-    } catch(qe) {}
-  }
-  /* 兜底：wttr.in */
-  try {
-    var res2 = await fetch("https://wttr.in/" + lat + "," + lng + "?lang=zh&format=j1", { signal: AbortSignal.timeout(5000) });
-    if (res2.ok) {
-      var j2 = await res2.json();
-      var cc2 = j2.current_condition && j2.current_condition[0];
-      var area2 = j2.nearest_area && j2.nearest_area[0];
-      if (cc2 && area2) {
-        var cond2 = cc2.weatherDesc && cc2.weatherDesc[0] && cc2.weatherDesc[0].value || "";
-        var r2 = { temp: parseInt(cc2.temp_C), city: cityDisplay || toCn(area2.areaName[0].value), condition: cond2, lat: lat, lng: lng };
-        WeatherCache.set(r2); return r2;
-      }
+    var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
+    if (ipRes.ok) {
+      var ipD = await ipRes.json();
+      if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
     }
   } catch(e) {}
+  if (lat == null) return null;
+  /* 和风天气 */
+  var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
+  if (!qwKey || qwKey === "YOUR_API_KEY") return null;
+  try {
+    var qwRes = await fetch("https://jq3dna235e.re.qweatherapi.com/v7/weather/now?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+    if (!qwRes.ok) return null;
+    var qwJ = await qwRes.json();
+    if (qwJ && qwJ.code === "200" && qwJ.now) {
+      var qwCond = qwJ.now.text || "";
+      var qwTemp = parseInt(qwJ.now.temp);
+      var r = { temp: qwTemp, city: "", condition: qwCond, lat: lat, lng: lng };
+      /* 尝试获取城市名 */
+      try {
+        var geoRes = await fetch("https://geoapi.qweather.com/v2/city/lookup?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+        if (geoRes.ok) {
+          var geoJ = await geoRes.json();
+          if (geoJ && geoJ.code === "200" && geoJ.location && geoJ.location[0]) {
+            var loc = geoJ.location[0];
+            r.city = loc.adm2 ? loc.adm2 + loc.name : loc.name;
+          }
+        }
+      } catch(ge) {}
+      if (!r.city && ipD && ipD.city) r.city = ipD.city + (ipD.regionName ? " " + ipD.regionName : "");
+      WeatherCache.set(r); return r;
+    }
+  } catch(qe) {}
   return null;
 }
 /* ---------- 纯色背景选择浮层 ---------- */
