@@ -565,28 +565,16 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "rgba(0,122,255,0.12)",
-      backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
-      WebkitBackdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
-      flexShrink: 0
-    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "20",
-    height: "20",
+    width: "28",
+    height: "28",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
     strokeWidth: 2,
     strokeLinecap: "round",
-    strokeLinejoin: "round"
+    strokeLinejoin: "round",
+    style: { filter: "drop-shadow(0 0 6px rgba(0,122,255,0.35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -596,7 +584,7 @@ const BackupView = ({
     y1: "3",
     x2: "12",
     y2: "15"
-  }))) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  })) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u51FA\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
@@ -615,28 +603,16 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "rgba(0,122,255,0.12)",
-      backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
-      WebkitBackdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
-      flexShrink: 0
-    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "20",
-    height: "20",
+    width: "28",
+    height: "28",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
     strokeWidth: 2,
     strokeLinecap: "round",
-    strokeLinejoin: "round"
+    strokeLinejoin: "round",
+    style: { filter: "drop-shadow(0 0 6px rgba(0,122,255,0.35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -646,7 +622,7 @@ const BackupView = ({
     y1: "3",
     x2: "12",
     y2: "15"
-  }))) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  })) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u5165\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
