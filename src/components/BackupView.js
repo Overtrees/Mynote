@@ -494,8 +494,8 @@ const BackupView = ({
   }, /*#__PURE__*/React.createElement("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     viewBox: "0 0 24 24",
-    width: "22",
-    height: "22",
+    width: "24",
+    height: "24",
     fill: "none",
     stroke: "currentColor",
     strokeWidth: 2.5,
@@ -565,30 +565,25 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 28,
-      alignSelf: 'stretch',
-      borderRadius: 8,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(0,122,255,0.10)',
-      flex: '0 0 28px'
-    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 20 20",
+    width: "28",
+    height: "28",
+    viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
-    "stroke-width": "2",
-    "stroke-linecap": "round"
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
   }, /*#__PURE__*/React.createElement("path", {
-    d: "M12 3v13M9 10l3-3 3 3"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M5 16v3a2 2 0 002 2h10a2 2 0 002-2v-3"
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: "17 8 12 3 7 8"
+  }), /*#__PURE__*/React.createElement("line", {
+    x1: "12",
+    y1: "3",
+    x2: "12",
+    y2: "15"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u51FA\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
@@ -607,38 +602,25 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      width: 28,
-      alignSelf: 'stretch',
-      borderRadius: 8,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(0,122,255,0.10)',
-      flex: '0 0 28px'
-    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 20 20",
+    width: "28",
+    height: "28",
+    viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
-    "stroke-width": "2",
-    "stroke-linecap": "round"
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
   }, /*#__PURE__*/React.createElement("path", {
-    d: "M4 4h12v12H4z"
-  }), /*#__PURE__*/React.createElement("line", {
-    x1: "8",
-    y1: "12",
-    x2: "16",
-    y2: "12"
+    d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+  }), /*#__PURE__*/React.createElement("polyline", {
+    points: "17 10 12 15 7 10"
   }), /*#__PURE__*/React.createElement("line", {
     x1: "12",
-    y1: "8",
+    y1: "3",
     x2: "12",
-    y2: "16"
-  }))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    y2: "15"
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u5165\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
