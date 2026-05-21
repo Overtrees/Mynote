@@ -5104,7 +5104,8 @@ async function fetchWeather() {
     lat = pos.coords.latitude; lng = pos.coords.longitude;
   } catch(e) {}
   /* ip-api 兜底（GPS失败时） */
-  if (lat == null) {
+  /* 获取城市名（无论 GPS 还是 ip-api 都尝试） */
+  if (!lat) {
     try {
       var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
       if (ipRes.ok) {
@@ -5112,6 +5113,11 @@ async function fetchWeather() {
         if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
       }
     } catch(e2) {}
+  } else {
+    try {
+      var ipRes = await fetch("https://ip-api.com/json/?fields=city,regionName", { signal: AbortSignal.timeout(2000) });
+      if (ipRes.ok) ipD = await ipRes.json();
+    } catch(e3) {}
   }
   if (lat == null) return null;
   /* 和风天气 */
@@ -5127,7 +5133,7 @@ async function fetchWeather() {
       var r = { temp: qwTemp, city: "", condition: qwCond, lat: lat, lng: lng };
       /* 尝试获取城市名 */
       try {
-        var geoRes = await fetch("https://geoapi.qweather.com/v2/city/lookup?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
+        var geoRes = await fetch("https://jq3dna235e.re.qweatherapi.com/v2/city/lookup?location=" + lat + "," + lng + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
         if (geoRes.ok) {
           var geoJ = await geoRes.json();
           if (geoJ && geoJ.code === "200" && geoJ.location && geoJ.location[0]) {
