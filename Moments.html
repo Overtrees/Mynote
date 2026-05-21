@@ -5058,7 +5058,7 @@ window.getDB = getDB;
 
 /* ---------- 天气 ---------- */
 var WeatherCache = {
-  VERSION: 5,
+  VERSION: 6,
   KEY: 'weather_cache',
   get: function() {
     try {
@@ -5071,7 +5071,7 @@ var WeatherCache = {
     } catch(e) { return null; }
   },
   set: function(data) {
-    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, condition: data.condition || "", ts: Date.now(), v: 5 })); } catch(e) {}
+    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, condition: data.condition || "", lat: data.lat, lng: data.lng, ts: Date.now(), v: 5 })); } catch(e) {}
   }
 };
 async function refreshGoogleAvatar() {
@@ -5154,8 +5154,8 @@ async function fetchWeather() {
               }
             } catch(ge) {}
           }
-          var r = { temp: qwTemp, city: cityDisplay || "", condition: qwCond };
-          if (r.city) { WeatherCache.set(r); return r; }
+          var r = { temp: qwTemp, city: cityDisplay || "", condition: qwCond, lat: lat, lng: lng };
+          WeatherCache.set(r); return r;
         }
       }
     } catch(qe) {}
@@ -5169,7 +5169,7 @@ async function fetchWeather() {
       var area2 = j2.nearest_area && j2.nearest_area[0];
       if (cc2 && area2) {
         var cond2 = cc2.weatherDesc && cc2.weatherDesc[0] && cc2.weatherDesc[0].value || "";
-        var r2 = { temp: parseInt(cc2.temp_C), city: cityDisplay || toCn(area2.areaName[0].value), condition: cond2 };
+        var r2 = { temp: parseInt(cc2.temp_C), city: cityDisplay || toCn(area2.areaName[0].value), condition: cond2, lat: lat, lng: lng };
         WeatherCache.set(r2); return r2;
       }
     }
