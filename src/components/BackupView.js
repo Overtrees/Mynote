@@ -765,8 +765,6 @@ const BackupView = ({
         textTransform: 'uppercase',
         letterSpacing: '0.3px',
         background: 'var(--glass-bg)',
-        backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-        WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
         border: '0.5px solid var(--glass-border)',
         color: 'var(--text-secondary)'
       }
@@ -810,8 +808,6 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
       border: '0.5px solid var(--glass-border)',
       borderRadius: 28,
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
@@ -884,8 +880,6 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
       border: '0.5px solid var(--glass-border)',
       borderRadius: 28,
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
@@ -955,8 +949,6 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
       border: '0.5px solid var(--glass-border)',
       borderRadius: 28,
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
@@ -982,8 +974,6 @@ const BackupView = ({
       padding: 14,
       marginBottom: 10,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -1046,8 +1036,6 @@ const BackupView = ({
         bottom: 'calc(env(safe-area-inset-bottom) + 16px)',
         zIndex: 5000,
         background: 'var(--glass-bg)',
-        backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-        WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
         border: '0.5px solid var(--glass-border)',
         borderRadius: 28,
         padding: '14px 16px',
