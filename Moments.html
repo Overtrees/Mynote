@@ -5188,6 +5188,7 @@ function MemoList() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeAvatar, setHomeAvatar] = useState(localStorage.getItem("google_avatar") || null);
+  const [view, setView] = useState('list'); // 'list' | 'settings' | 'backup'
   useEffect(function() {
     setHomeAvatar(localStorage.getItem("google_avatar") || null);
     refreshGoogleAvatar().then(function(){
@@ -5327,7 +5328,6 @@ function MemoList() {
   const [newEditorAutoFocusId, setNewEditorAutoFocusId] = useState(null);
   const editingMemo = editingMemoId ? memos.find(m => m.id === editingMemoId) || null : null;
   const scrollRestoreRef = useRef(0);
-  const [view, setView] = useState('list'); // 'list' | 'settings' | 'backup'
 
   const [scrollY, setScrollY] = useState(0);
   const TITLE_THRESHOLD = 30;
