@@ -84,7 +84,7 @@ const BackupView = ({
       var type = msg.startsWith('✅') ? 'success' : msg.startsWith('❌') ? 'error' : 'info';
       setStatusMsg(msg);
       setStatusType(type);
-      if (type !== 'info') {
+      if (type !== 'progress') {
         clearTimeout(window._statusTimer);
         window._statusTimer = setTimeout(function () {
           setStatusMsg('');
