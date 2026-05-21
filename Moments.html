@@ -5189,11 +5189,12 @@ function MemoList() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeAvatar, setHomeAvatar] = useState(localStorage.getItem("google_avatar") || null);
   useEffect(function() {
+    setHomeAvatar(localStorage.getItem("google_avatar") || null);
     refreshGoogleAvatar().then(function(){
       setHomeAvatar(localStorage.getItem("google_avatar") || null);
     });
     fetchWeather().then(function(r){ if (r && r !== weather) setWeather(r); });
-  }, []);
+  }, [view]);
   var idbInited = useRef(false);
   function tryOpenNote(list) {
     if (typeof __preopenNoteId !== 'undefined' && __preopenNoteId) {
