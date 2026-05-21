@@ -568,7 +568,7 @@ const BackupView = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       width: 28,
-      height: 28,
+      alignSelf: 'stretch',
       borderRadius: 8,
       display: 'flex',
       alignItems: 'center',
@@ -610,7 +610,7 @@ const BackupView = ({
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       width: 28,
-      height: 28,
+      alignSelf: 'stretch',
       borderRadius: 8,
       display: 'flex',
       alignItems: 'center',
