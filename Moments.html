@@ -5215,8 +5215,11 @@ function MemoList() {
   }());
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [homeAvatar, setHomeAvatar] = useState(localStorage.getItem("google_avatar") || null);
   useEffect(function() {
-    refreshGoogleAvatar();
+    refreshGoogleAvatar().then(function(){
+      setHomeAvatar(localStorage.getItem("google_avatar") || null);
+    });
     fetchWeather().then(function(r){ if (r && r !== weather) setWeather(r); });
   }, []);
   var idbInited = useRef(false);
@@ -5593,8 +5596,8 @@ function MemoList() {
       width: 'fit-content'
     },
     onClick: () => setView('settings')
-  }, localStorage.getItem('google_avatar') ? /*#__PURE__*/React.createElement("img", {
-    src: localStorage.getItem('google_avatar'),
+  }, homeAvatar ? /*#__PURE__*/React.createElement("img", {
+    src: homeAvatar,
     alt: "",
     style: {
       width: 72,
