@@ -65,6 +65,25 @@
 
 ---
 
+## 界面预览
+
+### 首页
+![首页列表](./screenshots/list-view.jpg)
+
+### 编辑页
+![编辑页面](./screenshots/editor-view.jpg)
+
+### 设置页
+![设置页面](./screenshots/settings-view.jpg)
+
+### 备份页
+![备份页面](./screenshots/backup-view.jpg)
+
+### 音乐卡片
+![音乐卡片](./screenshots/music-card.jpg)
+
+---
+
 ## 隐私
 
 - 没有第三方追踪和统计
