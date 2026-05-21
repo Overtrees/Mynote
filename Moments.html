@@ -5092,15 +5092,27 @@ async function refreshGoogleAvatar() {
 async function fetchWeather() {
   var cached = WeatherCache.get();
   if (cached) return cached;
-  var lat, lng;
-  /* ip-api 获取坐标和城市名 */
+  var lat, lng, ipD = null;
+  /* GPS 定位 */
   try {
-    var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
-    if (ipRes.ok) {
-      var ipD = await ipRes.json();
-      if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
-    }
+    var pos = await Promise.race([
+      new Promise(function(resolve, reject) {
+        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
+      }),
+      new Promise(function(_, reject) { setTimeout(function(){ reject(new Error("timeout")); }, 5000); })
+    ]);
+    lat = pos.coords.latitude; lng = pos.coords.longitude;
   } catch(e) {}
+  /* ip-api 兜底（GPS失败时） */
+  if (lat == null) {
+    try {
+      var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
+      if (ipRes.ok) {
+        ipD = await ipRes.json();
+        if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
+      }
+    } catch(e2) {}
+  }
   if (lat == null) return null;
   /* 和风天气 */
   var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
