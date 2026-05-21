@@ -565,9 +565,22 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,122,255,0.12)",
+      backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
+      WebkitBackdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
+      flexShrink: 0
+    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "28",
-    height: "28",
+    width: "20",
+    height: "20",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
@@ -583,7 +596,7 @@ const BackupView = ({
     y1: "3",
     x2: "12",
     y2: "15"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }))) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u51FA\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
@@ -602,9 +615,22 @@ const BackupView = ({
       minWidth: 0,
       flex: 1
     }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "rgba(0,122,255,0.12)",
+      backdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
+      WebkitBackdropFilter: "blur(40px) saturate(2.5) brightness(1.15)",
+      flexShrink: 0
+    }
   }, /*#__PURE__*/React.createElement("svg", {
-    width: "28",
-    height: "28",
+    width: "20",
+    height: "20",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "#007aff",
@@ -620,7 +646,7 @@ const BackupView = ({
     y1: "3",
     x2: "12",
     y2: "15"
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }))) , /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     className: "backup-row-title"
   }, "\u5BFC\u5165\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     className: "backup-row-desc"
