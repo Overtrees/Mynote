@@ -2452,9 +2452,9 @@ window.getDB = getDB;
     if (window._pendingCardReaders && window._pendingCardReaders.length > 0) {
       await Promise.allSettled(window._pendingCardReaders);
     }
-    // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
+    // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像、未用斜杠/链接卡片/附件等）→ 不保存，直接删除
     var isNewNote = isNewNoteRef.current;
-    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
+    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl && docRef.current && (docRef.current.length === 1 && docRef.current[0].type === 'paragraph' && !docRef.current[0].children?.[0]?.text);
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
       onSave(memo.id, { _delete: true });
