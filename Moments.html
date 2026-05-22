@@ -2453,7 +2453,7 @@ window.getDB = getDB;
       await Promise.allSettled(window._pendingCardReaders);
     }
     // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
-    var isNewNote = memo.id && /^\d+$/.test(memo.id) && memo.id.length > 10;
+    var isNewNote = isNewNoteRef.current;
     var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
@@ -5326,6 +5326,7 @@ function MemoList() {
   }, []);
   const [editingMemoId, setEditingMemoId] = useState(null);
   const [newEditorAutoFocusId, setNewEditorAutoFocusId] = useState(null);
+  const isNewNoteRef = useRef(false);
   const editingMemo = editingMemoId ? memos.find(m => m.id === editingMemoId) || null : null;
   const scrollRestoreRef = useRef(0);
 
@@ -5382,6 +5383,7 @@ function MemoList() {
       handleNew();
       return;
     }
+    isNewNoteRef.current = false;
     scrollRestoreRef.current = window.scrollY;
     setEditingMemoId(memo.id);
   };
@@ -5414,6 +5416,7 @@ function MemoList() {
       updatedAt: now
     };
     scrollRestoreRef.current = window.scrollY;
+    isNewNoteRef.current = true;
     setNewEditorAutoFocusId(newMemo.id);
     flushSync(() => {
       setMemos(ms => [newMemo, ...ms]);
