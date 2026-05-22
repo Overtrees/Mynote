@@ -2453,7 +2453,7 @@ window.getDB = getDB;
       await Promise.allSettled(window._pendingCardReaders);
     }
     // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
-    var isNewNote = isNewNoteRef.current;
+    var isNewNote = memo.__isNewNote;
     var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
@@ -5762,7 +5762,7 @@ function MemoList() {
     expandText: mi === group.textMemos.length - 1 && group.textMemos.length > 2 ? '▲ 收起' : undefined,
     onExpand: () => toggleBlock(`${gi}-txt`)
   })))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
-    memo: editingMemo,
+    memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null,
     onClose: closeEditor,
     onSave: saveMemo,
     autoFocus: newEditorAutoFocusId === editingMemo.id
