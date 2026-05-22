@@ -245,6 +245,8 @@
         border-radius: 32px;
         display: flex; justify-content: space-between; align-items: center;
         background: var(--card-glass-bg);
+        will-change: opacity, backdrop-filter;
+        transform: translateZ(0);
         backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
         -webkit-backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
         box-shadow: inset 0 0 0 0.5px var(--glass-border);
@@ -2385,8 +2387,8 @@ window.getDB = getDB;
       html.style.backgroundColor = effectiveBg;
       body.style.backgroundColor = effectiveBg;
     } else {
-      html.style.backgroundColor = isDarkMode ? '#000000' : '#fafafa';
-      body.style.backgroundColor = isDarkMode ? '#000000' : '#fafafa';
+      html.style.backgroundColor = isDarkMode ? '#000000' : '#ffffff';
+      body.style.backgroundColor = isDarkMode ? '#000000' : '#ffffff';
     }
     return () => {
       // 不设 ''（空字符串会闪白），恢复为 CSS 变量默认值
@@ -5548,7 +5550,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { opacity: isEditorOpen ? 0 : 1, transition: "opacity 0.08s ease", pointerEvents: isEditorOpen ? "none" : "auto" } }, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { opacity: isEditorOpen ? 0 : 1, transition: "opacity 0.04s ease 0.06s", pointerEvents: isEditorOpen ? "none" : "auto" } }, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
