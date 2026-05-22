@@ -2378,7 +2378,7 @@ window.getDB = getDB;
   }, []);
 
   // 背景色延伸到安全区
-  useEffect(() => {
+  useLayoutEffect(() => {
     const html = document.documentElement;
     const body = document.body;
     if (effectiveBg) {
