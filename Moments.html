@@ -71,7 +71,7 @@
 
 <style>
     :root {
-        --primary-bg: #f2f2f7;
+        --primary-bg: #ffffff;
         --text-main: #1a1a1a;
         --text-secondary: #8e8e93;
         --card-bg: #ffffff;
@@ -2453,7 +2453,7 @@ window.getDB = getDB;
       await Promise.allSettled(window._pendingCardReaders);
     }
     // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
-    var isNewNote = isNewNoteRef.current;
+    var isNewNote = memo.id && /^\d+$/.test(memo.id) && memo.id.length > 10;
     var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
@@ -2464,7 +2464,7 @@ window.getDB = getDB;
     setClosing(true);
     setTimeout(() => {
       onClose();
-    }, 350);
+    }, 280);
   };
   const handleAvatarSelected = async e => {
     const file = e.target.files && e.target.files[0];
@@ -5382,7 +5382,6 @@ function MemoList() {
       handleNew();
       return;
     }
-    isNewNoteRef.current = false;
     scrollRestoreRef.current = window.scrollY;
     setEditingMemoId(memo.id);
   };
@@ -5415,7 +5414,6 @@ function MemoList() {
       updatedAt: now
     };
     scrollRestoreRef.current = window.scrollY;
-    isNewNoteRef.current = true;
     setNewEditorAutoFocusId(newMemo.id);
     flushSync(() => {
       setMemos(ms => [newMemo, ...ms]);
@@ -5543,7 +5541,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: isEditorOpen ? "fixed" : "static", left: isEditorOpen ? "-200%" : "auto", visibility: isEditorOpen ? "hidden" : "visible", pointerEvents: isEditorOpen ? "none" : "auto", width: isEditorOpen ? "0" : "auto", height: isEditorOpen ? "0" : "auto", overflow: "hidden" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
@@ -5760,7 +5758,7 @@ function MemoList() {
     onDelete: deleteMemo,
     expandText: mi === group.textMemos.length - 1 && group.textMemos.length > 2 ? '▲ 收起' : undefined,
     onExpand: () => toggleBlock(`${gi}-txt`)
-  }))))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
+  })))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
     memo: editingMemo,
     onClose: closeEditor,
     onSave: saveMemo,
