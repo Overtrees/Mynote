@@ -244,15 +244,24 @@ const BackupView = ({
     };
     input.click();
   }, [restoreLoading]);
+  const tokenFailRef = useRef(0);
   const checkTokenExpiry = useCallback(resp => {
-    if (resp.status === 401) {
+    if (resp.status === 401 || resp.status === 403) {
+      tokenFailRef.current += 1;
+      if (tokenFailRef.current < 2) {
+        showStatus('⚠️ Google 授权可能失效，请重试当前操作');
+        return true;
+      }
+      tokenFailRef.current = 0;
       setGoogleToken(null);
       localStorage.removeItem('google_token');
-    localStorage.removeItem('google_avatar');
+      localStorage.removeItem('google_avatar');
+      showStatus('❌ Google 账号已断开，请重新连接');
       return true;
     }
+    tokenFailRef.current = 0;
     return false;
-  }, []);
+  }, [showStatus]);
   const handleGoogleAuth = useCallback(() => {
     if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
       showStatus('❌ Google API 未加载，请刷新页面后重试');
