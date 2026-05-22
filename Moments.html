@@ -4176,20 +4176,14 @@ window.getDB = getDB;
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100dvh",
-      zIndex: 100,
-      overflowY: "auto",
-      WebkitOverflowScrolling: "touch",
+      minHeight: "100dvh",
+      position: "relative",
       backgroundColor: editorBg,
       animation: "slideInFromRight 0.32s cubic-bezier(0.25,0.46,0.45,0.94) both"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      position: "fixed",
+      position: closing ? "absolute" : "fixed",
       top: 0,
       left: 0,
       width: "100vw",
@@ -5549,7 +5543,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { visibility: isEditorOpen ? "hidden" : "visible", transform: isEditorOpen ? "translateX(100%)" : "translateX(0)", transition: "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)", pointerEvents: isEditorOpen ? "none" : "auto" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { opacity: isEditorOpen ? 0 : 1, transition: "opacity 0.04s ease 0.06s", pointerEvents: isEditorOpen ? "none" : "auto" } }, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
