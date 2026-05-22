@@ -95,6 +95,17 @@ const BackupView = ({
   }, []);
   const [statusMsg, setStatusMsg] = useState('');
   const [statusType, setStatusType] = useState('idle');
+  useEffect(function() {
+    var t = localStorage.getItem('google_token');
+    if (!t) return;
+    var payload = JSON.parse(atob(t.split('.')[1]) || '{}');
+    var exp = payload.exp * 1000 || 0;
+    if (exp - Date.now() < 5 * 60 * 1000) {
+      localStorage.removeItem('google_token');
+      localStorage.removeItem('google_avatar');
+      setGoogleToken(null);
+    }
+  }, []);
   const buildBackupPayload = useCallback(async () => {
     var memos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
     // 优先从 IDB 读取（主存储）
@@ -248,7 +259,7 @@ const BackupView = ({
   const checkTokenExpiry = useCallback(resp => {
     if (resp.status === 401 || resp.status === 403) {
       tokenFailRef.current += 1;
-      if (tokenFailRef.current < 2) {
+      if (tokenFailRef.current < 3) {
         showStatus('⚠️ Google 授权可能失效，请重试当前操作');
         return true;
       }
