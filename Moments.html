@@ -2452,9 +2452,9 @@ window.getDB = getDB;
     if (window._pendingCardReaders && window._pendingCardReaders.length > 0) {
       await Promise.allSettled(window._pendingCardReaders);
     }
-    // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像、未用斜杠/链接卡片/附件等）→ 不保存，直接删除
+    // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
     var isNewNote = isNewNoteRef.current;
-    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl && docRef.current && (docRef.current.length === 1 && docRef.current[0].type === 'paragraph' && !docRef.current[0].children?.[0]?.text);
+    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
       onSave(memo.id, { _delete: true });
@@ -4281,7 +4281,7 @@ window.getDB = getDB;
         imageRendering: "auto",
         WebkitBackfaceVisibility: "hidden"
       }
-    }) : /*#__PURE__*/React.createElement("div", { style: { width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", overflow: "hidden" } }, /*#__PURE__*/React.createElement("svg", { viewBox: "0 0 512 512", width: 60, height: 60, fill: "none", stroke: "#8A9BB0", strokeWidth: 22, strokeLinecap: "round", strokeLinejoin: "round", style: { transform: "translateY(10px)" } }, /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315" }), /*#__PURE__*/React.createElement("path", { d: "M 160,330 C 180,380 230,440 280,460" }), /*#__PURE__*/React.createElement("path", { d: "M 240,365 C 220,400 240,440 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 415,135 C 425,140 435,150 435,160" }), /*#__PURE__*/React.createElement("path", { d: "M 230,115 C 260,95 310,120 355,140" }), /*#__PURE__*/React.createElement("path", { d: "M 255,140 C 255,170 290,195 320,185 C 345,175 350,150 335,135" }), /*#__PURE__*/React.createElement("path", { d: "M 290,145 C 290,165 315,165 315,150" }), /*#__PURE__*/React.createElement("path", { d: "M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228" }), /*#__PURE__*/React.createElement("path", { d: "M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348" })))), /*#__PURE__*/React.createElement("div", {
+    }) : /*#__PURE__*/React.createElement("div", { style: { width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", overflow: isEditorOpen ? "hidden" : "visible" } }, /*#__PURE__*/React.createElement("svg", { viewBox: "0 0 512 512", width: 60, height: 60, fill: "none", stroke: "#8A9BB0", strokeWidth: 22, strokeLinecap: "round", strokeLinejoin: "round", style: { transform: "translateY(10px)" } }, /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315" }), /*#__PURE__*/React.createElement("path", { d: "M 160,330 C 180,380 230,440 280,460" }), /*#__PURE__*/React.createElement("path", { d: "M 240,365 C 220,400 240,440 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 90,460 L 310,460" }), /*#__PURE__*/React.createElement("path", { d: "M 415,135 C 425,140 435,150 435,160" }), /*#__PURE__*/React.createElement("path", { d: "M 230,115 C 260,95 310,120 355,140" }), /*#__PURE__*/React.createElement("path", { d: "M 255,140 C 255,170 290,195 320,185 C 345,175 350,150 335,135" }), /*#__PURE__*/React.createElement("path", { d: "M 290,145 C 290,165 315,165 315,150" }), /*#__PURE__*/React.createElement("path", { d: "M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228" }), /*#__PURE__*/React.createElement("path", { d: "M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348" })))), /*#__PURE__*/React.createElement("div", {
       style: {
         flexShrink: 1,
         pointerEvents: "auto",
@@ -4301,7 +4301,7 @@ window.getDB = getDB;
         padding: styleIsLong ? "6px 18px" : "0 20px",
         gap: 3,
         boxSizing: "border-box",
-        overflow: "hidden",
+        overflow: isEditorOpen ? "hidden" : "visible",
         // 防止编辑期间内容撑破胶囊外观
         transition: "width 0.2s ease"
       }
@@ -4489,7 +4489,7 @@ window.getDB = getDB;
       border: "0.5px solid var(--glass-border)",
       boxShadow: "0 2px 20px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.25)",
       borderRadius: 22,
-      overflow: "hidden",
+      overflow: isEditorOpen ? "hidden" : "visible",
       opacity: menuClosing ? 0 : 1,
       transform: menuClosing ? "translateY(-10px) scale(0.92)" : "translateY(0) scale(1)",
       transformOrigin: "85% -18px",
@@ -4685,7 +4685,7 @@ window.getDB = getDB;
       color: "var(--text-secondary)",
       marginTop: 2,
       whiteSpace: "nowrap",
-      overflow: "hidden",
+      overflow: isEditorOpen ? "hidden" : "visible",
       textOverflow: "ellipsis"
     }
   }, "\u56FE\u7247\u3001PDF \u6216\u6587\u672C\u6587\u4EF6")), /*#__PURE__*/React.createElement("span", {
@@ -4772,7 +4772,7 @@ window.getDB = getDB;
       color: "var(--text-secondary)",
       marginTop: 2,
       whiteSpace: "nowrap",
-      overflow: "hidden",
+      overflow: isEditorOpen ? "hidden" : "visible",
       textOverflow: "ellipsis"
     }
   }, "\u4E3A\u5F53\u524D\u7B14\u8BB0\u8BBE\u7F6E\u4E13\u5C5E\u5E95\u8272")), /*#__PURE__*/React.createElement("span", {
@@ -5543,7 +5543,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: isEditorOpen ? "fixed" : "static", left: isEditorOpen ? "-200%" : "auto", visibility: isEditorOpen ? "hidden" : "visible", pointerEvents: isEditorOpen ? "none" : "auto", width: isEditorOpen ? "0" : "auto", height: isEditorOpen ? "0" : "auto", overflow: "hidden" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: isEditorOpen ? "fixed" : "static", left: isEditorOpen ? "-200%" : "auto", visibility: isEditorOpen ? "hidden" : "visible", pointerEvents: isEditorOpen ? "none" : "auto", width: isEditorOpen ? "0" : "auto", height: isEditorOpen ? "0" : "auto", overflow: isEditorOpen ? "hidden" : "visible" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
