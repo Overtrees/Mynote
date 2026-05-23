@@ -749,7 +749,7 @@ const BackupView = ({
     style: {
       flex: 1
     }
-  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: 'red', padding: '4px 14px', textAlign: 'center' } }, "\u3010DEBUG\u3011\u5386\u53F2\u6570\u636E:", history.length, "\u6761"), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: 'red', padding: '4px 14px', textAlign: 'center' } }, "\u3010LS\u3011", (function(){try{var d=JSON.parse(localStorage.getItem('memos_backup_history')||'[]');return d.length+'条 | '+(d[0]?d[0].message:'空');}catch(_){return '读取失败';}})()), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
