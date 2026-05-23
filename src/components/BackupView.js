@@ -20,17 +20,22 @@ const BackupView = ({
   const HISTORY_KEY = 'memos_backup_history';
   const [history, setHistory] = useState(() => {
     try {
-      // 检查 sessionStorage 中是否有页面刷新前遗留的历史记录
-      var pending = sessionStorage.getItem('pending_history');
-      if (pending) {
-        sessionStorage.removeItem('pending_history');
-        var parsed = JSON.parse(pending);
-        var existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        var merged = [parsed, ...existing].slice(0, 20);
+      // 检查 URL 参数中是否有恢复记录
+      var urlParams = new URLSearchParams(window.location.search);
+      var restored = urlParams.get('restored');
+      var detail = urlParams.get('detail') || '';
+      // 清除 URL 参数，防止刷新后重复添加
+      if (restored) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+      var existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      if (restored) {
+        var entry = { type:'restore', status:'success', message:'从云端恢复', detail:decodeURIComponent(detail), timestamp:new Date().toISOString() };
+        var merged = [entry, ...existing].slice(0, 20);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
         return merged;
       }
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      return existing;
     } catch {
       return [];
     }
@@ -517,12 +522,9 @@ const BackupView = ({
       localStorage.setItem('memos_app_v2', newMemosStr);
       if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
       showStatus('✅ 云端恢复成功！正在刷新页面...');
-      // 用 sessionStorage 传递历史记录（location.href 导航后仍然保留）
-      try {
-        var _entry2 = { type:'restore', status:'success', message:'从云端恢复', detail:(backup.memos || []).length + ' 条笔记', timestamp:new Date().toISOString() };
-        sessionStorage.setItem('pending_history', JSON.stringify(_entry2));
-      } catch(_) {}
-      setTimeout(() => { window.location.href = window.location.href; }, 2000);
+      // 用 URL 参数传递恢复记录（页面导航 100% 不丢失）
+      var _detail = encodeURIComponent((backup.memos || []).length + ' 条笔记');
+      setTimeout(() => { window.location.href = window.location.pathname + '?restored=1&detail=' + _detail; }, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '云端恢复失败', e.message);
