@@ -4196,7 +4196,10 @@ window.getDB = getDB;
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
-      zIndex: 1
+      zIndex: 1,
+      minHeight: "100dvh",
+      paddingTop: "env(safe-area-inset-top)",
+      paddingBottom: "env(safe-area-inset-bottom)"
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "editor-fab left",
