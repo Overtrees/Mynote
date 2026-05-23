@@ -20,22 +20,7 @@ const BackupView = ({
   const HISTORY_KEY = 'memos_backup_history';
   const [history, setHistory] = useState(() => {
     try {
-      // 检查 URL 参数中是否有恢复记录
-      var urlParams = new URLSearchParams(window.location.search);
-      var restored = urlParams.get('restored');
-      var detail = urlParams.get('detail') || '';
-      // 清除 URL 参数，防止刷新后重复添加
-      if (restored) {
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-      var existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-      if (restored) {
-        var entry = { type:'restore', status:'success', message:'从云端恢复', detail:decodeURIComponent(detail), timestamp:new Date().toISOString() };
-        var merged = [entry, ...existing].slice(0, 20);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
-        return merged;
-      }
-      return existing;
+      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     } catch {
       return [];
     }
@@ -52,19 +37,7 @@ const BackupView = ({
       var next = [entry, ...prev].slice(0, 20);
       try {
         localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-        // 写入后立即验证
-        var verify = localStorage.getItem(HISTORY_KEY);
-        if (!verify || verify.indexOf(msg) === -1) {
-          // 写入验证失败 - 做 3 次重试
-          for (var r = 0; r < 3; r++) {
-            localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-            var v2 = localStorage.getItem(HISTORY_KEY);
-            if (v2 && v2.indexOf(msg) >= 0) break;
-          }
-        }
-      } catch (e) {
-        console.warn('[history] addHistoryEntry error:', e);
-      }
+      } catch (_) {}
       return next;
     });
   }, []);
@@ -522,9 +495,15 @@ const BackupView = ({
       localStorage.setItem('memos_app_v2', newMemosStr);
       if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
       showStatus('✅ 云端恢复成功！正在刷新页面...');
-      // 用 URL 参数传递恢复记录（页面导航 100% 不丢失）
-      var _detail = encodeURIComponent((backup.memos || []).length + ' 条笔记');
-      setTimeout(() => { window.location.href = window.location.pathname + '?restored=1&detail=' + _detail; }, 2000);
+      addHistoryEntry('restore', 'success', '从云端恢复', (backup.memos || []).length + ' 条笔记');
+      // React 18 createRoot 下 setHistory updater 可能延迟，直接再写一次 localStorage 确保落盘
+      try {
+        var _entry2 = { type:'restore', status:'success', message:'从云端恢复', detail:(backup.memos || []).length + ' 条笔记', timestamp:new Date().toISOString() };
+        var _prev2 = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        var _next2 = [_entry2, ..._prev2].slice(0, 20);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
+      } catch(_) {}
+      setTimeout(() => window.location.href = location.href, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '云端恢复失败', e.message);
@@ -760,7 +739,7 @@ const BackupView = ({
     style: {
       flex: 1
     }
-  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: 'red', padding: '4px 14px', textAlign: 'center', background: '#fff' } }, "\u3010V" + "20260523" + "\u3011\u3010LS\u3011", (function(){try{var d=JSON.parse(localStorage.getItem('memos_backup_history')||'[]');return d.length+'条 | '+(d[0]?d[0].message:'空');}catch(e){return 'err:'+e.message;}})(),"\u3010Size\u3011",(function(){try{var s=0;for(var k in localStorage)s+=localStorage[k].length*2;return (s/1024).toFixed(0)+'KB';}catch(e){return '?'}})()), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: 'red', padding: '4px 14px', textAlign: 'center' } }, "\u3010DEBUG\u3011\u5386\u53F2\u6570\u636E:", history.length, "\u6761"), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
