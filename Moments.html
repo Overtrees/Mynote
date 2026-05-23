@@ -2376,21 +2376,15 @@ window.getDB = getDB;
 
   // 背景色延伸到安全区
   useLayoutEffect(() => {
+    // 不再需要修改 body 背景色，编辑器自身 position:fixed 已覆盖全屏
     const html = document.documentElement;
     const body = document.body;
     if (effectiveBg) {
-      html.style.backgroundColor = effectiveBg;
-      body.style.backgroundColor = effectiveBg;
-    } else {
-      html.style.backgroundColor = editorBg;
-      body.style.backgroundColor = editorBg;
+      html.style.backgroundColor = '';
+      body.style.backgroundColor = '';
     }
-    return () => {
-      // 不设 ''（空字符串会闪白），恢复为 CSS 变量默认值
-      html.style.backgroundColor = 'var(--primary-bg)';
-      body.style.backgroundColor = 'var(--primary-bg)';
-    };
-  }, [effectiveBg, isDarkMode]);
+    return () => {};
+  }, [effectiveBg]);
   useLayoutEffect(function() {
     var el = document.body;
     var styleId = 'body-before-bg';
@@ -4210,8 +4204,13 @@ window.getDB = getDB;
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      position: "relative",
-      minHeight: "100dvh",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100dvh",
+      overflowY: "auto",
+      WebkitOverflowScrolling: "touch",
       zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
@@ -5575,7 +5574,7 @@ function MemoList() {
     });
   }
   if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: "relative", animation: "slideInFromRight 0.28s cubic-bezier(0.32,0.94,0.6,1) both" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight 0.28s cubic-bezier(0.32,0.94,0.6,1) both" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
