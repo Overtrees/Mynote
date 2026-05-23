@@ -2393,47 +2393,36 @@ window.getDB = getDB;
   }, [effectiveBg, isDarkMode]);
   useLayoutEffect(function() {
     var el = document.body;
-    var styleId = 'body-before-opacity';
-    var updateOpacity = function() {
+    var styleId = 'body-before-bg';
+    var updateGradient = function() {
       var scrollY = window.scrollY || window.pageYOffset || 0;
-      var opacity;
-      if (scrollY <= 0) {
-        opacity = 0;
-      } else if (scrollY >= 30) {
-        opacity = 1;
-      } else {
-        opacity = scrollY / 30;
-      }
-      if (opacity <= 0) {
-        if (el.getAttribute('data-body-before')) {
-          el.removeAttribute('data-body-before');
-          var oldStyle = document.getElementById(styleId);
-          if (oldStyle) oldStyle.remove();
+      var alpha = scrollY <= 0 ? 0 : scrollY >= 30 ? 1 : scrollY / 30;
+      var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      var c = isDark ? '0,0,0' : '255,255,255';
+      var bgStyle = document.getElementById(styleId);
+      if (alpha <= 0.01) {
+        if (!bgStyle) {
+          bgStyle = document.createElement('style');
+          bgStyle.id = styleId;
+          document.head.appendChild(bgStyle);
         }
+        bgStyle.textContent = 'body::before { background: transparent !important; }';
       } else {
-        if (!el.getAttribute('data-body-before')) {
-          el.setAttribute('data-body-before', '1');
-          var style = document.createElement('style');
-          style.id = styleId;
-          style.textContent = 'body::before { opacity: ' + opacity + ' !important; }';
-          document.head.appendChild(style);
-          updateOpacity();
-          return;
-        } else {
-          var s = document.getElementById(styleId);
-          if (s) s.textContent = 'body::before { opacity: ' + opacity + ' !important; }';
+        var grad = 'linear-gradient(to bottom, rgba(' + c + ',' + (alpha*0.82) + ') 0%, rgba(' + c + ',' + (alpha*0.6) + ') 50%, rgba(' + c + ',0) 100%)';
+        if (!bgStyle) {
+          bgStyle = document.createElement('style');
+          bgStyle.id = styleId;
+          document.head.appendChild(bgStyle);
         }
+        bgStyle.textContent = 'body::before { background: ' + grad + ' !important; }';
       }
     };
-    updateOpacity();
-    window.addEventListener('scroll', updateOpacity, { passive: true });
+    updateGradient();
+    window.addEventListener('scroll', updateGradient, { passive: true });
     return function() {
-      window.removeEventListener('scroll', updateOpacity);
-      if (el.getAttribute('data-body-before')) {
-        el.removeAttribute('data-body-before');
-        var oldStyle = document.getElementById(styleId);
-        if (oldStyle) oldStyle.remove();
-      }
+      window.removeEventListener('scroll', updateGradient);
+      var s = document.getElementById(styleId);
+      if (s) s.remove();
     };
   }, []);
   var titleValueRef = useRef(title);
