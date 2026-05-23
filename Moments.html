@@ -2376,15 +2376,20 @@ window.getDB = getDB;
 
   // 背景色延伸到安全区
   useLayoutEffect(() => {
-    // 不再需要修改 body 背景色，编辑器自身 position:fixed 已覆盖全屏
     const html = document.documentElement;
     const body = document.body;
     if (effectiveBg) {
+      html.style.backgroundColor = effectiveBg;
+      body.style.backgroundColor = effectiveBg;
+    } else {
+      html.style.backgroundColor = '#fafafa';
+      body.style.backgroundColor = '#fafafa';
+    }
+    return () => {
       html.style.backgroundColor = '';
       body.style.backgroundColor = '';
-    }
-    return () => {};
-  }, [effectiveBg]);
+    };
+  }, [effectiveBg, isDarkMode]);
   useLayoutEffect(function() {
     var el = document.body;
     var styleId = 'body-before-bg';
@@ -4204,14 +4209,9 @@ window.getDB = getDB;
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100dvh",
-      overflowY: "auto",
-      WebkitOverflowScrolling: "touch",
-      zIndex: 9999,
+      position: "relative",
+      minHeight: "100dvh",
+      zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
         animation: "slideOutToRight 0.28s cubic-bezier(0.32,0.94,0.6,1) forwards"
