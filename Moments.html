@@ -2391,6 +2391,51 @@ window.getDB = getDB;
       body.style.backgroundColor = 'var(--primary-bg)';
     };
   }, [effectiveBg, isDarkMode]);
+  useLayoutEffect(function() {
+    var el = document.body;
+    var styleId = 'body-before-opacity';
+    var updateOpacity = function() {
+      var scrollY = window.scrollY || window.pageYOffset || 0;
+      var opacity;
+      if (scrollY <= 0) {
+        opacity = 0;
+      } else if (scrollY >= 30) {
+        opacity = 1;
+      } else {
+        opacity = scrollY / 30;
+      }
+      if (opacity <= 0) {
+        if (el.getAttribute('data-body-before')) {
+          el.removeAttribute('data-body-before');
+          var oldStyle = document.getElementById(styleId);
+          if (oldStyle) oldStyle.remove();
+        }
+      } else {
+        if (!el.getAttribute('data-body-before')) {
+          el.setAttribute('data-body-before', '1');
+          var style = document.createElement('style');
+          style.id = styleId;
+          style.textContent = 'body::before { opacity: ' + opacity + ' !important; }';
+          document.head.appendChild(style);
+          updateOpacity();
+          return;
+        } else {
+          var s = document.getElementById(styleId);
+          if (s) s.textContent = 'body::before { opacity: ' + opacity + ' !important; }';
+        }
+      }
+    };
+    updateOpacity();
+    window.addEventListener('scroll', updateOpacity, { passive: true });
+    return function() {
+      window.removeEventListener('scroll', updateOpacity);
+      if (el.getAttribute('data-body-before')) {
+        el.removeAttribute('data-body-before');
+        var oldStyle = document.getElementById(styleId);
+        if (oldStyle) oldStyle.remove();
+      }
+    };
+  }, []);
   var titleValueRef = useRef(title);
   useEffect(() => {
     titleValueRef.current = title;
