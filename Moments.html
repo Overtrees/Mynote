@@ -2378,6 +2378,11 @@ window.getDB = getDB;
   useLayoutEffect(() => {
     const html = document.documentElement;
     const body = document.body;
+    // 清除上一个编辑器的残留延迟恢复定时器
+    if (body.__bgTimer) {
+      clearTimeout(body.__bgTimer);
+      body.__bgTimer = null;
+    }
     if (effectiveBg) {
       html.style.backgroundColor = effectiveBg;
       body.style.backgroundColor = effectiveBg;
