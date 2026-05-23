@@ -84,12 +84,12 @@ const BackupView = ({
       var type = msg.startsWith('✅') ? 'success' : msg.startsWith('❌') ? 'error' : 'info';
       setStatusMsg(msg);
       setStatusType(type);
-      if (type !== 'progress') {
+      if (type === 'success' || type === 'error') {
         clearTimeout(window._statusTimer);
         window._statusTimer = setTimeout(function () {
           setStatusMsg('');
           setStatusType('idle');
-        }, 4000);
+        }, type === 'success' ? 3000 : 6000);
       }
     }
   }, []);
