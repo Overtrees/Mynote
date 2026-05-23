@@ -118,6 +118,10 @@
                 rgba(255, 255, 255, 0.6) 50%,
                 rgba(255, 255, 255, 0) 100%
             );
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0) 100%);
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0) 100%);
             z-index: 9999;
             pointer-events: none;
         }
@@ -2406,7 +2410,7 @@ window.getDB = getDB;
           bgStyle.id = styleId;
           document.head.appendChild(bgStyle);
         }
-        bgStyle.textContent = 'body::before { background: transparent !important; }';
+        bgStyle.textContent = 'body::before { background: transparent !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }';
       } else {
         var grad = 'linear-gradient(to bottom, rgba(' + c + ',' + (alpha*0.82) + ') 0%, rgba(' + c + ',' + (alpha*0.6) + ') 50%, rgba(' + c + ',0) 100%)';
         if (!bgStyle) {
