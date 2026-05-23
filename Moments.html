@@ -3599,6 +3599,10 @@ window.getDB = getDB;
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
   var handleEditorBlur = useCallback(function () {
+    // 键盘收起时强制重排固定元素位置
+    if (window.visualViewport) {
+      window.scrollTo(0, window.scrollY);
+    }
     // 键盘收起时复位标题胶囊
     if (isEditingTitleRef.current) {
       isEditingTitleRef.current = false;
