@@ -37,6 +37,16 @@ const BackupView = ({
       var next = [entry, ...prev].slice(0, 20);
       try {
         localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        // 写入后立即验证
+        var verify = localStorage.getItem(HISTORY_KEY);
+        if (!verify || verify.indexOf(msg) === -1) {
+          // 写入验证失败 - 做 3 次重试
+          for (var r = 0; r < 3; r++) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+            var v2 = localStorage.getItem(HISTORY_KEY);
+            if (v2 && v2.indexOf(msg) >= 0) break;
+          }
+        }
       } catch (_) {}
       return next;
     });
