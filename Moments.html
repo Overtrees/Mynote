@@ -2432,6 +2432,21 @@ window.getDB = getDB;
       var s = document.getElementById(styleId);
       if (s) s.remove();
     };
+  });
+  // 键盘收起时强制复位固定元素位置
+  useLayoutEffect(function() {
+    var lastH = window.innerHeight;
+    var handler = function() {
+      var h = window.innerHeight;
+      if (h > lastH && Math.abs(h - lastH) > 80) {
+        requestAnimationFrame(function() {
+          window.scrollTo(0, window.scrollY);
+        });
+      }
+      lastH = h;
+    };
+    window.addEventListener('resize', handler, { passive: true });
+    return function() { window.removeEventListener('resize', handler); };
   }, []);
   var titleValueRef = useRef(title);
   useEffect(() => {
@@ -4305,11 +4320,10 @@ window.getDB = getDB;
         left: 62,
         right: 62,
         display: "flex",
-        flexDirection: editorScrolled ? "row" : "column",
+        flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: editorScrolled ? 8 : 6,
-        transition: 'all 0.25s ease',
+        gap: 8,
         pointerEvents: "none"
       }
     }, /*#__PURE__*/React.createElement("button", {
