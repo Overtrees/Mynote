@@ -20,6 +20,16 @@ const BackupView = ({
   const HISTORY_KEY = 'memos_backup_history';
   const [history, setHistory] = useState(() => {
     try {
+      // 检查 sessionStorage 中是否有页面刷新前遗留的历史记录
+      var pending = sessionStorage.getItem('pending_history');
+      if (pending) {
+        sessionStorage.removeItem('pending_history');
+        var parsed = JSON.parse(pending);
+        var existing = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        var merged = [parsed, ...existing].slice(0, 20);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
+        return merged;
+      }
       return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     } catch {
       return [];
@@ -507,16 +517,11 @@ const BackupView = ({
       localStorage.setItem('memos_app_v2', newMemosStr);
       if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
       showStatus('✅ 云端恢复成功！正在刷新页面...');
-      addHistoryEntry('restore', 'success', '从云端恢复', (backup.memos || []).length + ' 条笔记');
-      // React 18 createRoot 下 setHistory updater 可能延迟，直接再写一次 localStorage 确保落盘
+      // 用 sessionStorage 传递历史记录（location.href 导航后仍然保留）
       try {
         var _entry2 = { type:'restore', status:'success', message:'从云端恢复', detail:(backup.memos || []).length + ' 条笔记', timestamp:new Date().toISOString() };
-        var _prev2 = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        var _next2 = [_entry2, ..._prev2].slice(0, 20);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
-      } catch(e) {
-        console.warn('[history] write error:', e);
-      }
+        sessionStorage.setItem('pending_history', JSON.stringify(_entry2));
+      } catch(_) {}
       setTimeout(() => { window.location.href = window.location.href; }, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
