@@ -78,11 +78,7 @@
         --btn-bg: rgba(240, 240, 242, 0.7);
         --glass-bg: rgba(255, 255, 255, 0.5);
         --glass-border: rgba(255, 255, 255, 0.6);
-        --card-glass-bg: rgba(255, 255, 255, 0.55);
-        --card-glass-blur: 40px;
-        --card-glass-saturate: 2.5;
-        --card-glass-brightness: 1.15;
-        
+
         --border-color: rgba(0, 0, 0, 0.05);
     }
     @media (prefers-color-scheme: dark) {
@@ -94,11 +90,7 @@
             --btn-bg: rgba(44, 44, 46, 0.7);
             --glass-bg: rgba(20, 20, 24, 0.45);
             --glass-border: rgba(255, 255, 255, 0.1);
-            --card-glass-bg: rgba(28, 28, 30, 0.55);
-            --card-glass-blur: 40px;
-            --card-glass-saturate: 2.5;
-            --card-glass-brightness: 1.15;
-            
+
             --border-color: rgba(255, 255, 255, 0.1);
         }
     }
@@ -244,11 +236,11 @@
         position: relative; z-index: 1; padding: 14px 16px;
         border-radius: 32px;
         display: flex; justify-content: space-between; align-items: center;
-        background: var(--card-glass-bg);
+        background: var(--glass-bg);
         will-change: opacity, backdrop-filter;
         transform: translateZ(0);
-        backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
-        -webkit-backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
         box-shadow: inset 0 0 0 0.5px var(--glass-border);
         cursor: pointer;
         transition: transform 0.22s cubic-bezier(0.25,0.46,0.45,0.94);
@@ -275,7 +267,7 @@
     .item-meta { font-size: 0.75rem; color: var(--text-secondary); }
     .item-right { display: none; }
     .item-time { font-size: 0.75rem; color: var(--text-secondary); }
-.img-card { background: var(--card-glass-bg); backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness)); -webkit-backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness)); box-shadow: inset 0 0 0 0.5px var(--glass-border); border-radius: 32px; corner-shape: squircle; margin-bottom: 6px; }
+.img-card { background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); box-shadow: inset 0 0 0 0.5px var(--glass-border); border-radius: 32px; corner-shape: squircle; margin-bottom: 6px; }
     .img-card:last-child { margin-bottom: 0; }
     .img-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--border-color); -webkit-touch-callout: none; border-radius: 32px 32px 0 0; corner-shape: squircle; }
     .img-cover-fb { width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-size: 2.25rem; background: var(--btn-bg); color: var(--text-secondary); border-radius: 32px 32px 0 0; corner-shape: squircle; }
@@ -629,9 +621,9 @@
         margin-top: 8px;
     }
     .backup-card {
-        background: var(--card-glass-bg);
-        backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
-        -webkit-backdrop-filter: blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness));
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+        -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
         border: 0.5px solid var(--glass-border);
         border-radius: 28px;
         corner-shape: squircle;
@@ -5585,10 +5577,10 @@ function MemoList() {
     style: {
       width: 72,
       height: 72,
-      backdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
-      WebkitBackdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
+      backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
+      WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
       borderRadius: "50%",
-      background: "var(--card-glass-bg)",
+      background: "var(--glass-bg)",
       border: "0.5px solid var(--glass-border)",
       display: "flex",
       alignItems: "flex-end",
@@ -5625,9 +5617,9 @@ function MemoList() {
       gap: 8,
       padding: "0 14px",
       borderRadius: 999,
-      background: "var(--card-glass-bg)",
-      backdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
-      WebkitBackdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
+      background: "var(--glass-bg)",
+      backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
+      WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
       border: "0.5px solid var(--glass-border)",
       opacity: isCompact ? 0 : 1,
       visibility: isCompact ? "hidden" : "visible",
@@ -5672,9 +5664,9 @@ function MemoList() {
       gap: 6,
       padding: "0 18px",
       borderRadius: 999,
-      background: "var(--card-glass-bg)",
-      backdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
-      WebkitBackdropFilter: "blur(var(--card-glass-blur)) saturate(var(--card-glass-saturate)) brightness(var(--card-glass-brightness))",
+      background: "var(--glass-bg)",
+      backdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
+      WebkitBackdropFilter: "blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness))",
       border: "0.5px solid var(--glass-border)",
       cursor: "pointer",
       pointerEvents: "auto",
