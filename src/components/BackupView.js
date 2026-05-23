@@ -506,6 +506,7 @@ const BackupView = ({
         var _prev2 = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
         var _next2 = [_entry2, ..._prev2].slice(0, 20);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
+        alert('[DEBUG] history: ' + _next2.length + ' entries. Latest: ' + _next2[0].message);
       } catch(_) {}
       setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
