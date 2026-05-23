@@ -5,10 +5,10 @@
 
   var BgSheet = function BgSheet(_ref) {
     var currentColor = _ref.currentColor, onSelect = _ref.onSelect, onRemove = _ref.onRemove, onClose = _ref.onClose;
-    var presetColors = ['#f5f5f5', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0'];
+    var presetColors = ['#eaeef2', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0'];
     var _useState = useState(true), closing = _useState[0], setClosing = _useState[1];
     var closeTimerRef = useRef(null);
-    var colorNames = ['\u9ED8\u8BA4\u7070', '\u6696\u6C99', '\u6D45\u7EFF', '\u6D45\u84DD', '\u6D45\u7C89', '\u7C73\u6A59', '\u6DE1\u7D2B', '\u6D45\u674F'];
+    var colorNames = ['\u51B7\u96FE', '\u6696\u6C99', '\u6D45\u7EFF', '\u6D45\u84DD', '\u6D45\u7C89', '\u7C73\u6A59', '\u6DE1\u7D2B', '\u6D45\u674F'];
 
     useEffect(function () {
       requestAnimationFrame(function () { requestAnimationFrame(function () { setClosing(false); }); });
@@ -26,7 +26,7 @@
     return R.createElement(R.Fragment, null,
       R.createElement('div', { onPointerDown:function(){closeWithAnim();}, style:{ position:'fixed', inset:0, zIndex:4000, background:'transparent' }}),
       R.createElement('div', { style:{ position:'fixed', left:0, right:0, bottom:'calc(env(safe-area-inset-bottom) + 14px)', zIndex:4001, display:'flex', justifyContent:'center', padding:'0 14px', pointerEvents:'none', opacity:closing?0:1, transform:closing?'translateY(20px)':'translateY(0)', transition:'opacity 200ms ease, transform 250ms cubic-bezier(0.34,1.56,0.64,1)' }, onPointerDown:function(e){e.stopPropagation();} },
-        R.createElement('div', { style:{ width:'100%', maxWidth:600, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', borderRadius:28, boxShadow:'0 6px 18px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.25)', padding:'20px 20px calc(20px + env(safe-area-inset-bottom))', overflow:'hidden', pointerEvents:'auto' } },
+        R.createElement('div', { style:{ width:'100%', maxWidth:600, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', borderRadius:28, boxShadow:'0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.25)', padding:'20px 20px calc(20px + env(safe-area-inset-bottom))', overflow:'hidden', pointerEvents:'auto' } },
           R.createElement('div', { style:{ textAlign:'center', marginBottom:16 } },
             R.createElement('div', { style:{ fontSize:20, fontWeight:700, color:'var(--text-main)', letterSpacing:'-0.3px' } }, '\u80CC\u666F\u8272'),
             R.createElement('div', { style:{ fontSize:13, color:'var(--text-secondary)', marginTop:4 } }, '\u4E3A\u5F53\u524D\u7B14\u8BB0\u8BBE\u7F6E\u5E95\u8272')),
