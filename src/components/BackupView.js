@@ -503,7 +503,7 @@ const BackupView = ({
         var _next2 = [_entry2, ..._prev2].slice(0, 20);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
       } catch(_) {}
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.reload(), 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '云端恢复失败', e.message);
