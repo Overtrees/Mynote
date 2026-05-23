@@ -98,13 +98,15 @@ const BackupView = ({
   useEffect(function() {
     var t = localStorage.getItem('google_token');
     if (!t) return;
-    var payload = JSON.parse(atob(t.split('.')[1]) || '{}');
-    var exp = payload.exp * 1000 || 0;
-    if (exp - Date.now() < 5 * 60 * 1000) {
-      localStorage.removeItem('google_token');
-      localStorage.removeItem('google_avatar');
-      setGoogleToken(null);
-    }
+    try {
+      var payload = JSON.parse(atob(t.split('.')[1]) || '{}');
+      var exp = payload.exp * 1000 || 0;
+      if (exp - Date.now() < 5 * 60 * 1000) {
+        localStorage.removeItem('google_token');
+        localStorage.removeItem('google_avatar');
+        setGoogleToken(null);
+      }
+    } catch(_) {}
   }, []);
   const buildBackupPayload = useCallback(async () => {
     var memos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
