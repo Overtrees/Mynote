@@ -2432,21 +2432,6 @@ window.getDB = getDB;
       var s = document.getElementById(styleId);
       if (s) s.remove();
     };
-  });
-  // 键盘收起时强制复位固定元素位置
-  useLayoutEffect(function() {
-    var lastH = window.innerHeight;
-    var handler = function() {
-      var h = window.innerHeight;
-      if (h > lastH && Math.abs(h - lastH) > 80) {
-        requestAnimationFrame(function() {
-          window.scrollTo(0, window.scrollY);
-        });
-      }
-      lastH = h;
-    };
-    window.addEventListener('resize', handler, { passive: true });
-    return function() { window.removeEventListener('resize', handler); };
   }, []);
   var titleValueRef = useRef(title);
   useEffect(() => {
@@ -3614,6 +3599,10 @@ window.getDB = getDB;
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
   var handleEditorBlur = useCallback(function () {
+    // 键盘收起时复位固定元素位置
+    if (window.visualViewport) {
+      window.scrollTo(0, window.scrollY);
+    }
     // 键盘收起时复位标题胶囊
     if (isEditingTitleRef.current) {
       isEditingTitleRef.current = false;
@@ -4320,10 +4309,11 @@ window.getDB = getDB;
         left: 62,
         right: 62,
         display: "flex",
-        flexDirection: "row",
+        flexDirection: editorScrolled ? "row" : "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
+        gap: editorScrolled ? 8 : 6,
+        transition: 'all 0.25s ease',
         pointerEvents: "none"
       }
     }, /*#__PURE__*/React.createElement("button", {
