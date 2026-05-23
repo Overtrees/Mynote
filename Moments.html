@@ -2398,7 +2398,9 @@ window.getDB = getDB;
       var scrollY = window.scrollY || window.pageYOffset || 0;
       var alpha = scrollY <= 0 ? 0 : scrollY >= 30 ? 1 : scrollY / 30;
       var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var c = isDark ? '0,0,0' : '255,255,255';
+      var bgColor = window.getComputedStyle(document.body).backgroundColor || (isDark ? '0,0,0' : '255,255,255');
+      var c = bgColor.replace('rgba(', '').replace('rgb(', '').replace(')', '').replace(/ /g, '').split(',');
+      c = c.slice(0, 3).join(',');
       var bgStyle = document.getElementById(styleId);
       if (alpha <= 0.01) {
         if (!bgStyle) {
