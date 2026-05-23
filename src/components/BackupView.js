@@ -233,7 +233,7 @@ const BackupView = ({
       await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, backup.memos) : null);
       showStatus('✅ 恢复成功！正在刷新页面...');
       addHistoryEntry('restore', 'success', '从本地文件恢复', file.name);
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.href = location.href, 800);
     } catch (e) {
       showStatus('❌ 导入失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '导入失败', e.message);
@@ -456,7 +456,7 @@ const BackupView = ({
       localStorage.setItem('memos_app_v2', JSON.stringify(merged));
       if (window.CikeIdb) { try { var _db3 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db3, merged); } catch(_){} }
       showStatus('✅ 合并成功！正在刷新...');
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => window.location.href = location.href, 800);
     } catch (e) {
       showStatus('❌ 合并失败: ' + e.message);
     } finally {
@@ -513,7 +513,7 @@ const BackupView = ({
         var _next2 = [_entry2, ..._prev2].slice(0, 20);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
       } catch(_) {}
-      setTimeout(() => window.location.reload(), 2000);
+      setTimeout(() => { window.location.href = window.location.href; }, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '云端恢复失败', e.message);
