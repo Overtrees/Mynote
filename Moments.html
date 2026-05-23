@@ -3081,6 +3081,16 @@ window.getDB = getDB;
   /* ===== DOM input handlers ===== */
   var handleEditorInput = useCallback(function () {
     if (!hasTyped) setHasTyped(true);
+    // 即时检测斜杠，不等 80ms 延迟
+    try {
+      var curEl = editorBodyRef.current;
+      if (curEl) {
+        var curText = curEl.textContent || '';
+        if (curText.charAt(0) === '/' && curText.length <= 30 && !/\s/.test(curText.slice(1))) {
+          updateSlashStateFromSelection();
+        }
+      }
+    } catch (_) {}
     clearTimeout(inputTimerRef.current);
     inputTimerRef.current = setTimeout(function () {
       var el = editorBodyRef.current;
