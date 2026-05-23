@@ -20,8 +20,12 @@ const BackupView = ({
   const HISTORY_KEY = 'memos_backup_history';
   const [history, setHistory] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    } catch {
+      var _raw = localStorage.getItem(HISTORY_KEY) || '[]';
+      var _parsed = JSON.parse(_raw);
+      console.log('[DEBUG] history init:', _parsed.length, 'entries', _raw.slice(0, 200));
+      return _parsed;
+    } catch (e) {
+      console.warn('[DEBUG] history init error:', e);
       return [];
     }
   });
@@ -739,7 +743,7 @@ const BackupView = ({
     style: {
       flex: 1
     }
-  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), /*#__PURE__*/React.createElement("div", { style: { fontSize: 10, color: 'red', padding: '4px 14px', textAlign: 'center' } }, "\u3010DEBUG\u3011\u5386\u53F2\u6570\u636E:", history.length, "\u6761"), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
