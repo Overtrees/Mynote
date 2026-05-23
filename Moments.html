@@ -4179,13 +4179,9 @@ window.getDB = getDB;
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100vw",
-      height: "100dvh",
-      overflowY: "auto",
-      zIndex: 10000,
+      position: "relative",
+      minHeight: "100dvh",
+      zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
         animation: "slideOutToRight 0.28s cubic-bezier(0.32,0.94,0.6,1) forwards"
