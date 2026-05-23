@@ -493,13 +493,7 @@ const BackupView = ({
       localStorage.setItem('memos_app_v2', newMemosStr);
       if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
       showStatus('✅ 云端恢复成功！正在刷新页面...');
-      // 直接写入 localStorage，避免页面刷新前状态没来得及更新
-      try {
-        var _entry = { type:'restore', status:'success', message:'从云端恢复', detail:(backup.memos || []).length + ' 条笔记', timestamp:new Date().toISOString() };
-        var _prev = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-        var _next = [_entry, ..._prev].slice(0, 20);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(_next));
-      } catch(_) {}
+      addHistoryEntry('restore', 'success', '从云端恢复', (backup.memos || []).length + ' 条笔记');
       setTimeout(() => window.location.reload(), 800);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
