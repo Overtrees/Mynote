@@ -3605,6 +3605,8 @@ window.getDB = getDB;
       editingStyleSnapshot.current = null;
       setEditingTitle(null);
     }
+    // 同步滚动状态（键盘收起时不触发 scroll 事件）
+    setEditorScrolled(window.scrollY > 30);
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
