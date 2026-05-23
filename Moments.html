@@ -4196,9 +4196,7 @@ window.getDB = getDB;
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
-      zIndex: 1,
-      paddingTop: "env(safe-area-inset-top)",
-      paddingBottom: "env(safe-area-inset-bottom)"
+      zIndex: 1
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "editor-fab left",
@@ -5546,7 +5544,8 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { display: isEditorOpen ? "none" : "block" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
@@ -5763,12 +5762,7 @@ function MemoList() {
     onDelete: deleteMemo,
     expandText: mi === group.textMemos.length - 1 && group.textMemos.length > 2 ? '▲ 收起' : undefined,
     onExpand: () => toggleBlock(`${gi}-txt`)
-  }))))))))), editingMemo && /*#__PURE__*/React.createElement(Editor, {
-    memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null,
-    onClose: closeEditor,
-    onSave: saveMemo,
-    autoFocus: newEditorAutoFocusId === editingMemo.id
-  }));
+  })))))))))
 }
 ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(MemoList, null));
 </script>
