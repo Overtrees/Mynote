@@ -2386,9 +2386,11 @@ window.getDB = getDB;
       body.style.backgroundColor = '#fafafa';
     }
     return () => {
-      setTimeout(function() {
+      if (body.__bgTimer) clearTimeout(body.__bgTimer);
+      body.__bgTimer = setTimeout(function() {
         html.style.backgroundColor = '';
         body.style.backgroundColor = '';
+        body.__bgTimer = null;
       }, 350);
     };
   }, [effectiveBg, isDarkMode]);
