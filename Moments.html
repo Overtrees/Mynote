@@ -3589,6 +3589,12 @@ window.getDB = getDB;
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
   var handleEditorBlur = useCallback(function () {
+    // 键盘收起时复位标题胶囊
+    if (isEditingTitleRef.current) {
+      isEditingTitleRef.current = false;
+      editingStyleSnapshot.current = null;
+      setEditingTitle(null);
+    }
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
