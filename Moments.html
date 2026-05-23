@@ -2467,7 +2467,10 @@ window.getDB = getDB;
     } else {
       doSave(JSON.parse(JSON.stringify(docRef.current)));
     }
-    onClose();
+    setClosing(true);
+    setTimeout(function() {
+      onClose();
+    }, 280);
   };
   const handleAvatarSelected = async e => {
     const file = e.target.files && e.target.files[0];
@@ -4176,23 +4179,20 @@ window.getDB = getDB;
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      minHeight: "100dvh",
-      position: "relative",
-      backgroundColor: editorBg,
-      animation: "slideInFromRight 0.32s cubic-bezier(0.25,0.46,0.45,0.94) both"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: closing ? "absolute" : "fixed",
+      position: "fixed",
       top: 0,
       left: 0,
       width: "100vw",
       height: "100dvh",
-      minHeight: "100vh",
-      zIndex: 0,
-      backgroundColor: editorBg
+      zIndex: 9999,
+      backgroundColor: editorBg,
+      ...(closing ? {
+        animation: "slideOutToRight 0.28s cubic-bezier(0.32,0.94,0.6,1) forwards"
+      } : animDone ? {} : {
+        animation: "slideInFromRight 0.32s cubic-bezier(0.32,0.94,0.6,1) both"
+      })
     }
-  }), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
       zIndex: 1
@@ -5543,7 +5543,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { opacity: isEditorOpen ? 0 : 1, transition: "opacity 0.04s ease 0.06s", pointerEvents: isEditorOpen ? "none" : "auto" } }, !isEditorOpen && /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { display: isEditorOpen ? "none" : "block" } }, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
