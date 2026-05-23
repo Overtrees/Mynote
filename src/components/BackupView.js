@@ -47,7 +47,9 @@ const BackupView = ({
             if (v2 && v2.indexOf(msg) >= 0) break;
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        console.warn('[history] addHistoryEntry error:', e);
+      }
       return next;
     });
   }, []);
@@ -512,7 +514,9 @@ const BackupView = ({
         var _prev2 = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
         var _next2 = [_entry2, ..._prev2].slice(0, 20);
         localStorage.setItem(HISTORY_KEY, JSON.stringify(_next2));
-      } catch(_) {}
+      } catch(e) {
+        console.warn('[history] write error:', e);
+      }
       setTimeout(() => { window.location.href = window.location.href; }, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
