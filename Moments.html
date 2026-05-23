@@ -5575,7 +5575,7 @@ function MemoList() {
     });
   }
   if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: "relative" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { style: { position: "relative", animation: "slideInFromRight 0.28s cubic-bezier(0.32,0.94,0.6,1) both" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
