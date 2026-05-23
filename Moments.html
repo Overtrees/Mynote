@@ -5375,6 +5375,7 @@ function MemoList() {
     }
     isNewNoteRef.current = false;
     scrollRestoreRef.current = window.scrollY;
+    window.scrollTo(0, 0);
     setEditingMemoId(memo.id);
   };
   const closeEditor = () => {
