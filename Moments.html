@@ -4253,6 +4253,11 @@ window.getDB = getDB;
     className: "editor-fab left",
     onPointerDown: function (e) {
       e.stopPropagation();
+      if (isEditingTitleRef.current) {
+        isEditingTitleRef.current = false;
+        editingStyleSnapshot.current = null;
+        setEditingTitle(null);
+      }
       handleClose();
     }
   }, /*#__PURE__*/React.createElement("svg", {
