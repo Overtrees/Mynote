@@ -3590,19 +3590,19 @@ window.getDB = getDB;
       triggerAutoSave();
       return;
     }
-    var cb = e.target.closest('[data-type="todo"] input[type="checkbox"]');
-    if (cb) {
-      var block = cb.closest('[data-blockid]');
-      if (block) {
-        var id = block.dataset.blockid;
-        var idx = docRef.current.findIndex(function (n) {
-          return n.id === id;
-        });
-        if (idx !== -1) {
-          docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, {
-            checked: cb.checked
-          });
-          triggerAutoSave();
+    var todoBlock = e.target.closest('[data-type="todo"]');
+    if (todoBlock) {
+      var cb = todoBlock.querySelector('input[type="checkbox"]');
+      if (cb) {
+        cb.checked = !cb.checked;
+        var block = todoBlock.closest('[data-blockid]');
+        if (block) {
+          var id = block.dataset.blockid;
+          var idx = docRef.current.findIndex(function (n) { return n.id === id; });
+          if (idx !== -1) {
+            docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: cb.checked });
+            triggerAutoSave();
+          }
         }
       }
       return;
