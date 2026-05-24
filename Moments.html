@@ -2387,8 +2387,8 @@ window.getDB = getDB;
       html.style.backgroundColor = effectiveBg;
       body.style.backgroundColor = effectiveBg;
     } else {
-      html.style.backgroundColor = '#fafafa';
-      body.style.backgroundColor = '#fafafa';
+      html.style.backgroundColor = editorBg;
+      body.style.backgroundColor = editorBg;
     }
     return () => {
       if (body.__bgTimer) clearTimeout(body.__bgTimer);
