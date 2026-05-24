@@ -296,7 +296,7 @@
     .markdown-render > *:first-child { margin-top: 0; }
     .markdown-render > *:last-child { margin-bottom: 0; }
     /* ===== Table — 大圆角卡片 ===== */
-    .markdown-render table { width: auto; min-width: 160px; border-collapse: separate; border-spacing: 0; margin: 0.8em auto; font-size: 14px; border-radius: 20px; corner-shape: squircle; overflow: hidden; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); border: 0.5px solid var(--glass-border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .markdown-render table { width: auto; min-width: 160px; border-collapse: separate; border-spacing: 0; margin: 0.8em auto; font-size: 14px; border-radius: 20px; corner-shape: squircle; overflow: hidden; background: rgba(128,128,128,0.06); border: 0.5px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .markdown-render thead tr th:first-child { border-top-left-radius: 20px; }
     .markdown-render thead tr th:last-child { border-top-right-radius: 20px; }
     .markdown-render tbody tr:last-child td:first-child { border-bottom-left-radius: 20px; }
@@ -319,7 +319,7 @@
     .markdown-render li.task-list-item-checked { color: var(--text-secondary); text-decoration: line-through; }
     .markdown-render li.task-list-item-checked input[type="checkbox"] { text-decoration: none; }
     /* ===== Callout 提示块 ===== */
-    .markdown-render .callout { border-radius: 999px; padding: 12px 18px; margin: 0.6em 0; font-size: 14px; line-height: 1.6; overflow: hidden; backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); border: 0.5px solid var(--glass-border); }
+    .markdown-render .callout { border-radius: 999px; padding: 12px 18px; margin: 0.6em 0; font-size: 14px; line-height: 1.6; overflow: hidden; border: 0.5px solid var(--border-color); }
     .markdown-render .callout-note { background: rgba(0,122,255,0.12); }
     .markdown-render .callout-warning { background: rgba(255,149,0,0.14); }
     .markdown-render .callout-tip { background: rgba(52,199,89,0.14); }
@@ -330,7 +330,7 @@
     .markdown-render .callout-title { font-size: 15px; font-weight: 700; color: var(--text-main); letter-spacing: -0.1px; }
     .markdown-render .callout-body { font-size: 14px; color: var(--text-main); opacity: 0.85; line-height: 1.65; }
     .markdown-render .callout code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
-    .markdown-render pre { background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); border: 0.5px solid var(--glass-border); border-radius: 999px; padding: 14px 18px; font-size: 13px; line-height: 1.6; overflow-x: auto; margin: 0.6em 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .markdown-render pre { background: rgba(128,128,128,0.06); border: 0.5px solid var(--border-color); border-radius: 999px; padding: 14px 18px; font-size: 13px; line-height: 1.6; overflow-x: auto; margin: 0.6em 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
     .markdown-render pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
     .editor-body .img-text-card { border-radius: 22px; corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-bg); border: 0.5px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); }
     .editor-body .img-text-card .itc-img-wrap { width: 100%; line-height: 0; max-height: 468px; overflow: hidden; }
@@ -387,7 +387,7 @@
         border-radius: 999px;
         word-break: break-word;
     }
-    .editor-body code { font-family: inherit; font-size: 0.85em; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); padding: 0.15em 0.6em; border-radius: 999px; word-break: break-word; border: 0.5px solid var(--glass-border); }
+    .editor-body code { font-family: inherit; font-size: 0.85em; background: rgba(128,128,128,0.08); padding: 0.15em 0.6em; border-radius: 999px; word-break: break-word; border: 0.5px solid var(--border-color); }
     .markdown-render pre code {
         background: transparent;
         padding: 0;
