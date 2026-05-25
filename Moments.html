@@ -104,7 +104,7 @@
         }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html { background-color: var(--primary-bg); -webkit-text-size-adjust: auto; text-size-adjust: auto; }
+    html { background-color: var(--primary-bg); -webkit-text-size-adjust: auto; text-size-adjust: auto; overflow-x: hidden; }
     body {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
         background-color: var(--primary-bg);
@@ -4361,7 +4361,7 @@ window.getDB = getDB;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
-      minHeight: "100dvh",
+      minHeight: "100svh",
       zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
@@ -4374,7 +4374,7 @@ window.getDB = getDB;
     style: {
       position: "relative",
       zIndex: 1,
-      minHeight: "100dvh",
+      minHeight: "100svh",
       paddingBottom: "env(safe-area-inset-bottom)"
     }
   }, /*#__PURE__*/React.createElement("button", {
