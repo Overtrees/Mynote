@@ -27,7 +27,8 @@
         case 'todo':
           checked = node.attrs && node.attrs.checked || false;
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
-          return '<div data-blockid="' + node.id + '" data-type="todo"><input type="checkbox" data-checked="' + checked + '"' + (checked ? ' checked' : '') + ' style="margin:0 6px 0 0"><span>' + text + '</span></div>';
+          var chk = checked ? '<svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="11" fill="#007AFF"/><path d="M7 11l3 3 5-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9.5" stroke="#C7C7CC" stroke-width="1.8"/></svg>';
+          return '<div data-blockid="' + node.id + '" data-type="todo"><span class="todo-checkbox">' + chk + '</span><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
         case 'musicCard':
@@ -98,7 +99,7 @@
         continue;
       }
       if (type === 'todo') {
-        var cb = el.querySelector('input[type="checkbox"]'), checked = cb ? cb.checked : false;
+        var cb = el.querySelector('.todo-checkbox'), checked = cb ? cb.dataset.checked === 'true' : false;
         var rawTodo = el.textContent || '';
         if (prev && prev.type === 'todo' && prev.children && prev.children[0] && prev.children[0].text === rawTodo && prev.attrs && prev.attrs.checked === checked) { doc.push(prev); continue; }
         doc.push({ id:id, type:type, attrs:{checked:checked}, children:[{text:rawTodo}] });
