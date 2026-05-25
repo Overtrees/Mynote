@@ -1870,6 +1870,26 @@ window.getDB = getDB;
           }
           blurApplyingRef.current = false;
         }, 50);
+      } else if (type === 'table' || type === 'callout' || type === 'code_block') {
+        // 块级渲染命令后触发 MD 渲染
+        clearTimeout(mdCheckTimerRef.current);
+        mdCheckTimerRef.current = setTimeout(function() {
+          if (blurApplyingRef.current) return;
+          blurApplyingRef.current = true;
+          var _el2 = editorBodyRef.current;
+          if (!_el2) { blurApplyingRef.current = false; return; }
+          var allPs = _el2.querySelectorAll('p');
+          for (var _pi = 0; _pi < allPs.length; _pi++) {
+            var _p = allPs[_pi];
+            var _txt = _p.innerText || '';
+            if (!_txt) continue;
+            if (/^\|.*\|$/.test(_txt.trim()) || /^```/.test(_txt.trim()) || /^>\s*\[!/.test(_txt.trim())) {
+              var _html = renderMarkdownHtml(_txt);
+              if (_html !== _txt) { _p.innerHTML = _html; }
+            }
+          }
+          blurApplyingRef.current = false;
+        }, 80);
       }
       setTimeout(function () {
         slashApplyingRef.current = false;
