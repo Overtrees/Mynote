@@ -6,11 +6,11 @@
     if (!text || typeof text !== 'string') return text;
     return text
       .replace(/~~([^~]+)~~/g, '<del style="background:rgba(127,127,127,0.06);padding:0 2px;">$1</del>')
-      .replace(/==([^=]+)==/g, '<span style="display:inline-flex;align-items:center;background:rgba(255,204,0,0.25);color:var(--text-main);padding:0 10px;border-radius:999px;line-height:1.8;font-weight:500;">$1</span>')
+      .replace(/==([^=]+)==/g, '<span style="display:inline-flex;align-items:center;background:rgba(255,204,0,0.25);color:var(--text-main);padding:0 10px;border-radius:999px;line-height:1.8;font-weight:600;font-size:0.8em;">$1</span>')
       .replace(/!!([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(90,200,250,0.15);color:#007aff;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> $1</span></span>')
       .replace(/\?\?([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(255,149,0,0.12);color:#e88b00;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> $1</span></span>')
       .replace(/@@([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(52,199,89,0.12);color:#34c759;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> $1</span></span>')
-      .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:#007aff;background:rgba(0,122,255,0.08);padding:0 8px;border-radius:999px;font-size:0.85em;font-weight:500;line-height:1.8;">#$2</span>')
+      .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:#007aff;background:rgba(0,122,255,0.08);padding:0 10px;border-radius:999px;font-size:0.8em;font-weight:600;line-height:1.8;">#$2</span>')
       /* ---- callout > [!NOTE] / [!WARNING] / [!TIP] ---- */
       .replace(/^>\s*\[!(\w+)\]\s*([\s\S]*?)(?=\n>\s*\[|\n*$(?!\n))/gm, function(m, type, body) {
         var t = type.toLowerCase();
@@ -66,10 +66,6 @@
       .replace(/!!([^\n]+)/g, '\uD83D\uDCA1 $1')
       .replace(/\?\?([^\n]+)/g, '\u2753 $1')
       .replace(/@@([^\n]+)/g, '\uD83D\uDC64 $1')
-      .replace(/\$(\w+):([^$]+)\$/g, '$2')
-      .replace(/\$([^$]{1,30})\$/g, '$1')
-      .replace(/^---(.+?)---$/gm, '$1')
-      .replace(/:([a-z_+-]+):/g, function(m, name) { return m; })
       .replace(/```[\s\S]*?```/g, ' \u4EE3\u7801\u5757 ')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '$1')
