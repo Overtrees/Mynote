@@ -3655,8 +3655,8 @@ window.getDB = getDB;
         docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: newChecked });
         triggerAutoSave();
         // 光标定位到文字末尾
-        var textEl = todoBlock.querySelector('span');
-        if (textEl && editorBodyRef.current) {
+        var textEl = todoBlock.querySelector('span:last-of-type');
+        if (textEl && textEl !== checkbox && editorBodyRef.current) {
           editorBodyRef.current.focus();
           var r = document.createRange();
           r.selectNodeContents(textEl);
