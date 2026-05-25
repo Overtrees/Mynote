@@ -1870,26 +1870,6 @@ window.getDB = getDB;
           }
           blurApplyingRef.current = false;
         }, 50);
-      } else if (type === 'table' || type === 'callout' || type === 'code_block') {
-        // 块级渲染命令后触发 MD 渲染
-        clearTimeout(mdCheckTimerRef.current);
-        mdCheckTimerRef.current = setTimeout(function() {
-          if (blurApplyingRef.current) return;
-          blurApplyingRef.current = true;
-          var _el2 = editorBodyRef.current;
-          if (!_el2) { blurApplyingRef.current = false; return; }
-          var allPs = _el2.querySelectorAll('p');
-          for (var _pi = 0; _pi < allPs.length; _pi++) {
-            var _p = allPs[_pi];
-            var _txt = _p.innerText || '';
-            if (!_txt) continue;
-            if (/^\|.*\|$/.test(_txt.trim()) || /^```/.test(_txt.trim()) || /^>\s*\[!/.test(_txt.trim())) {
-              var _html = renderMarkdownHtml(_txt);
-              if (_html !== _txt) { _p.innerHTML = _html; }
-            }
-          }
-          blurApplyingRef.current = false;
-        }, 80);
       }
       setTimeout(function () {
         slashApplyingRef.current = false;
@@ -3427,6 +3407,25 @@ window.getDB = getDB;
   }, [insertLinkCardAtDOM, triggerAutoSave]);
   var handleEditorClick = useCallback(function (e) {
     if (showMenu) closeEditorMenu();
+    /* ---- 点击已渲染块（表格/代码块/Callout）→ 回到编辑态 ---- */
+    var mdBlock = e.target.closest('.md-preview.block[data-mdtext]');
+    if (mdBlock && !e.target.closest('a, button, input, [contenteditable="true"]')) {
+      var mdtext = mdBlock.dataset.mdtext || '';
+      var bid = mdBlock.dataset.blockid || '';
+      var p = document.createElement('p');
+      p.dataset.blockid = bid;
+      p.textContent = mdtext;
+      mdBlock.replaceWith(p);
+      // 聚焦到新段落
+      var r = document.createRange();
+      r.selectNodeContents(p);
+      r.collapse(false);
+      var s = window.getSelection();
+      if (s) { s.removeAllRanges(); s.addRange(r); }
+      if (editorBodyRef.current) editorBodyRef.current.focus();
+      clearTimeout(mdCheckTimerRef.current);
+      return;
+    }
     /* ---- 点击卡片图片区 → 打开图库 ---- */
     var cardImg = e.target.closest('[data-blockid]');
     if (cardImg && cardImg.dataset && cardImg.dataset.type) {
