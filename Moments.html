@@ -1857,11 +1857,11 @@ window.getDB = getDB;
       if (type === 'todo') {
         var todoEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"]');
         if (todoEl) {
-          var cb = todoEl.querySelector('input[type="checkbox"]');
-          if (cb) {
-            cb.style.display = 'none';
-            void cb.offsetHeight;
-            cb.style.display = '';
+          var chk = todoEl.querySelector('.todo-checkbox');
+          if (chk) {
+            chk.style.opacity = '0.99';
+            void chk.offsetHeight;
+            chk.style.opacity = '';
           }
         }
       }
