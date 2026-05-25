@@ -84,6 +84,10 @@
 
         --border-color: rgba(0, 0, 0, 0.05);
     }
+    @keyframes contentFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
     @media (prefers-color-scheme: dark) {
         :root {
             --primary-bg: #000000;
@@ -5767,7 +5771,8 @@ function MemoList() {
   }, /*#__PURE__*/React.createElement("circle", { cx: 11, cy: 11, r: 8 }), /*#__PURE__*/React.createElement("line", { x1: 21, y1: 21, x2: 16.65, y2: 16.65 })), /*#__PURE__*/React.createElement("span", {
     style: { fontSize: 14, color: "var(--text-secondary)", letterSpacing: "-0.1px" }
   }, "\u641C\u7D22"))), /*#__PURE__*/React.createElement("div", {
-    className: "container"
+    className: "container",
+    style: { animation: "contentFadeIn 0.15s ease 0.12s both" }
   }, /*#__PURE__*/React.createElement("div", {
     className: "list-group"
   }, /*#__PURE__*/React.createElement(SwipeRow, {
