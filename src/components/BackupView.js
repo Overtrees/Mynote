@@ -541,7 +541,7 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      animation: 'slideInFromRight 0.32s cubic-bezier(0.25,0.46,0.45,0.94) both'
+      animation: 'slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "backup-hero"
