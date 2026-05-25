@@ -27,7 +27,7 @@
         case 'todo':
           checked = node.attrs && node.attrs.checked || false;
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
-          return '<div data-blockid="' + node.id + '" data-type="todo"><input type="checkbox" data-checked="' + checked + '"' + (checked ? ' checked' : '') + ' style="pointer-events:none;margin:0 6px 0 0"><span>' + text + '</span></div>';
+          return '<div data-blockid="' + node.id + '" data-type="todo"><input type="checkbox" data-checked="' + checked + '"' + (checked ? ' checked' : '') + ' style="margin:0 6px 0 0"><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
         case 'musicCard':

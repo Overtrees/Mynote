@@ -3628,7 +3628,8 @@ window.getDB = getDB;
     }
     var todoBlock = e.target.closest('[data-type="todo"]');
     if (todoBlock) {
-      var cb = todoBlock.querySelector('input[type="checkbox"]');
+      var cb = e.target.closest('input[type="checkbox"]');
+      if (!cb) return; // 只有点击圆点才打勾，点击文字不触发
       if (cb) {
         cb.checked = !cb.checked;
         var block = todoBlock.closest('[data-blockid]');
@@ -3660,7 +3661,7 @@ window.getDB = getDB;
 
   /* ---- 待办圆点点击：pointerdown 阶段提前拦截光标 ---- */
   var handleTodoPointerDown = useCallback(function (e) {
-    if (e.target.closest('[data-type="todo"]')) {
+    if (e.target.closest('[data-type="todo"] input[type="checkbox"]')) {
       e.preventDefault();
     }
   }, []);
