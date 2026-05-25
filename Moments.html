@@ -3626,32 +3626,7 @@ window.getDB = getDB;
       triggerAutoSave();
       return;
     }
-    var todoBlock = e.target.closest('[data-type="todo"]');
-    if (todoBlock) {
-      var cb = e.target.closest('input[type="checkbox"]');
-      if (!cb) return; // 只有点击圆点才打勾，点击文字不触发
-      if (cb) {
-        cb.checked = !cb.checked;
-        var block = todoBlock.closest('[data-blockid]');
-        if (block) {
-          var id = block.dataset.blockid;
-          var idx = docRef.current.findIndex(function (n) { return n.id === id; });
-          if (idx !== -1) {
-            docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: cb.checked });
-            // 光标定位到文字末尾
-            var textEl = todoBlock.querySelector('span');
-            if (!textEl) textEl = todoBlock;
-            var r = document.createRange();
-            r.selectNodeContents(textEl);
-            r.collapse(false);
-            var sel = window.getSelection();
-            if (sel) { sel.removeAllRanges(); sel.addRange(r); }
-            triggerAutoSave();
-          }
-        }
-      }
-      return;
-    }
+    if (e.target.closest('[data-type="todo"] input[type="checkbox"]')) return;
     // Link card click to open URL
     var lc = e.target.closest('.atomic[data-url]');
     if (lc && lc.dataset.url) {
@@ -3660,11 +3635,37 @@ window.getDB = getDB;
   }, [triggerAutoSave, showMenu]);
 
   /* ---- 待办圆点点击：pointerdown 阶段提前拦截光标 ---- */
-  var handleTodoPointerDown = useCallback(function (e) {
-    if (e.target.closest('[data-type="todo"] input[type="checkbox"]')) {
-      e.preventDefault();
+  var handleTodoPointerUp = useCallback(function (e) {
+    var cb = e.target.closest('[data-type="todo"] input[type="checkbox"]');
+    if (!cb) return;
+    var todoBlock = cb.closest('[data-type="todo"]');
+    if (!todoBlock) return;
+    var todoText = todoBlock.textContent || '';
+    if (!todoText.trim()) return;
+    cb.checked = !cb.checked;
+    // 强制重绘确保 SVG 切换
+    cb.style.display = 'none';
+    void cb.offsetHeight;
+    cb.style.display = '';
+    var block = todoBlock.closest('[data-blockid]');
+    if (block) {
+      var id = block.dataset.blockid;
+      var idx = docRef.current.findIndex(function (n) { return n.id === id; });
+      if (idx !== -1) {
+        docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: cb.checked });
+        var textEl = todoBlock.querySelector('span');
+        if (textEl) {
+          var r = document.createRange();
+          r.selectNodeContents(textEl);
+          r.collapse(false);
+          var sel = window.getSelection();
+          if (sel) { sel.removeAllRanges(); sel.addRange(r); }
+        }
+        triggerAutoSave();
+      }
     }
-  }, []);
+    e.preventDefault();
+  }, [triggerAutoSave]);
 
   /* ===== Markdown 自动渲染（blur 时触发，延迟防抖） ===== */
   var mdCheckTimerRef = useRef(null);
@@ -4933,7 +4934,7 @@ window.getDB = getDB;
     onKeyDown: handleEditorKeyDown,
     onPaste: handleEditorPaste,
     onClick: handleEditorClick,
-    onPointerDown: handleTodoPointerDown,
+    onPointerUp: handleTodoPointerUp,
     onBlur: handleEditorBlur,
     onFocus: handleEditorFocus,
     tabIndex: 0,
