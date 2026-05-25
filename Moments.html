@@ -3654,6 +3654,16 @@ window.getDB = getDB;
       if (idx !== -1) {
         docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: newChecked });
         triggerAutoSave();
+        // 光标定位到文字末尾
+        var textEl = todoBlock.querySelector('span');
+        if (textEl && editorBodyRef.current) {
+          editorBodyRef.current.focus();
+          var r = document.createRange();
+          r.selectNodeContents(textEl);
+          r.collapse(false);
+          var sel = window.getSelection();
+          if (sel) { sel.removeAllRanges(); sel.addRange(r); }
+        }
       }
     }
     e.preventDefault();
