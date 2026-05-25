@@ -1,0 +1,21 @@
+{
+  "name": "此刻",
+  "short_name": "此刻",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#4DA6E8",
+  "theme_color": "#4DA6E8",
+  "icons": [
+    {
+      "src": "./Mynoteicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./Mynoteicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
