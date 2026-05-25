@@ -83,6 +83,7 @@
         --glass-border: rgba(255, 255, 255, 0.6);
 
         --border-color: rgba(0, 0, 0, 0.05);
+        --code-bg: #f4f4f5;
     }
     @keyframes contentFadeIn {
         from { opacity: 0; }
@@ -99,6 +100,7 @@
             --glass-border: rgba(255, 255, 255, 0.1);
 
             --border-color: rgba(255, 255, 255, 0.1);
+            --code-bg: #2c2c2e;
         }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -334,8 +336,7 @@
     .markdown-render .callout-title { font-size: 15px; font-weight: 700; color: var(--text-main); letter-spacing: -0.1px; }
     .markdown-render .callout-body { font-size: 14px; color: var(--text-main); opacity: 0.85; line-height: 1.65; }
     .markdown-render .callout code { background: rgba(0,0,0,0.05); padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
-    .markdown-render pre { background: var(--card-bg); border: 0.5px solid var(--border-color); border-radius: 999px; padding: 14px 18px; font-size: 13px; line-height: 1.6; overflow-x: auto; margin: 0.6em 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-    .markdown-render pre code { background: none; padding: 0; font-size: inherit; border-radius: 0; }
+    .markdown-render pre { background: var(--code-bg); border: 0.5px solid var(--border-color); border-radius: 16px; padding: 14px 18px; font-size: 13px; line-height: 1.6; overflow-x: auto; margin: 0.6em 0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .editor-body .img-text-card { border-radius: 22px; corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-bg); border: 0.5px solid var(--glass-border); box-shadow: 0 2px 8px rgba(0,0,0,0.03); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); }
     .editor-body .img-text-card .itc-img-wrap { width: 100%; line-height: 0; max-height: 468px; overflow: hidden; }
     .editor-body .img-text-card .itc-img-wrap img { width: 100%; height: auto; display: block; }
@@ -386,19 +387,22 @@
     .markdown-render code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
         font-size: 0.85em;
-        background: rgba(127,127,127,0.08);
+        background: var(--code-bg);
         padding: 0.15em 0.6em;
-        border-radius: 999px;
+        border-radius: 8px;
         word-break: break-word;
+        border: 0.5px solid var(--border-color);
     }
-    .editor-body code { font-family: inherit; font-size: 0.85em; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); padding: 0.15em 0.6em; border-radius: 999px; word-break: break-word; border: 0.5px solid var(--glass-border); }
+    .editor-body code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 0.85em; background: var(--code-bg); padding: 0.15em 0.6em; border-radius: 8px; word-break: break-word; border: 0.5px solid var(--border-color); }
     .markdown-render pre code {
         background: transparent;
         padding: 0;
         border-radius: 0;
+        border: none;
         display: block;
         line-height: 1.55;
-        font-size: 0.85em;
+        font-size: inherit;
+        font-family: inherit;
     }
     .markdown-render a {
         color: #007aff;
@@ -1236,9 +1240,14 @@ window.getDB = getDB;
   var slashTargetBlockRef = useRef(null);
   useEffect(function () {
     if (showSlash) {
+      var active = true;
       requestAnimationFrame(function () {
-        setSlashEntered(true);
+        if (active) setSlashEntered(true);
       });
+      setTimeout(function () {
+        if (active) setSlashEntered(true);
+      }, 50);
+      return function () { active = false; };
     } else {
       setSlashEntered(false);
     }
@@ -2102,6 +2111,7 @@ window.getDB = getDB;
   var avatarInputRef = useRef(null);
   const [avatarUrl, setAvatarUrl] = useState(null);
   var isEditingTitleRef = useRef(false);
+  var editorFocusedRef = useRef(false);
   var savedSelectionRef = useRef(null);
   var history = useRef({
     past: [],
@@ -2242,11 +2252,14 @@ window.getDB = getDB;
           var grp2 = [uncached[gi]],
             gtxts2 = [ct];
           gi++;
-          while (gi < uncached.length) {
-            var cn2 = (uncached[gi].textContent || '').trim();
-            gtxts2.push(cn2);
-            gi++;
-            if (/^```/.test(cn2)) break;
+          // 单段落已含完整代码块（开闭 ``` 都在一段内）→ 跳过收集中
+          if (ct.indexOf('```', 3) < 0) {
+            while (gi < uncached.length) {
+              var cn2 = (uncached[gi].textContent || '').trim();
+              gtxts2.push(cn2);
+              gi++;
+              if (/^```/.test(cn2)) break;
+            }
           }
           var merged2 = gtxts2.join('\n'),
             htmlG2 = renderMarkdownHtml(merged2);
@@ -3675,9 +3688,10 @@ window.getDB = getDB;
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
   var handleEditorBlur = useCallback(function () {
+    editorFocusedRef.current = false;
     // 键盘收起时强制重排固定元素位置
     if (window.visualViewport) {
-      window.scrollTo(0, window.scrollY);
+      window.scrollTo(0, 0);
     }
     // 键盘收起时复位标题胶囊
     if (isEditingTitleRef.current) {
@@ -3685,8 +3699,14 @@ window.getDB = getDB;
       editingStyleSnapshot.current = null;
       setEditingTitle(null);
     }
-    // 同步滚动状态（键盘收起时不触发 scroll 事件）
-    setEditorScrolled(window.scrollY > 30);
+    // 同步滚动状态（键盘收起后 iOS 可能异步恢复滚动位置，需循环覆盖）
+    var retries = 0;
+    function forceVertical() {
+      setEditorScrolled(false);
+      retries++;
+      if (retries < 6) setTimeout(forceVertical, 80);
+    }
+    forceVertical();
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
@@ -3719,11 +3739,14 @@ window.getDB = getDB;
             var idx1 = ti;
             var ctxts = [txt];
             ti++;
-            while (ti < ps.length) {
-              var nt = (ps[ti].textContent || '').trim();
-              ctxts.push(nt);
-              ti++;
-              if (/^```/.test(nt)) break;
+            // 单段落已含完整代码块 → 跳过收集中
+            if (txt.indexOf('```', 3) < 0) {
+              while (ti < ps.length) {
+                var nt = (ps[ti].textContent || '').trim();
+                ctxts.push(nt);
+                ti++;
+                if (/^```/.test(nt)) break;
+              }
             }
             codeGroups.push({
               indices: Array.from({
@@ -4082,6 +4105,7 @@ window.getDB = getDB;
     }, 400);
   }, [triggerAutoSave]);
   var handleEditorFocus = useCallback(function () {
+    editorFocusedRef.current = true;
     if (showMenu) closeEditorMenu();
     clearTimeout(mdCheckTimerRef.current);
     // 检查是否有 MD 预览块需要还原（点击进入编辑时）

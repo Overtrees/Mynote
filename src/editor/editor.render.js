@@ -108,17 +108,8 @@
         continue;
       }
       if (type === 'divider') { doc.push(prev || { id:id, type:type }); continue; }
-      // data-mdtext 优先（渲染块如表格/代码块/Callout）：保存原始 markdown 文本
-      // 但若 DOM 文本已变化（用户编辑过渲染内容），使用 DOM 文本并清除 mdtext
-      if (el.dataset.mdtext) {
-        var mdtextRaw = el.textContent || '';
-        if (prev && prev.type === 'paragraph' && prev.children && prev.children[0] && prev.children[0].text === mdtextRaw) { doc.push(prev); continue; }
-        if (mdtextRaw !== el.dataset.mdtext) {
-          delete el.dataset.mdtext;
-          doc.push({ id:id, type:'paragraph', children:[{text:mdtextRaw}] }); continue;
-        }
-        doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue;
-      }
+      // data-mdtext 优先（渲染块如表格/代码块/Callout/内联渲染）：保存原始 markdown 文本
+      if (el.dataset.mdtext) { doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue; }
       // 不可编辑块：保留 prev
       if (el.contentEditable === 'false') { doc.push(prev || { id:id, type:type }); continue; }
       var rawText = el.textContent || '';
