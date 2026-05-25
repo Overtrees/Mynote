@@ -105,8 +105,10 @@
         continue;
       }
       if (type === 'divider') { doc.push(prev || { id:id, type:type }); continue; }
+      // data-mdtext 优先（渲染块如表格/代码块/Callout）：保存原始 markdown 文本
       if (el.dataset.mdtext) { doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue; }
-      // 可编辑段落 → 增量：文本相同则复用 prev
+      // 不可编辑块：保留 prev
+      if (el.contentEditable === 'false') { doc.push(prev || { id:id, type:type }); continue; }
       var rawText = el.textContent || '';
       if (rawText === '\u200B' || rawText === '') rawText = '';
       if (['P','BLOCKQUOTE','DIV'].indexOf(el.tagName) >= 0) {
