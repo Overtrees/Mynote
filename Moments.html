@@ -3628,10 +3628,10 @@ window.getDB = getDB;
     }
     var todoBlock = e.target.closest('[data-type="todo"]');
     if (todoBlock) {
+      e.preventDefault();
       var cb = todoBlock.querySelector('input[type="checkbox"]');
       if (cb) {
         var todoText = todoBlock.textContent || '';
-        // 无文字不能打勾
         if (!todoText.trim()) return;
         cb.checked = !cb.checked;
         var block = todoBlock.closest('[data-blockid]');
@@ -3640,15 +3640,6 @@ window.getDB = getDB;
           var idx = docRef.current.findIndex(function (n) { return n.id === id; });
           if (idx !== -1) {
             docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: cb.checked });
-            // 打勾后光标定位到文字末尾
-            var span = todoBlock.querySelector('span');
-            if (span) {
-              var r = document.createRange();
-              r.selectNodeContents(span);
-              r.collapse(false);
-              var s = window.getSelection();
-              if (s) { s.removeAllRanges(); s.addRange(r); }
-            }
             triggerAutoSave();
           }
         }
