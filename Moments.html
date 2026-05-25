@@ -1853,6 +1853,18 @@ window.getDB = getDB;
         return n.slice(0, 6);
       });
       triggerAutoSave();
+      // 强制重绘确保 checkbox 圆点 SVG 立即显示
+      if (type === 'todo') {
+        var todoEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"]');
+        if (todoEl) {
+          var cb = todoEl.querySelector('input[type="checkbox"]');
+          if (cb) {
+            cb.style.display = 'none';
+            void cb.offsetHeight;
+            cb.style.display = '';
+          }
+        }
+      }
       if (type && type.startsWith('inline_')) {
         clearTimeout(mdCheckTimerRef.current);
         mdCheckTimerRef.current = setTimeout(function() {
