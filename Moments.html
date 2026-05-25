@@ -3656,6 +3656,13 @@ window.getDB = getDB;
     }
   }, [triggerAutoSave, showMenu]);
 
+  /* ---- 待办圆点点击：pointerdown 阶段提前拦截光标 ---- */
+  var handleTodoPointerDown = useCallback(function (e) {
+    if (e.target.closest('[data-type="todo"]')) {
+      e.preventDefault();
+    }
+  }, []);
+
   /* ===== Markdown 自动渲染（blur 时触发，延迟防抖） ===== */
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
@@ -4923,6 +4930,7 @@ window.getDB = getDB;
     onKeyDown: handleEditorKeyDown,
     onPaste: handleEditorPaste,
     onClick: handleEditorClick,
+    onPointerDown: handleTodoPointerDown,
     onBlur: handleEditorBlur,
     onFocus: handleEditorFocus,
     tabIndex: 0,
