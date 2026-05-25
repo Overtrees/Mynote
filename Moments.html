@@ -3628,11 +3628,8 @@ window.getDB = getDB;
     }
     var todoBlock = e.target.closest('[data-type="todo"]');
     if (todoBlock) {
-      e.preventDefault();
       var cb = todoBlock.querySelector('input[type="checkbox"]');
       if (cb) {
-        var todoText = todoBlock.textContent || '';
-        if (!todoText.trim()) return;
         cb.checked = !cb.checked;
         var block = todoBlock.closest('[data-blockid]');
         if (block) {
@@ -3640,6 +3637,12 @@ window.getDB = getDB;
           var idx = docRef.current.findIndex(function (n) { return n.id === id; });
           if (idx !== -1) {
             docRef.current[idx].attrs = Object.assign({}, docRef.current[idx].attrs || {}, { checked: cb.checked });
+            // 光标定位到文字末尾
+            var r = document.createRange();
+            r.selectNodeContents(todoBlock);
+            r.collapse(false);
+            var sel = window.getSelection();
+            if (sel) { sel.removeAllRanges(); sel.addRange(r); }
             triggerAutoSave();
           }
         }
