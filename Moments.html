@@ -2530,7 +2530,7 @@ window.getDB = getDB;
     setClosing(true);
     setTimeout(function() {
       onClose();
-    }, 280);
+    }, 320);
   };
   const handleAvatarSelected = async e => {
     const file = e.target.files && e.target.files[0];
@@ -4266,7 +4266,7 @@ window.getDB = getDB;
       zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
-        animation: "slideOutToRight 0.28s cubic-bezier(0.32,0.94,0.6,1) forwards"
+        animation: "slideOutToRight 0.32s cubic-bezier(0.32,0.94,0.6,1) forwards"
       } : animDone ? {} : {
         animation: "slideInFromRight 0.32s cubic-bezier(0.32,0.94,0.6,1) both"
       })
@@ -5631,7 +5631,7 @@ function MemoList() {
     });
   }
   if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { className: "page-title compact", style: { visibility: isCompact ? 'visible' : 'hidden', opacity: isCompact ? 1 : 0, pointerEvents: 'auto', cursor: 'pointer', width: 'fit-content', margin: '0 auto' }, onClick: () => setView('settings') }, "\u6B64\u523B"), /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight 0.28s cubic-bezier(0.32,0.94,0.6,1) both" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { className: "page-title compact", style: { visibility: isCompact ? 'visible' : 'hidden', opacity: isCompact ? 1 : 0, pointerEvents: 'auto', cursor: 'pointer', width: 'fit-content', margin: '0 auto' }, onClick: () => setView('settings') }, "\u6B64\u523B"), /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight 0.32s cubic-bezier(0.32,0.94,0.6,1) both" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
