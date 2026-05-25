@@ -868,8 +868,8 @@
     .editor-body blockquote { margin: 0.6em 0; padding: 10px 14px 10px 16px; border-left: 3px solid rgba(0,122,255,0.35); border-radius: 999px; border-top: 0.5px solid var(--border-color); border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); color: var(--text-secondary); font-size: 14px; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.03); background: var(--card-bg); }
     .editor-body hr { border: none; border-top: 1px solid var(--border-color); margin: 0.6em 0; opacity: 0.5; }
     .editor-body [data-type="todo"] { display: flex; align-items: center; gap: 6px; margin: 0.2em 0; padding: 4px 12px; background: var(--card-bg); border-radius: 999px; }
-    .editor-body [data-type="todo"] .todo-checkbox { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; background: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 22 22' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='9.5' stroke='%23C7C7CC' stroke-width='1.8'/%3E%3C/svg%3E") center/contain no-repeat; }
-    .editor-body [data-type="todo"] .todo-checkbox.checked { background: url("data:image/svg+xml,%3Csvg width='18' height='18' viewBox='0 0 22 22' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='11' fill='%23007AFF'/%3E%3Cpath d='M7 11l3 3 5-5' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; }
+    .editor-body [data-type="todo"] .todo-checkbox { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; }
+    .editor-body [data-type="todo"] .todo-checkbox svg { display: block; }
     .editor-body .atomic { user-select: none; -webkit-user-select: none; cursor: default; }
     .editor-body .atomic.attachment { margin: 8px 0; border-radius: 32px; corner-shape: squircle; overflow: hidden; }
     .editor-body .atomic[data-type="image"],
@@ -1854,6 +1854,15 @@ window.getDB = getDB;
       });
       triggerAutoSave();
       // 强制重绘确保 checkbox 圆点 SVG 立即显示
+      if (type === 'todo') {
+        requestAnimationFrame(function() {
+          var todoEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"]');
+          if (todoEl) {
+            todoEl.style.transform = 'translateZ(0)';
+            requestAnimationFrame(function() { todoEl.style.transform = ''; });
+          }
+        });
+      }
       if (type && type.startsWith('inline_')) {
         clearTimeout(mdCheckTimerRef.current);
         mdCheckTimerRef.current = setTimeout(function() {
@@ -3633,8 +3642,9 @@ window.getDB = getDB;
     if (!todoText.trim()) return;
     var checked = checkbox.dataset.checked === 'true';
     var newChecked = !checked;
-    if (newChecked) checkbox.classList.add('checked');
-    else checkbox.classList.remove('checked');
+    checkbox.dataset.checked = newChecked;
+    // 替换 SVG
+    checkbox.innerHTML = newChecked ? '<svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="11" fill="#007AFF"/><path d="M7 11l3 3 5-5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>' : '<svg width="18" height="18" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="9.5" stroke="#C7C7CC" stroke-width="1.8"/></svg>';
     var block = todoBlock.closest('[data-blockid]');
     if (block) {
       var id = block.dataset.blockid;
