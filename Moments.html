@@ -1162,7 +1162,14 @@ window.getDB = getDB;
         // 仅当草稿比 memo 更新时恢复
         if (draftDate > memoDate) {
           docRef.current = draft.doc;
+          setEditorDocRef(draft.doc);
           setRenderKey(prev => prev + 1);
+          // 同步 DOM：草稿恢复时 editor-body 可能已被 innerHTML 初始化
+          // 手动更新 DOM 防止 docRef 与 DOM 脱节
+          var el = editorBodyRef.current;
+          if (el && domInited.current) {
+            el.innerHTML = renderDocToEditorHTML(draft.doc, files);
+          }
         }
       }
     }).catch(function(e) { console.warn('[\u6B64\u523B] draft load', e); });
@@ -2362,7 +2369,12 @@ window.getDB = getDB;
                 }
               }
               cp.dataset.mdtext = txt2;
-              cp.innerHTML = tmp2.innerHTML;
+              // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
+              if (tmp2.children.length === 1 && tmp2.children[0].tagName === 'P') {
+                cp.innerHTML = tmp2.children[0].innerHTML;
+              } else {
+                cp.innerHTML = tmp2.innerHTML;
+              }
             }
           }
           if (idx2 < grouped.length) setTimeout(pb, 16);
@@ -2487,38 +2499,38 @@ window.getDB = getDB;
   }, [title]);
   var doSave = useCallback(d => {
     /* 采集 DOM 渲染缓存 → 存入 IndexedDB */
+    var cachePromise = Promise.resolve();
     try {
       var el = editorBodyRef.current;
       if (el) {
         var rc = {};
         el.querySelectorAll('p[data-mdtext]').forEach(function (p) {
           var bid = p.dataset.blockid;
-          if (bid) rc[bid] = {
-            t: 'i',
-            h: p.innerHTML,
-            m: p.dataset.mdtext
-          };
+          if (bid) rc[bid] = { t: 'i', h: p.innerHTML, m: p.dataset.mdtext };
         });
         el.querySelectorAll('.md-preview.block[data-mdtext]').forEach(function (dv) {
           var bid = dv.dataset.blockid;
-          if (bid) rc[bid] = {
-            t: 'b',
-            h: dv.innerHTML,
-            m: dv.dataset.mdtext
-          };
+          if (bid) rc[bid] = { t: 'b', h: dv.innerHTML, m: dv.dataset.mdtext };
         });
         if (Object.keys(rc).length > 0) {
-          getDB().then(function (db) {
-            saveRenderCacheToDB(db, memo.id, rc).catch(function () {});
-          }).catch(function(e) { if(e) console.warn('[\u6B64\u523B]', e); });
+          var db = dbRef.current;
+          if (!db) {
+            cachePromise = getDB().then(function (db2) {
+              return saveRenderCacheToDB(db2, memo.id, rc);
+            });
+          } else {
+            cachePromise = saveRenderCacheToDB(db, memo.id, rc);
+          }
         }
       }
     } catch (_) {}
+    cachePromise.catch(function () {});
     onSave(memo.id, {
       title: titleValueRef.current.trim() || "无标题",
       doc: d,
       updatedAt: new Date().toISOString()
     });
+    return cachePromise;
   }, [memo.id, onSave]);
   var triggerAutoSave = useCallback(isDraft => {
     clearTimeout(saveTimer.current);
@@ -2537,6 +2549,11 @@ window.getDB = getDB;
   }, [title, triggerAutoSave]);
   const handleClose = async () => {
     clearTimeout(saveTimer.current);
+    // 清理编辑器残留的 html/body 样式，防止页面底部透出黑色
+    document.documentElement.style.backgroundColor = '';
+    document.body.style.backgroundColor = '';
+    var bgStyle = document.getElementById('body-before-bg');
+    if (bgStyle) bgStyle.remove();
     const pending = Object.values(pendingAttachmentsRef.current);
     if (pending.length > 0) await Promise.allSettled(pending);
     /* 等待 CardReader 完成 */
@@ -2550,7 +2567,7 @@ window.getDB = getDB;
       DraftStore.clear(memo.id);
       onSave(memo.id, { _delete: true });
     } else {
-      doSave(JSON.parse(JSON.stringify(docRef.current)));
+      await doSave(JSON.parse(JSON.stringify(docRef.current)));
     }
     setClosing(true);
     setTimeout(function() {
@@ -4055,7 +4072,12 @@ window.getDB = getDB;
             }
           }
           p.dataset.mdtext = text;
-          p.innerHTML = temp.innerHTML;
+          // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
+          if (temp.children.length === 1 && temp.children[0].tagName === 'P') {
+            p.innerHTML = temp.children[0].innerHTML;
+          } else {
+            p.innerHTML = temp.innerHTML;
+          }
           var range = document.createRange();
           range.selectNodeContents(p);
           range.collapse(false);
