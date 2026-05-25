@@ -3626,7 +3626,7 @@ window.getDB = getDB;
       triggerAutoSave();
       return;
     }
-    if (e.target.closest('[data-type="todo"] input[type="checkbox"]') || e.target.closest('[data-type="todo"] .todo-checkbox')) return;
+    if (e.target.closest('[data-type="todo"] .todo-checkbox')) return;
     // Link card click to open URL
     var lc = e.target.closest('.atomic[data-url]');
     if (lc && lc.dataset.url) {
@@ -4936,7 +4936,7 @@ window.getDB = getDB;
     onKeyDown: handleEditorKeyDown,
     onPaste: handleEditorPaste,
     onClick: handleEditorClick,
-    onPointerDown: handleTodoClick,
+    onClick: handleTodoClick,
     onBlur: handleEditorBlur,
     onFocus: handleEditorFocus,
     tabIndex: 0,
