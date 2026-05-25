@@ -1855,15 +1855,13 @@ window.getDB = getDB;
       triggerAutoSave();
       // 强制重绘确保 checkbox 圆点 SVG 立即显示
       if (type === 'todo') {
-        var todoEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"]');
-        if (todoEl) {
-          var chk = todoEl.querySelector('.todo-checkbox');
-          if (chk) {
-            chk.style.opacity = '0.99';
-            void chk.offsetHeight;
-            chk.style.opacity = '';
+        requestAnimationFrame(function() {
+          var todoEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"]');
+          if (todoEl) {
+            todoEl.style.transform = 'translateZ(0)';
+            requestAnimationFrame(function() { todoEl.style.transform = ''; });
           }
-        }
+        });
       }
       if (type && type.startsWith('inline_')) {
         clearTimeout(mdCheckTimerRef.current);
