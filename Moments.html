@@ -2548,11 +2548,6 @@ window.getDB = getDB;
   }, [title, triggerAutoSave]);
   const handleClose = async () => {
     clearTimeout(saveTimer.current);
-    // 清理编辑器残留的 html/body 样式，防止页面底部透出黑色
-    document.documentElement.style.backgroundColor = '';
-    document.body.style.backgroundColor = '';
-    var bgStyle = document.getElementById('body-before-bg');
-    if (bgStyle) bgStyle.remove();
     const pending = Object.values(pendingAttachmentsRef.current);
     if (pending.length > 0) await Promise.allSettled(pending);
     /* 等待 CardReader 完成 */
@@ -2570,6 +2565,11 @@ window.getDB = getDB;
     }
     setClosing(true);
     setTimeout(function() {
+      // 过渡动画结束后再清理编辑器样式，避免动画期间顶部露出首页背景
+      document.documentElement.style.backgroundColor = '';
+      document.body.style.backgroundColor = '';
+      var bgStyle = document.getElementById('body-before-bg');
+      if (bgStyle) bgStyle.remove();
       onClose();
     }, 350);
   };
