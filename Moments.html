@@ -1475,16 +1475,6 @@ window.getDB = getDB;
     pinyin: 'yxl',
     shortcut: '1. '
   }, {
-    id: 'table',
-    icon: 'table',
-    title: '表格',
-    subtitle: '插入 2×3 表格模板',
-    keywords: 'table 表格',
-    type: 'table',
-    group: 'basic',
-    pinyin: 'bg',
-    shortcut: '| | |'
-  }, {
     id: 'callout',
     icon: 'callout',
     title: 'Callout',
@@ -1594,7 +1584,6 @@ window.getDB = getDB;
     centered: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="10" x2="17" y2="10"/><line x1="6" y1="6" x2="14" y2="6"/><line x1="6" y1="14" x2="14" y2="14"/></svg>',
     tagLabel: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="8" rx="4"/><path d="M7 10h6"/></svg>',
     decoDivider: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="10" x2="17" y2="10"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/></svg>',
-    table: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="1"/><line x1="10" y1="3" x2="10" y2="17"/><line x1="3" y1="9" x2="17" y2="9"/></svg>',
     callout: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="12" y2="12"/><rect x="4" y="6" width="2" height="8" rx="1" fill="currentColor" stroke="none"/></svg>',
     imgTextCard: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="3"/><rect x="4" y="4" width="12" height="8" rx="2" fill="currentColor" opacity="0.15"/><line x1="5" y1="14" x2="15" y2="14"/></svg>',
     imageTextRow: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="12" rx="1.5"/><rect x="12" y="4" width="6" height="12" rx="1.5"/><circle cx="6.5" cy="7.5" r="1"/></svg>',
@@ -1959,11 +1948,6 @@ window.getDB = getDB;
           text: '---🌟---'
         }]
       } : {}),
-      ...(type === 'table' ? {
-        children: [{
-          text: '| 项目 | 说明 | 备注 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |'
-        }]
-      } : {}),
       ...(type === 'callout' ? {
         children: [{
           text: '> [!NOTE]\n> 提示内容'
@@ -1986,11 +1970,11 @@ window.getDB = getDB;
         }
       } : {})
     };
-    if (type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'decorative_divider' || type === 'table' || type === 'callout') newBlock.type = 'paragraph';
-    if (type === 'table' || type === 'callout') {
+    if (type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'decorative_divider' || type === 'callout') newBlock.type = 'paragraph';
+    if (type === 'callout') {
       newBlock.children[0].text = cleanedText || newBlock.children[0].text;
     }
-    var needsTrailingParagraph = ['divider', 'musicCard', 'image', 'gallery', 'decorative_divider', 'table', 'callout', 'imgTextCard', 'imageTextRow', 'todo'].includes(type);
+    var needsTrailingParagraph = ['divider', 'musicCard', 'image', 'gallery', 'decorative_divider', 'callout', 'imgTextCard', 'imageTextRow', 'todo'].includes(type);
     var trailingBlock = needsTrailingParagraph ? {
       id: genId(),
       type: 'paragraph',
@@ -2220,40 +2204,6 @@ window.getDB = getDB;
       var gi = 0;
       while (gi < uncached.length) {
         var ct = (uncached[gi].textContent || '').trim();
-        if (/^\|.+\|$/.test(ct)) {
-          var grp = [uncached[gi]],
-            gtxts = [ct];
-          gi++;
-          while (gi < uncached.length) {
-            var cn = (uncached[gi].textContent || '').trim();
-            if (/^\|.+\|$/.test(cn)) {
-              grp.push(uncached[gi]);
-              gtxts.push(cn);
-              gi++;
-            } else break;
-          }
-          var merged = gtxts.join('\n'),
-            htmlG = renderMarkdownHtml(merged);
-          var tmpG = document.createElement('div');
-          tmpG.innerHTML = htmlG;
-          if (tmpG.firstElementChild && tmpG.firstElementChild.tagName === 'TABLE') {
-            /* 防重复渲染：第一行不在 DOM 中了 → 跳过 */
-            if (!grp[0] || !grp[0].parentNode) {
-              continue;
-            }
-            var dvG = document.createElement('div');
-            dvG.contentEditable = 'false';
-            dvG.className = 'md-preview block markdown-render';
-            dvG.dataset.blockid = grp[0].dataset.blockid;
-            dvG.dataset.mdtext = merged;
-            dvG.innerHTML = htmlG;
-            grp[0].replaceWith(dvG);
-            for (var riG = grp.length - 1; riG >= 1; riG--) {
-              if (grp[riG].parentNode) grp[riG].remove();
-            }
-          }
-          continue;
-        }
         if (/^```/.test(ct)) {
           var grp2 = [uncached[gi]],
             gtxts2 = [ct];
@@ -3739,9 +3689,8 @@ window.getDB = getDB;
       /* 段落过多时跳过块级渲染（表格/列表/代码块），仍做轻量内联渲染 */
       var skipHeavy = ps.length > 200;
 
-      /* ---- 第一遍：识别表格/代码块/列表行组，合并渲染 ---- */
+      /* ---- 第一遍：识别代码块/列表行组，合并渲染 ---- */
       var ti = 0;
-      var tableGroups = [];
       if (!skipHeavy) {
         // 代码块：以 ``` 开头和结尾的行组
         var codeGroups = [];
@@ -3799,58 +3748,6 @@ window.getDB = getDB;
             });
           } else {
             ti++;
-          }
-        }
-
-        // 表格行组
-        ti = 0;
-        while (ti < ps.length) {
-          var txt2 = (ps[ti].textContent || '').trim();
-          if (/^\|.+\|$/.test(txt2)) {
-            var group = [ti];
-            var groupTexts = [txt2];
-            ti++;
-            while (ti < ps.length) {
-              var nextText = (ps[ti].textContent || '').trim();
-              if (/^\|.+\|$/.test(nextText)) {
-                group.push(ti);
-                groupTexts.push(nextText);
-                ti++;
-              } else break;
-            }
-            tableGroups.push({
-              indices: group,
-              texts: groupTexts
-            });
-          } else {
-            ti++;
-          }
-        }
-
-        /* ---- 处理表格组 ---- */
-        for (var g = 0; g < tableGroups.length; g++) {
-          var grp = tableGroups[g];
-          var merged = grp.texts.join('\n');
-          var html = renderMarkdownHtml(merged);
-          var temp = document.createElement('div');
-          temp.innerHTML = html;
-          var firstChild = temp.firstElementChild;
-          if (firstChild && firstChild.tagName === 'TABLE') {
-            /* 防重复渲染：首行已不在 DOM 中 → 跳过 */
-            if (!ps[grp.indices[0]] || !ps[grp.indices[0]].parentNode) {
-              continue;
-            }
-            var div = document.createElement('div');
-            div.contentEditable = 'false';
-            div.className = 'md-preview block markdown-render';
-            div.dataset.blockid = ps[grp.indices[0]].dataset.blockid;
-            div.dataset.mdtext = merged;
-            div.innerHTML = html;
-            ps[grp.indices[0]].replaceWith(div);
-            for (var ri = grp.indices.length - 1; ri >= 1; ri--) {
-              var toRemove = ps[grp.indices[ri]];
-              if (toRemove.parentNode) toRemove.remove();
-            }
           }
         }
 

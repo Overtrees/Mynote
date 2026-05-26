@@ -91,7 +91,7 @@
       var atomicTypes = ['gallery','image','musicCard','link-card','embedCard','attachment','imgTextCard','imageTextRow'];
       if (atomicTypes.indexOf(type) >= 0) { doc.push(prev || { id:id, type:type }); continue; }
       if (el.contentEditable === 'false') {
-        // 块级渲染优先用 data-mdtext 保存原始 md 源码，防止 prev 为 null 时丢文本
+        // 块级渲染优先使用 data-mdtext 保存原始 md 源码
         if (el.dataset.mdtext) {
           doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] });
         } else {
@@ -118,9 +118,12 @@
       if (type === 'divider') { doc.push(prev || { id:id, type:type }); continue; }
       // data-mdtext 优先（渲染块如表格/代码块/Callout/内联渲染）：保存原始 markdown 文本
       if (el.dataset.mdtext) { doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue; }
-      // 不可编辑块：优先 data-mdtext，其次 prev
+      // 不可编辑块：保留 prev
       if (el.contentEditable === 'false') {
+        var _ceText = el.textContent || '';
+        console.log('[tableBug] contentEditable false id=' + id + ' hasMdtext=' + !!el.dataset.mdtext + ' prev=' + (prev ? 'exists' : 'null') + ' text=' + JSON.stringify(_ceText.substring(0, 40)));
         if (el.dataset.mdtext) {
+          console.log('[tableBug]   using mdtext:', JSON.stringify(el.dataset.mdtext.substring(0, 40)));
           doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] });
         } else {
           doc.push(prev || { id:id, type:type });
