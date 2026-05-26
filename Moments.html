@@ -972,7 +972,7 @@ function getTypeIcon(type) {
 }
 async function fetchLinkMeta(url) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), 8000);
   try {
     const res = await fetch(`${API_BASE}/meta?url=${encodeURIComponent(url)}`, {
       signal: controller.signal
@@ -1693,18 +1693,17 @@ window.getDB = getDB;
     } catch (_) {
       caretOffset = 0;
     }
-    if (text.charAt(0) !== '/' || caretOffset < 1) {
-      /* 兜底：文本以 / 开头但 caretOffset 未正确读取时仍触发 */
-      if (!(text.charAt(0) === '/' && text.length <= 30 && !/\s/.test(text.slice(1)))) {
-        setShowSlash(false);
-        setSlashQuery('');
-        setSlashTargetBlockId(null);
-        slashTargetBlockRef.current = null;
-        return;
-      }
+    /* 查找光标前最后一个 /，支持任意行位置触发 */
+    var slashPos = text.lastIndexOf('/', Math.min(caretOffset - 1, text.length - 1));
+    if (slashPos < 0 || slashPos >= caretOffset) {
+      setShowSlash(false);
+      setSlashQuery('');
+      setSlashTargetBlockId(null);
+      slashTargetBlockRef.current = null;
+      return;
     }
-    var rawQuery = text.slice(1, caretOffset);
-    if (/\s/.test(rawQuery)) {
+    var rawQuery = text.slice(slashPos + 1, caretOffset);
+    if (rawQuery.length > 30 || /\s/.test(rawQuery)) {
       setShowSlash(false);
       setSlashTargetBlockId(null);
       slashTargetBlockRef.current = null;
@@ -3149,11 +3148,8 @@ window.getDB = getDB;
     // 即时检测斜杠，不等 80ms 延迟
     try {
       var curEl = editorBodyRef.current;
-      if (curEl) {
-        var curText = curEl.textContent || '';
-        if (curText.charAt(0) === '/' && curText.length <= 30 && !/\s/.test(curText.slice(1))) {
-          updateSlashStateFromSelection();
-        }
+      if (curEl && curEl.textContent && curEl.textContent.includes('/')) {
+        updateSlashStateFromSelection();
       }
     } catch (_) {}
     clearTimeout(inputTimerRef.current);
@@ -4361,7 +4357,7 @@ window.getDB = getDB;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: "relative",
-      minHeight: "100svh",
+      minHeight: "100dvh",
       zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
@@ -4374,7 +4370,7 @@ window.getDB = getDB;
     style: {
       position: "relative",
       zIndex: 1,
-      minHeight: "100svh",
+      minHeight: "100dvh",
       paddingBottom: "env(safe-area-inset-bottom)"
     }
   }, /*#__PURE__*/React.createElement("button", {
