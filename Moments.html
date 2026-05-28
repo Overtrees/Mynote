@@ -2482,12 +2482,12 @@ window.getDB = getDB;
       }
     } catch (_) {}
     cachePromise.catch(function () {});
-    onSave(memo.id, {
+    const saveResult = onSave(memo.id, {
       title: titleValueRef.current.trim() || "无标题",
       doc: d,
       updatedAt: new Date().toISOString()
     });
-    return cachePromise;
+    return Promise.all([cachePromise, Promise.resolve(saveResult)]);
   }, [memo.id, onSave]);
   var triggerAutoSave = useCallback(isDraft => {
     clearTimeout(saveTimer.current);
@@ -2518,7 +2518,7 @@ window.getDB = getDB;
     var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
-      onSave(memo.id, { _delete: true });
+      await Promise.resolve(onSave(memo.id, { _delete: true }));
     } else {
       await doSave(JSON.parse(JSON.stringify(docRef.current)));
     }
@@ -5264,6 +5264,8 @@ var __preopenNoteId = (function(){try{var m=window.location.search.match(/[?&]op
 function MemoList() {
   // ===== IndexedDB 主存储：先清，挂载后从 IDB 加载（localStorage 为只读备份） =====
   const [memos, setMemos] = useState([]);
+  const memosRef = useRef([]);
+  useEffect(() => { memosRef.current = memos; }, [memos]);
   const [weather, setWeather] = useState(function() {
     try { var d = WeatherCache.get(); return d || null; } catch(e) { return null; }
   }());
@@ -5547,11 +5549,21 @@ function MemoList() {
     if (editingMemo && editingMemo.id === id) closeEditor();
   };
   const saveMemo = useCallback((id, changes) => {
-    if (changes && changes._delete) {
-      setMemos(ms => ms.filter(m => m.id !== id));
-    } else {
-      setMemos(ms => ms.map(m => m.id === id ? Object.assign({}, m, changes) : m));
-    }
+    const next = changes && changes._delete
+      ? memosRef.current.filter(m => m.id !== id)
+      : memosRef.current.map(m => m.id === id ? Object.assign({}, m, changes) : m);
+    setMemos(next);
+    return (async function() {
+      try {
+        const safe = next.map(m => ({
+          ...m,
+          doc: m.doc ? m.doc.map(function(n) { return n; }) : m.doc
+        }));
+        localStorage.setItem("memos_app_v2", JSON.stringify(safe));
+        var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
+        if (db) await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, safe) : null);
+      } catch (e) { console.warn('[此刻] memo save flush', e); }
+    })();
   }, []);
   const newCardDoc = useMemo(() => [{
     id: genId(),
