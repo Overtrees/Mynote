@@ -977,7 +977,7 @@ function getTypeIcon(type) {
 }
 async function fetchLinkMeta(url) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
+  const timer = setTimeout(() => controller.abort(), 20000);
   try {
     const res = await fetch(`${API_BASE}/meta?url=${encodeURIComponent(url)}`, {
       signal: controller.signal
@@ -1869,7 +1869,7 @@ window.getDB = getDB;
       if (type && type.startsWith('inline_')) {
         clearTimeout(mdCheckTimerRef.current);
         mdCheckTimerRef.current = setTimeout(function() {
-          if (blurApplyingRef.current) return;
+          if (blurApplyingRef.current || closedRef.current) return;
           blurApplyingRef.current = true;
           var _el = editorBodyRef.current;
           if (!_el) { blurApplyingRef.current = false; return; }
@@ -2504,9 +2504,13 @@ window.getDB = getDB;
     triggerAutoSave();
     return () => clearTimeout(saveTimer.current);
   }, [title, triggerAutoSave]);
+  var closedRef = useRef(false);
   const handleClose = async () => {
+    closedRef.current = true;
     clearTimeout(saveTimer.current);
     clearTimeout(mdCheckTimerRef.current);
+    clearTimeout(inputTimerRef.current);
+    clearTimeout(txTimer.current);
     const pending = Object.values(pendingAttachmentsRef.current);
     if (pending.length > 0) await Promise.allSettled(pending);
     /* 等待 CardReader 完成 */
@@ -3682,7 +3686,7 @@ window.getDB = getDB;
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
-      if (blurApplyingRef.current) return;
+      if (blurApplyingRef.current || closedRef.current) return;
       blurApplyingRef.current = true;
       var el = editorBodyRef.current;
       if (!el) {
@@ -5265,6 +5269,7 @@ function MemoList() {
   // ===== IndexedDB 主存储：先清，挂载后从 IDB 加载（localStorage 为只读备份） =====
   const [memos, setMemos] = useState([]);
   const memosRef = useRef([]);
+  const skipSaveEffectRef = useRef(false);
   useEffect(() => { memosRef.current = memos; }, [memos]);
   const [weather, setWeather] = useState(function() {
     try { var d = WeatherCache.get(); return d || null; } catch(e) { return null; }
@@ -5456,6 +5461,7 @@ function MemoList() {
   const titleOpacity = 1 - shrinkProgress * 0.3;
   const isCompact = shrinkProgress >= 1;
   useEffect(() => {
+    if (skipSaveEffectRef.current) return;
     try {
       const safe = memos.map(m => ({
         ...m,
@@ -5534,15 +5540,16 @@ function MemoList() {
       updatedAt: new Date().toISOString()
     }) : m));
   };
-  const deleteMemo = id => {
+  const deleteMemo = async id => {
     if (id === NEW_CARD_ID) return;
     const target = memos.find(m => m.id === id);
     if (target && target.doc) {
       const fileIds = target.doc.filter(n => n.type === "attachment").map(n => n.fileId);
       if (fileIds.length > 0) {
-        getDB().then(db => {
-          fileIds.forEach(fid => deleteAttachmentFromDB(db, fid).catch(() => {}));
-        }).catch(function(e) { console.warn('[此刻] draft save', e); });
+        try {
+          const db = await getDB();
+          await Promise.allSettled(fileIds.map(fid => deleteAttachmentFromDB(db, fid)));
+        } catch(e) { console.warn('[此刻] delete attachments', e); }
       }
     }
     setMemos(ms => ms.filter(m => m.id !== id));
@@ -5552,6 +5559,7 @@ function MemoList() {
     const next = changes && changes._delete
       ? memosRef.current.filter(m => m.id !== id)
       : memosRef.current.map(m => m.id === id ? Object.assign({}, m, changes) : m);
+    skipSaveEffectRef.current = true;
     setMemos(next);
     return (async function() {
       try {
@@ -5563,6 +5571,7 @@ function MemoList() {
         var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
         if (db) await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, safe) : null);
       } catch (e) { console.warn('[此刻] memo save flush', e); }
+      skipSaveEffectRef.current = false;
     })();
   }, []);
   const newCardDoc = useMemo(() => [{
