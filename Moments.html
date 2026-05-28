@@ -720,8 +720,13 @@
         border-color: rgba(255,255,255,0.24);
     }
     .backup-btn.secondary {
-        background: var(--glass-bg);
+        background: var(--card-bg);
         color: var(--text-main);
+    }
+    @media (prefers-color-scheme: dark) {
+        .backup-btn.secondary {
+            background: var(--glass-bg);
+        }
     }
     .backup-btn.danger {
         background: rgba(255,69,58,0.14);
@@ -2498,6 +2503,7 @@ window.getDB = getDB;
   }, [title, triggerAutoSave]);
   const handleClose = async () => {
     clearTimeout(saveTimer.current);
+    clearTimeout(mdCheckTimerRef.current);
     const pending = Object.values(pendingAttachmentsRef.current);
     if (pending.length > 0) await Promise.allSettled(pending);
     /* 等待 CardReader 完成 */
