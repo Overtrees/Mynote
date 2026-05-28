@@ -34,6 +34,8 @@
 
 <script src="./vendor/google-gsi-client.js" async defer></script>
 
+<script src="./src/app-config.js"></script>
+
 <script src="./src/constants.js"></script>
 <script src="./src/utils/id.js"></script>
 <script src="./src/utils/time.js"></script>
@@ -5148,13 +5150,13 @@ var WeatherCache = {
       var raw = localStorage.getItem(this.KEY);
       if (!raw) return null;
       var d = JSON.parse(raw);
-      if (d.v !== 4) return null;
+      if (d.v !== this.VERSION) return null;
       if (Date.now() - d.ts > 1800000) return null;
       return d;
     } catch(e) { return null; }
   },
   set: function(data) {
-    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, condition: data.condition || "", lat: data.lat, lng: data.lng, ts: Date.now(), v: 5 })); } catch(e) {}
+    try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, condition: data.condition || "", lat: data.lat, lng: data.lng, ts: Date.now(), v: this.VERSION })); } catch(e) {}
   }
 };
 async function refreshGoogleAvatar() {
@@ -5205,7 +5207,8 @@ async function fetchWeather() {
   if (lat == null) return null;
   /* 和风天气 */
   var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
-  if (!qwKey || qwKey === "YOUR_API_KEY") return null;
+  if (!qwKey) return null;
+
   try {
     var qwRes = await fetch("https://jq3dna235e.re.qweatherapi.com/v7/weather/now?location=" + lng + "," + lat + "&key=" + qwKey, { signal: AbortSignal.timeout(4000) });
     if (!qwRes.ok) return null;
