@@ -88,7 +88,7 @@
       var type = el.dataset.type || (el.tagName === 'H1'||el.tagName==='H2'||el.tagName==='H3' ? 'heading' : el.tagName === 'H4'||el.tagName==='H5'||el.tagName==='H6' ? 'heading' : null) || 'paragraph';
       var prev = prevMap[id] || null;
       // 原子块与不可编辑块：保留 prev
-      var atomicTypes = ['gallery','image','musicCard','link-card','embedCard','attachment','imgTextCard','imageTextRow'];
+      var atomicTypes = ['gallery','imgTextCard','imageTextRow'];
       if (atomicTypes.indexOf(type) >= 0) { doc.push(prev || { id:id, type:type }); continue; }
       if (el.contentEditable === 'false') {
         // 块级渲染优先用 data-mdtext 保存原始 md 源码，防止 prev 为 null 时丢文本
@@ -99,7 +99,8 @@
         }
         continue;
       }
-      if (type === 'link-card' || type === 'embedCard') { doc.push(prev || { id:id, type:type, url:el.dataset.url||'', meta:null, status:'empty' }); continue; }
+      if (type === 'link-card' || type === 'embedCard' || type === 'musicCard') { doc.push(prev || { id:id, type:type, url:el.dataset.url||'', meta:null, status:'empty' }); continue; }
+      if (type === 'attachment' || type === 'image') { doc.push(prev || { id:id, type:type, fileId:el.dataset.fileid||'' }); continue; }
       // 增量优化：对段落/标题/todo 检测文本是否变化
       if (type === 'heading') {
         var rawH = el.textContent || '';
