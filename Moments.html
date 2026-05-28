@@ -240,7 +240,6 @@
         border: 0.5px solid rgba(255,255,255,0.22);
         font-size: 0.6875rem; font-family: inherit; font-weight: 600; color: #fff;
         transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), opacity 0.18s ease;
-        will-change: transform, opacity;
     }
     .swipe-action-btn svg { display: block; }
     .list-item {
@@ -248,7 +247,6 @@
         border-radius: 32px;
         display: flex; justify-content: space-between; align-items: center;
         background: var(--glass-bg);
-        will-change: opacity, backdrop-filter;
         transform: translateZ(0);
         backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
         -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
@@ -1161,8 +1159,10 @@ window.getDB = getDB;
 
   // 初始加载时自动渲染含 MD 语法的段落，并恢复草稿
   useEffect(() => {
+    let cancelled = false;
     // 恢复草稿
     DraftStore.load(memo.id).then(draft => {
+      if (cancelled) return;
       if (draft && draft.doc && draft.doc.length > 0 && draft.updatedAt) {
         const memoDate = new Date(memo.updatedAt || 0).getTime();
         const draftDate = new Date(draft.updatedAt).getTime();
@@ -1179,7 +1179,7 @@ window.getDB = getDB;
           }
         }
       }
-    }).catch(function(e) { console.warn('[\u6B64\u523B] draft load', e); });
+    }).catch(function(e) { if (!cancelled) console.warn('[此刻] draft load', e); });
     const map = {};
     for (const node of docRef.current || initialDoc) {
       if (node.type === "paragraph") {
@@ -1192,6 +1192,7 @@ window.getDB = getDB;
     if (Object.keys(map).length > 0) {
       setAutoRenderMap(map);
     }
+    return () => { cancelled = true; };
   }, [memo.id]);
   const [showMenu, setShowMenu] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
@@ -2496,7 +2497,7 @@ window.getDB = getDB;
         doc: docRef.current,
         title: titleValueRef.current,
         updatedAt: new Date().toISOString()
-      }).catch(function(e) { console.warn('[\u6B64\u523B] draft load', e); });
+      }).catch(function(e) { console.warn('[此刻] draft save', e); });
     }, isDraft ? 300 : 600);
   }, [doSave, memo.id]);
   useEffect(() => {
@@ -5153,7 +5154,7 @@ var WeatherCache = {
       if (d.v !== this.VERSION) return null;
       if (Date.now() - d.ts > 1800000) return null;
       return d;
-    } catch(e) { return null; }
+    } catch(e) { console.warn('[此刻] weather cache read', e); return null; }
   },
   set: function(data) {
     try { localStorage.setItem(this.KEY, JSON.stringify({ temp: data.temp, city: data.city, condition: data.condition || "", lat: data.lat, lng: data.lng, ts: Date.now(), v: this.VERSION })); } catch(e) {}
@@ -5197,12 +5198,7 @@ async function fetchWeather() {
         ipD = await ipRes.json();
         if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
       }
-    } catch(e2) {}
-  } else {
-    try {
-      var ipRes = await fetch("https://ip-api.com/json/?fields=city,regionName", { signal: AbortSignal.timeout(2000) });
-      if (ipRes.ok) ipD = await ipRes.json();
-    } catch(e3) {}
+    } catch(e) { console.warn('[此刻] weather ip 兜底失败', e); }
   }
   if (lat == null) return null;
   /* 和风天气 */
@@ -5275,13 +5271,22 @@ function MemoList() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [homeAvatar, setHomeAvatar] = useState(localStorage.getItem("google_avatar") || null);
   const [view, setView] = useState('list'); // 'list' | 'settings' | 'backup'
+  const weatherRefreshRef = useRef(null);
   useEffect(function() {
     setHomeAvatar(localStorage.getItem("google_avatar") || null);
     refreshGoogleAvatar().then(function(){
       setHomeAvatar(localStorage.getItem("google_avatar") || null);
     });
-    fetchWeather().then(function(r){ if (r && r !== weather) setWeather(r); });
+    if (view === 'list') {
+      clearTimeout(weatherRefreshRef.current);
+      weatherRefreshRef.current = setTimeout(function() {
+        fetchWeather().then(function(r){ if (r && r !== weather) setWeather(r); });
+      }, 1500);
+    }
   }, [view]);
+  useEffect(function() {
+    return function() { clearTimeout(weatherRefreshRef.current); };
+  }, []);
   var idbInited = useRef(false);
   function tryOpenNote(list) {
     if (typeof __preopenNoteId !== 'undefined' && __preopenNoteId) {
@@ -5535,7 +5540,7 @@ function MemoList() {
       if (fileIds.length > 0) {
         getDB().then(db => {
           fileIds.forEach(fid => deleteAttachmentFromDB(db, fid).catch(() => {}));
-        }).catch(function(e) { console.warn('[\u6B64\u523B] draft load', e); });
+        }).catch(function(e) { console.warn('[此刻] draft save', e); });
       }
     }
     setMemos(ms => ms.filter(m => m.id !== id));
