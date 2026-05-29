@@ -50,7 +50,7 @@
 
 <script src="./src/editor/editor.md.js"></script>
 
-<script src="./src/editor/editor.render.js?v=2"></script>
+<script src="./src/editor/editor.render.js?v=3"></script>
 
 <script src="./src/components/LinkCard.js"></script>
 
@@ -1108,7 +1108,19 @@ function escapeHTML(str) { return window.CikeEditor ? window.CikeEditor.escapeHT
 var __editorDocRef = window.CikeEditor ? window.CikeEditor.getEditorDocRef() : null;
 function setEditorDocRef(doc) { __editorDocRef = doc; if(window.CikeEditor) window.CikeEditor.setEditorDocRef(doc); }
 function renderAtomicHTML(node, files) {
-  return window.CikeEditor && window.CikeEditor.renderAtomicHTML ? window.CikeEditor.renderAtomicHTML(node, files) : '';
+  if (window.CikeEditor && window.CikeEditor.renderAtomicHTML) {
+    var html = window.CikeEditor.renderAtomicHTML(node, files);
+    if (!html && node.type === 'musicCard') {
+      if (node.status === 'input') {
+        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
+      }
+      if (node.status === 'empty' || (!node.url && !node.meta)) {
+        return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>🎵</span><span>点击粘贴音乐链接</span></div>';
+      }
+    }
+    return html;
+  }
+  return '';
 }
 function renderDocToEditorHTML(doc, files) {
   return window.CikeEditor ? window.CikeEditor.renderDocToEditorHTML(doc, files) : doc.map(function(n){return '<p>'+((n.children&&n.children[0]&&n.children[0].text)||'')+'</p>';}).join('\n');
@@ -1245,6 +1257,8 @@ window.getDB = getDB;
     }, 150);
   }, []);
   const [slashQuery, setSlashQuery] = useState('');
+  const slashQueryRef = useRef('');
+  useEffect(() => { slashQueryRef.current = slashQuery; }, [slashQuery]);
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
   const [slashAnchor, setSlashAnchor] = useState({
     left: 40,
@@ -1663,17 +1677,23 @@ window.getDB = getDB;
     }
     return result;
   }, [slashQuery, slashRecent, slashCommandDefs]);
+  var slashHideTimerRef = useRef(null);
   var updateSlashStateFromSelection = useCallback(function () {
     if (slashApplyingRef.current) return;
+    clearTimeout(slashHideTimerRef.current);
     var sel = window.getSelection();
     if (!sel || !sel.rangeCount) {
-      setShowSlash(false);
+      // 延迟关闭：给点击斜杠面板留出时间触发 applySlashCommand
+      slashHideTimerRef.current = setTimeout(function () {
+        if (slashApplyingRef.current) return;
+        setShowSlash(false);
+      }, 150);
       return;
     }
     var focusNode = sel.focusNode;
     var baseEl = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
     var blockEl = baseEl && baseEl.closest ? baseEl.closest('[data-blockid]') : null;
-    if (!blockEl || blockEl.contentEditable === 'false') {
+      if (!blockEl || blockEl.contentEditable === 'false') {
       setShowSlash(false);
       setSlashTargetBlockId(null);
       slashTargetBlockRef.current = null;
@@ -1683,14 +1703,35 @@ window.getDB = getDB;
     var caretOffset = 0;
     try {
       var range = sel.getRangeAt(0).cloneRange();
-      var preRange = range.cloneRange();
-      preRange.selectNodeContents(blockEl);
-      preRange.setEnd(range.endContainer, range.endOffset);
-      caretOffset = preRange.toString().length;
+      // 如果 focusNode 是元素节点（非文本），说明光标在块级边界上
+      // 需要把偏移量转换为相对于 blockEl 的文本偏移
+      if (range.endContainer.nodeType === 1 && range.endContainer !== blockEl) {
+        // 光标在子元素上，计算该子元素之前的文本长度 + 偏移
+        var children = [...blockEl.childNodes];
+        var offset = range.endOffset;
+        var textBefore = 0;
+        for (var ci = 0; ci < offset && ci < children.length; ci++) {
+          textBefore += (children[ci].textContent || '').length;
+        }
+        caretOffset = textBefore;
+      } else if (range.endContainer.nodeType === 1 && range.endContainer === blockEl) {
+        // 光标在 blockEl 自身上，偏移量代表第 N 个子节点之前
+        var children = [...blockEl.childNodes];
+        var offset = range.endOffset;
+        var textBefore = 0;
+        for (var ci = 0; ci < offset && ci < children.length; ci++) {
+          textBefore += (children[ci].textContent || '').length;
+        }
+        caretOffset = textBefore;
+      } else {
+        var preRange = range.cloneRange();
+        preRange.selectNodeContents(blockEl);
+        preRange.setEnd(range.endContainer, range.endOffset);
+        caretOffset = preRange.toString().length;
+      }
     } catch (_) {
       caretOffset = 0;
     }
-    /* 查找光标前最后一个 /，支持任意行位置触发 */
     var slashPos = text.lastIndexOf('/', Math.min(caretOffset - 1, text.length - 1));
     if (slashPos < 0 || slashPos >= caretOffset) {
       setShowSlash(false);
@@ -1763,6 +1804,7 @@ window.getDB = getDB;
     recordUndoPoint();
     if (!cmd || slashApplyingRef.current) return;
     slashApplyingRef.current = true;
+    clearTimeout(slashHideTimerRef.current);
     if (slashRepositionRafRef.current) {
       cancelAnimationFrame(slashRepositionRafRef.current);
       slashRepositionRafRef.current = null;
@@ -1792,7 +1834,7 @@ window.getDB = getDB;
       return;
     }
     var text = blockEl.textContent || doc[idx].children?.[0]?.text || '';
-    var slashQueryLen = (slashQuery || '').length;
+    var slashQueryLen = (slashQueryRef.current || '').length;
     var cleanedText = String(text || '').replace(/^\/(?:[^\s]*)?/, function (match) {
       if (slashQueryLen === 0 && match.length === 1) return '';
       return match.length === slashQueryLen + 1 ? '' : match.slice(slashQueryLen + 1);
@@ -1983,6 +2025,11 @@ window.getDB = getDB;
       newBlock.children[0].text = cleanedText || newBlock.children[0].text;
     }
     var needsTrailingParagraph = ['divider', 'musicCard', 'image', 'gallery', 'decorative_divider', 'callout', 'imgTextCard', 'imageTextRow', 'todo'].includes(type);
+    // 如果原块后面已经是空段落，不需要再加 trailing
+    var nextBlock = doc[idx + 1];
+    if (nextBlock && nextBlock.type === 'paragraph' && !(nextBlock.children && nextBlock.children[0] && nextBlock.children[0].text)) {
+      needsTrailingParagraph = false;
+    }
     var trailingBlock = needsTrailingParagraph ? {
       id: genId(),
       type: 'paragraph',
@@ -2012,19 +2059,34 @@ window.getDB = getDB;
       return next.slice(0, 6);
     });
     requestAnimationFrame(function () {
-      var focusId = trailingBlock ? trailingBlock.id : blkId;
-      var target = insertedTarget && editorBodyRef.current && editorBodyRef.current.contains(insertedTarget) ? insertedTarget : editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + focusId + '"]');
-      if (target) {
-        focusEditableWithCaret(target, trailingBlock ? 0 : cleanedText.length);
-        try {
-          target.scrollIntoView({
-            block: 'nearest',
-            inline: 'nearest'
-          });
-        } catch (_) {}
-      } else if (editorBodyRef.current) editorBodyRef.current.focus({
-        preventScroll: true
-      });
+      // musicCard input 态：聚焦输入框，光标放到文本末尾
+      var musicInput = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + newBlock.id + '"][data-music-url="pending"]');
+      if (musicInput && type === 'musicCard') {
+        var tn = musicInput.firstChild;
+        if (tn && tn.nodeType === 3) {
+          var r2 = document.createRange();
+          r2.setStart(tn, tn.textContent.length);
+          r2.collapse(true);
+          var s2 = window.getSelection();
+          s2.removeAllRanges();
+          s2.addRange(r2);
+        }
+        musicInput.focus();
+      } else {
+        var focusId = trailingBlock ? trailingBlock.id : blkId;
+        var target = insertedTarget && editorBodyRef.current && editorBodyRef.current.contains(insertedTarget) ? insertedTarget : editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + focusId + '"]');
+        if (target) {
+          focusEditableWithCaret(target, trailingBlock ? 0 : cleanedText.length);
+          try {
+            target.scrollIntoView({
+              block: 'nearest',
+              inline: 'nearest'
+            });
+          } catch (_) {}
+        } else if (editorBodyRef.current) editorBodyRef.current.focus({
+          preventScroll: true
+        });
+      }
       setTimeout(function () {
         slashApplyingRef.current = false;
       }, 80);
@@ -2172,6 +2234,18 @@ window.getDB = getDB;
     domInited.current = true;
     setEditorDocRef(docRef.current);
     el.innerHTML = renderDocToEditorHTML(docRef.current, files);
+    // 确保原子块后有可编辑段落，否则光标无处放置
+    var atomicTypes = ['musicCard','link-card','embedCard','attachment','image','gallery','divider','decorative_divider','callout','todo'];
+    var lastChild = el.lastElementChild;
+    if (lastChild && atomicTypes.indexOf(lastChild.dataset.type) >= 0) {
+      var trailId = 'trail_' + Date.now();
+      var trailP = document.createElement('p');
+      trailP.dataset.blockid = trailId;
+      trailP.contentEditable = 'inherit';
+      trailP.innerHTML = '<br>';
+      el.appendChild(trailP);
+      docRef.current.push({ id: trailId, type: 'paragraph', children: [{ text: '' }] });
+    }
     /* 首次加载：应用渲染缓存 + 懒加载未缓存段落 */
     var pendingCache = {};
     /* 异步加载缓存，不阻塞 init render */
@@ -2679,6 +2753,13 @@ window.getDB = getDB;
     });
     if (!cards.length) return;
 
+    // 保存当前选区，hydrate 完成后恢复
+    var savedRange = null;
+    try {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount) savedRange = sel.getRangeAt(0).cloneRange();
+    } catch (_) {}
+
     cards.forEach(function (card) {
       fetchLinkMeta(card.url).then(function (meta) {
         const cur = docRef.current || [];
@@ -2691,6 +2772,13 @@ window.getDB = getDB;
           const el = ce.querySelector('[data-blockid="' + card.id + '"]');
           if (el) el.outerHTML = renderAtomicHTML(cur[idx], files);
         }
+        // 恢复选区
+        try {
+          if (savedRange) {
+            var sel2 = window.getSelection();
+            if (sel2) { sel2.removeAllRanges(); sel2.addRange(savedRange); }
+          }
+        } catch (_) {}
       }).catch(function (e) {
         console.warn('[此刻] hydrate card meta', e);
         const cur = docRef.current || [];
@@ -2702,6 +2790,12 @@ window.getDB = getDB;
           const el = ce.querySelector('[data-blockid="' + card.id + '"]');
           if (el) el.outerHTML = renderAtomicHTML(cur[idx], files);
         }
+        try {
+          if (savedRange) {
+            var sel2 = window.getSelection();
+            if (sel2) { sel2.removeAllRanges(); sel2.addRange(savedRange); }
+          }
+        } catch (_) {}
       });
     });
   }, [memo.id]);
@@ -3686,7 +3780,7 @@ window.getDB = getDB;
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
-      if (blurApplyingRef.current || closedRef.current) return;
+      if (blurApplyingRef.current || closedRef.current || slashApplyingRef.current) return;
       blurApplyingRef.current = true;
       var el = editorBodyRef.current;
       if (!el) {
@@ -3998,14 +4092,25 @@ window.getDB = getDB;
       if (changed) {
         setEditorDocRef(docRef.current);
         docRef.current = parseEditorDOM(el);
-        /* 强制清除所有 pending 的音乐卡片输入状态 */
+        /* 强制清除所有 pending 的音乐卡片输入状态（无链接的输入框 → 回退到空态） */
         var forceDoc = docRef.current;
         for (var fi = 0; fi < forceDoc.length; fi++) {
-          if (forceDoc[fi].type === 'musicCard' && forceDoc[fi].status === 'input') {
-            forceDoc[fi].status = 'loading';
+          if (forceDoc[fi].type === 'musicCard' && forceDoc[fi].status === 'input' && !forceDoc[fi].url) {
+            forceDoc[fi].status = 'empty';
+            // 同步替换 DOM 中的输入框为空态 pill
+            var mcEl = el.querySelector('[data-blockid="' + forceDoc[fi].id + '"]');
+            if (mcEl && mcEl.dataset.musicUrl === 'pending') {
+              var pillDiv = document.createElement('div');
+              pillDiv.contentEditable = 'false';
+              pillDiv.dataset.blockid = forceDoc[fi].id;
+              pillDiv.dataset.type = 'musicCard';
+              pillDiv.style.cssText = 'padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;';
+              pillDiv.innerHTML = '<span>🎵</span><span>点击粘贴音乐链接</span>';
+              mcEl.replaceWith(pillDiv);
+            }
           }
         }
-        /* 清除 DOM 和 doc 中所有残留的 musicCard 输入框 */
+        /* 清除 DOM 和 doc 中已删除的 musicCard 输入框残留（doc 已不再包含的） */
         var seenMusicIds = {};
         el.querySelectorAll('[data-type="musicCard"]').forEach(function (mcEl) {
           var mid = mcEl.dataset.blockid;
@@ -4013,17 +4118,13 @@ window.getDB = getDB;
             seenMusicIds[mid] = true;
           }
         });
-        el.querySelectorAll('[data-music-url]').forEach(function (remEl) {
-          if (remEl.dataset.musicUrl === 'pending') {
-            var dupId = remEl.dataset.blockid;
-            remEl.remove();
-            if (dupId) {
-              var removeIdx = docRef.current.findIndex(function (n) {
-                return n.id === dupId;
-              });
-              if (removeIdx !== -1) {
-                docRef.current.splice(removeIdx, 1);
-              }
+        el.querySelectorAll('[data-music-url="pending"]').forEach(function (remEl) {
+          var dupId = remEl.dataset.blockid;
+          // 只删除 doc 中已不存在的残留（有 url 的已在上面处理，无 url 的已替换为空态）
+          if (dupId) {
+            var docIdx = docRef.current.findIndex(function (n) { return n.id === dupId; });
+            if (docIdx === -1) {
+              remEl.remove();
             }
           }
         });
@@ -4908,7 +5009,11 @@ window.getDB = getDB;
     }
   }), showSlash && /*#__PURE__*/React.createElement("div", {
     ref: slashRef,
-    onPointerDown: e => e.preventDefault(),
+    onTouchStart: function (e) {
+      // 阻止编辑器失焦：触摸面板时重新聚焦编辑器
+      // 不用 preventDefault，保留面板内滚动能力
+      if (editorBodyRef.current) editorBodyRef.current.focus();
+    },
     style: {
       position: 'fixed',
       zIndex: 9999,
@@ -5050,10 +5155,21 @@ window.getDB = getDB;
       }, cmd.sectionLabel), React.createElement('div', {
         className: 'slash-row',
         onPointerDown: function (e) {
+          // 不 preventDefault，保留滚动；只阻止编辑器失焦
+          if (editorBodyRef.current) editorBodyRef.current.focus();
+          setSlashSelectedIndex(flatIdx);
+        },
+        onPointerUp: function (e) {
+          // pointerUp = 确认是点击（不是滚动），执行命令
           e.preventDefault();
+          applySlashCommand(cmd);
         },
         onClick: function () {
-          applySlashCommand(cmd);
+          // 桌面端 fallback
+          if (!slashApplyingRef.current) applySlashCommand(cmd);
+        },
+        onPointerEnter: function () {
+          setSlashSelectedIndex(flatIdx);
         },
         onMouseEnter: function () {
           setSlashSelectedIndex(flatIdx);

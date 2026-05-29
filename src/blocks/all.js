@@ -162,11 +162,16 @@
 
   /* ===== musicCard ===== */
   BS.register('musicCard', {
-    isAtomic: true,
+    isAtomic: false,
     render: function (node, ctx) {
       var url = node.url || '';
       var meta = node.meta;
       var status = node.status || 'empty';
+      if (status === 'input') {
+        return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'musicCard', 'data-music-url':'pending', contentEditable:true,
+          style:{ padding:'12px 18px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', fontSize:14, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10, outline:'none' }
+        }, R.createElement('span', null, '\uD83C\uDFB5'), R.createElement('span', null, url || '\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5\u5230\u8FD9\u91CC...'));
+      }
       if (status === 'loading' && url) {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'musicCard', className:'link-card-skeleton' },
           R.createElement('div', { className:'link-card-skeleton-cover' }),
@@ -176,7 +181,7 @@
       }
       if (!meta || !meta.title) {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'musicCard',
-          style:{ padding:'12px 16px', borderRadius:999, background:'var(--card-bg)', border:'0.5px solid var(--border-color)', fontSize:14, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10 }
+          style:{ padding:'12px 16px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', fontSize:14, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10 }
         }, R.createElement('span', null, '\uD83C\uDFB5'), R.createElement('span', null, url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5'));
       }
       var coverUrl = (typeof w.proxyImg === 'function' ? w.proxyImg(meta.cover) : meta.cover) || meta.cover;

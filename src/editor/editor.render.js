@@ -99,7 +99,14 @@
         }
         continue;
       }
-      if (type === 'link-card' || type === 'embedCard' || type === 'musicCard') { doc.push(prev || { id:id, type:type, url:el.dataset.url||'', meta:null, status:'empty' }); continue; }
+      if (type === 'link-card' || type === 'embedCard' || type === 'musicCard') {
+        if (type === 'musicCard' && el.dataset.musicUrl === 'pending') {
+          doc.push(prev || { id:id, type:type, url:'', meta:null, status:'input' });
+          continue;
+        }
+        doc.push(prev || { id:id, type:type, url:el.dataset.url||'', meta:null, status:'empty' });
+        continue;
+      }
       if (type === 'attachment' || type === 'image') { doc.push(prev || { id:id, type:type, fileId:el.dataset.fileid||'' }); continue; }
       // 增量优化：对段落/标题/todo 检测文本是否变化
       if (type === 'heading') {
@@ -140,6 +147,17 @@
         doc.push({ id:id, type:'paragraph', children:[{text:rawText}] });
       }
     }
+    // 兜底：如果解析结果为空但容器有文本，至少保留一个段落
+    if (doc.length === 0) {
+      var rootText = (containerEl.textContent || '').replace(/\u200B/g, '').trim();
+      if (rootText) {
+        doc.push({ id: (w.CikeId && w.CikeId.genId ? w.CikeId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:rootText}] });
+      }
+    }
+    // 兜底：doc 不能为空，否则保存会把 memo 写空
+    if (doc.length === 0) {
+      doc.push({ id: (w.CikeId && w.CikeId.genId ? w.CikeId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:''}] });
+    }
     return doc;
   }
 
@@ -168,6 +186,9 @@
     }
     if (node.type === 'musicCard') {
       var muUrl = node.url || '', muMeta = node.meta, muStatus = node.status || 'empty';
+      if (muStatus === 'input') {
+        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
+      }
       if (muUrl && muMeta && muMeta.title) {
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
         var muTitle = muMeta.title || '\u97F3\u4E50';
@@ -181,7 +202,7 @@
       if (muStatus === 'loading' && muUrl) {
         return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.CikeEditor.escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       }
-      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--card-bg);border:0.5px solid var(--border-color);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.CikeEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
+      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.CikeEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
     }
     return '';
   }
