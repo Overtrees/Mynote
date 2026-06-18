@@ -5607,14 +5607,19 @@ function MemoList() {
                   try {
                     var att = await loadAttachmentFromDB(db, nd.fileId);
                     nd.image = att && att.type ? att.type.indexOf('image/') === 0 : false;
+                    if (nd.image === false && att === null) warn('迁移：IDB 未找到附件', nd.fileId);
+                    if (nd.image === false && att && att.type) warn('迁移：附件非图片', att.type);
                     changed = true;
                   } catch(_) { nd.image = false; }
                 }
               }
             }
             if (changed) {
+              warn('迁移完成，补了 image 标记');
               setMemos(normalized.slice());
               try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
+            } else {
+              warn('迁移：无需补充标记');
             }
           } catch(_) {}
         })();
