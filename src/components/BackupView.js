@@ -1013,7 +1013,7 @@ const BackupView = ({
       handleCloudRestore();
     },
     style: {
-      border: '0.5px solid var(--glass-border)',
+      border: '0.5px solid rgba(255,69,58,0.2)',
       borderRadius: 22,
       padding: 14,
       marginBottom: 10,
@@ -1024,16 +1024,28 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16,
+      flexShrink: 0
+    }
+  }, '\u26A0\uFE0F'), /*#__PURE__*/React.createElement("span", {
+    style: {
       fontSize: 15,
       fontWeight: 700,
-      marginBottom: 5,
-      color: 'var(--text-main)'
+      color: '#ff3b30'
     }
-  }, "\u8986\u76D6\u672C\u5730\u6062\u590D"), /*#__PURE__*/React.createElement("div", {
+  }, "\u8986\u76D6\u672C\u5730\u6062\u590D")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       lineHeight: 1.45,
-      color: 'var(--text-secondary)'
+      color: 'var(--text-secondary)',
+      paddingLeft: 24
     }
   }, "\u6E05\u7A7A\u672C\u5730\u540E\u7528\u4E91\u7AEF\u5B8C\u6574\u66FF\u6362\uFF0C\u9002\u5408\u6362\u8BBE\u5907\u6216\u5F7B\u5E95\u56DE\u6863\u3002")), /*#__PURE__*/React.createElement("div", {
     onClick: () => {
@@ -1041,7 +1053,7 @@ const BackupView = ({
       handleCloudMerge();
     },
     style: {
-      border: '0.5px solid var(--glass-border)',
+      border: '0.5px solid rgba(0,122,255,0.25)',
       borderRadius: 22,
       padding: 14,
       marginBottom: 12,
@@ -1052,16 +1064,28 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 5
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 16,
+      flexShrink: 0
+    }
+  }, '\uD83D\uDD04'), /*#__PURE__*/React.createElement("span", {
+    style: {
       fontSize: 15,
       fontWeight: 700,
-      marginBottom: 5,
-      color: 'var(--text-main)'
+      color: '#007aff'
     }
-  }, "\u5408\u5E76\u4E91\u7AEF\u5230\u672C\u5730"), /*#__PURE__*/React.createElement("div", {
+  }, "\u5408\u5E76\u4E91\u7AEF\u5230\u672C\u5730")), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: 13,
       lineHeight: 1.45,
-      color: 'var(--text-secondary)'
+      color: 'var(--text-secondary)',
+      paddingLeft: 24
     }
   }, "\u4FDD\u7559\u672C\u5730\u73B0\u6709\u6570\u636E\uFF0C\u53EA\u8865\u5165\u4E91\u7AEF\u65B0\u589E\u5185\u5BB9\u3002")), /*#__PURE__*/React.createElement("button", {
     className: "backup-btn secondary backup-modal-cancel",
