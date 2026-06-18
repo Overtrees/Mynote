@@ -133,7 +133,8 @@ const BackupView = ({
     const avatars = {};
     for (const a of allAvatars) avatars[a.id] = a.dataUrl;
     return {
-      version: 1,
+      version: 2,
+      // v2: memo doc 中 attachment 节点新增 image 字段（标记是否为图片附件）
       exportedAt: new Date().toISOString(),
       memos: cleanMemos,
       avatars
@@ -413,7 +414,18 @@ const BackupView = ({
       if (!cloudBackup.memos) throw new Error('无效的备份文件');
       const localMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
       const cloudIds = new Set(cloudBackup.memos.map(m => m.id));
-      const merged = [...cloudBackup.memos, ...localMemos.filter(m => !cloudIds.has(m.id))];
+      const merged = [...cloudBackup.memos.map(function(cb) {
+        var local = localMemos.find(function(m) { return m.id === cb.id; });
+        if (local && local.doc && cb.doc) {
+          cb.doc = cb.doc.map(function(n, i) {
+            if (n.type === 'attachment' && !n.image && local.doc[i] && local.doc[i].image) {
+              return Object.assign({}, n, { image: local.doc[i].image });
+            }
+            return n;
+          });
+        }
+        return cb;
+      }), ...localMemos.filter(function(m) { return !cloudIds.has(m.id); })];
       const db = await w.CikeIdb.getDB();
       for (const attPath of Object.keys(unzipped).filter(k => k.startsWith('attachments/'))) {
         const bytes = unzipped[attPath];
