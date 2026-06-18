@@ -2,26 +2,16 @@
   'use strict';
   var R = w.React;
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef, useCallback = R.useCallback;
-  var thumbCache = {};
 
   function ImageCard(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand;
     var isNewCard = memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
-    var _useState = useState(function() {
-      var att = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      return (att && att.thumb) || thumbCache[memo.id] || null;
-    }), thumb = _useState[0], setThumb = _useState[1];
-    var idRef = useRef(memo.id);
-    idRef.current = memo.id;
+    var _useState = useState(null), thumb = _useState[0], setThumb = _useState[1];
 
     useEffect(function () {
       if (isNewCard) { setThumb(null); return; }
-      // 优先使用 doc 节点上的缩略图（同步可用）
-      var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      if (docAtt && docAtt.thumb) { setThumb(docAtt.thumb); thumbCache[memo.id] = docAtt.thumb; return; }
-      // 已缓存则跳过 IDB 读取
-      if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
       setThumb(null);
+      var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
       if (!docAtt) return;
       var cancelled = false;
       (async function() {
@@ -32,8 +22,7 @@
             var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
             if (!stored) break;
             if (stored.type && stored.type.indexOf('image/') === 0 && (stored.url || stored.thumb)) {
-              var t = stored.url || stored.thumb;
-              if (!cancelled) { setThumb(t); thumbCache[idRef.current] = t; }
+              if (!cancelled) setThumb(stored.url || stored.thumb);
               return;
             }
             await new Promise(function(r){setTimeout(r,300);});

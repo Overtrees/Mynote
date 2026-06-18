@@ -3,20 +3,12 @@
   var R = w.React;
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef, useCallback = R.useCallback;
 
-  var thumbCache = {};
-
   function SwipeRow(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand, weather = _ref.weather;
     var rowRef = useRef(null), wrapperRef = useRef(null), btn1Ref = useRef(null), btn2Ref = useRef(null);
     var ACTION_W = 168, THRESHOLD = 55, MIN_DX = 5;
-    var _useState = useState(function() {
-      var att = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      return (att && att.thumb) || thumbCache[memo.id] || null;
-    }), thumb = _useState[0], setThumb = _useState[1];
     var isNewCard = memo && memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
     var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
-    var idRef = useRef(memo.id);
-    idRef.current = memo.id;
 
     // Preview text calculation
     var preview = '\u65E0\u66F4\u591A\u6587\u672C', attachCount = 0, tags = [];
@@ -38,29 +30,19 @@
       }
     }
 
-    // Thumbnail loading
+    // Thumbnail loading (legacy: some memos may have thumb in doc, preload for cache)
     useEffect(function () {
       if (isNewCard) return;
       var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      if (docAtt && docAtt.thumb) { setThumb(docAtt.thumb); thumbCache[memo.id] = docAtt.thumb; return; }
-      if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
-      setThumb(null);
-      if (!docAtt) return;
-      var cancelled = false;
+      if (!docAtt || docAtt.thumb) return;
       (async function() {
         try {
           var db = await (w.CikeIdb ? w.CikeIdb.getDB() : null);
           if (!db) return;
-          for (var attempt = 0; attempt < 5 && !cancelled; attempt++) {
-            var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, firstAttach.fileId).catch(function(){return null;}) : null);
-            if (!stored) break;
-            if (stored.type && stored.type.indexOf('image/') === 0 && stored.thumb) { if (!cancelled) { setThumb(stored.thumb); thumbCache[idRef.current] = stored.thumb; } return; }
-            await new Promise(function(r){setTimeout(r,300);});
-          }
+          var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
         } catch(e) {}
       })();
-      return function() { cancelled = true; };
-    }, [memo.id, memo.doc, isNewCard]);
+    }, [memo.id]);
 
     return R.createElement('div', { className:'swipe-wrapper', ref:sw.wrapperRef },
       !isNewCard && R.createElement('div', { className:'swipe-actions' },
