@@ -37,7 +37,7 @@
 - 从编辑页返回时，首页从右侧跟随滑入，过渡自然
 
 ### 存
-- 默认本地保存（离线完整可用，IndexedDB + localStorage 双通道）
+- 默认本地保存（IndexedDB + localStorage 双通道）
 - Google Drive 云备份 / 云端恢复（合并云端与本地数据）
 - ZIP 导出/导入（含所有图片和附件）
 - 不登录账号也能用全部功能
