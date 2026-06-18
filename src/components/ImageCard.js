@@ -72,7 +72,7 @@
           typeof w.SvgIcon === 'function' ? w.SvgIcon('delMulti', {width:17,height:17,strokeWidth:2.2,stroke:'#fff'}) : null,
           '\u5220\u9664')),
       R.createElement('div', { ref:sw.rowRef, className:'img-card', onClick:function(){ if (!isNewCard && !sw.gesture.current.opened) onOpen(memo); }, style:{ borderBottom:'none' } },
-        thumb ? R.createElement('img', { className:'img-cover', src:thumb, alt:'', style:{ pointerEvents:'none' } }) : null,
+        thumb ? R.createElement('img', { className:'img-cover', src:thumb, alt:'', style:{ pointerEvents:'none' } }) : R.createElement('div', { className:'img-cover' }),
         R.createElement('div', { className:'img-body' },
           R.createElement('div', { className:'img-text' },
             R.createElement('div', { className:'t', style:{ display:'flex', alignItems:'center', gap:6, width:'100%' } },
