@@ -2620,29 +2620,16 @@ window.getDB = getDB;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
       await Promise.resolve(onSave(memo.id, { _delete: true }));
-      setClosing(true);
-      setTimeout(function() {
-        document.documentElement.style.backgroundColor = '';
-        document.body.style.backgroundColor = '';
-        var bgStyle = document.getElementById('body-before-bg');
-        if (bgStyle) bgStyle.remove();
-        onClose();
-      }, 350);
-      return;
+    } else {
+      await doSave(JSON.parse(JSON.stringify(docRef.current)));
     }
-    // 先解析 DOM 确保数据同步
-    var closeEditorEl = editorBodyRef.current;
-    if (closeEditorEl) docRef.current = parseEditorDOM(closeEditorEl);
-    var closeDoc = JSON.parse(JSON.stringify(docRef.current));
-    // 先触发关闭动画
     setClosing(true);
-    // 动画完成后再保存（避免 save→setMemos 重渲染与动画冲突）
     setTimeout(function() {
+      // 过渡动画结束后再清理编辑器样式，避免动画期间顶部露出首页背景
       document.documentElement.style.backgroundColor = '';
       document.body.style.backgroundColor = '';
       var bgStyle = document.getElementById('body-before-bg');
       if (bgStyle) bgStyle.remove();
-      doSave(closeDoc);
       onClose();
     }, 350);
   };
@@ -2733,13 +2720,14 @@ window.getDB = getDB;
       var el = editorBodyRef.current;
       if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, files);
       setRenderKey(function(p){return p+1;});
+      triggerAutoSave();
       h.future.push({ inverse: null, snapshot: last.inverse || null });
       return;
     }
     var p2 = h.past.pop();
     if (!p2) return;
-    applyPatch(p2.inverse); h.future.push(p2);
-  }, [applyPatch]);
+    applyPatch(p2.inverse); h.future.push(p2); triggerAutoSave();
+  }, [applyPatch, triggerAutoSave]);
   var redo = useCallback(() => {
     var h = history.current, nxt = h.future[h.future.length - 1];
     if (nxt && nxt.snapshot) {
@@ -2750,13 +2738,14 @@ window.getDB = getDB;
       var el = editorBodyRef.current;
       if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, files);
       setRenderKey(function(p){return p+1;});
-      h.past.push({ snapshot: lastSnapshotRef.current, inverse: null });
+      triggerAutoSave();
+      h.past.push({ snapshot: restoreTo, inverse: null });
       return;
     }
     var n2 = h.future.pop();
     if (!n2) return;
-    applyPatch(n2.patch); h.past.push(n2);
-  }, [applyPatch]);
+    applyPatch(n2.patch); h.past.push(n2); triggerAutoSave();
+  }, [applyPatch, triggerAutoSave]);
   useEffect(() => {
     const handler = e => {
       if ((e.metaKey || e.ctrlKey) && e.key === "z") {
@@ -2770,11 +2759,11 @@ window.getDB = getDB;
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo]);
-  // ===== beforeinput: iOS 三指手势撤销/重做（同步执行，不用 setTimeout 避免与关闭动画冲突） =====
+  // ===== beforeinput: iOS 三指手势撤销/重做 =====
   useEffect(() => {
     var handler = function(e) {
-      if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
-      else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
+      if (e.inputType === 'historyUndo') { e.preventDefault(); setTimeout(function() { undo(); }, 0); }
+      else if (e.inputType === 'historyRedo') { e.preventDefault(); setTimeout(function() { redo(); }, 0); }
     };
     var el = editorBodyRef.current;
     if (!el) return;
