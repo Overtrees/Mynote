@@ -1041,11 +1041,13 @@ const BackupView = ({
       handleCloudMerge();
     },
     style: {
-      border: '0.5px solid var(--border-color)',
+      border: '0.5px solid var(--glass-border)',
       borderRadius: 22,
       padding: 14,
       marginBottom: 12,
-      background: 'rgba(127,127,127,0.06)',
+      background: 'var(--glass-bg)',
+      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
