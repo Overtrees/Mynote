@@ -2620,19 +2620,29 @@ window.getDB = getDB;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
       await Promise.resolve(onSave(memo.id, { _delete: true }));
-    } else {
-      // 同步 DOM 变更（含 iOS 三指撤销/重做等系统操作）
-      var editorEl = editorBodyRef.current;
-      if (editorEl) docRef.current = parseEditorDOM(editorEl);
-      await doSave(JSON.parse(JSON.stringify(docRef.current)));
+      setClosing(true);
+      setTimeout(function() {
+        document.documentElement.style.backgroundColor = '';
+        document.body.style.backgroundColor = '';
+        var bgStyle = document.getElementById('body-before-bg');
+        if (bgStyle) bgStyle.remove();
+        onClose();
+      }, 350);
+      return;
     }
+    // 先解析 DOM 确保数据同步
+    var closeEditorEl = editorBodyRef.current;
+    if (closeEditorEl) docRef.current = parseEditorDOM(closeEditorEl);
+    var closeDoc = JSON.parse(JSON.stringify(docRef.current));
+    // 先触发关闭动画
     setClosing(true);
+    // 动画完成后再保存（避免 save→setMemos 重渲染与动画冲突）
     setTimeout(function() {
-      // 过渡动画结束后再清理编辑器样式，避免动画期间顶部露出首页背景
       document.documentElement.style.backgroundColor = '';
       document.body.style.backgroundColor = '';
       var bgStyle = document.getElementById('body-before-bg');
       if (bgStyle) bgStyle.remove();
+      doSave(closeDoc);
       onClose();
     }, 350);
   };
