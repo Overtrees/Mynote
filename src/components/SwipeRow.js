@@ -46,7 +46,7 @@
 
     return R.createElement('div', { className:'swipe-wrapper', ref:sw.wrapperRef },
       !isNewCard && R.createElement('div', { className:'swipe-actions' },
-        R.createElement('button', { ref:sw.btn1Ref, className:'swipe-action-btn', style:{ background:'#4A90D9', transform:'translateX(60px)', opacity:0 },
+        R.createElement('button', { ref:sw.btn1Ref, className:'swipe-action-btn', style:{ background:'#ff9500', transform:'translateX(60px)', opacity:0 },
           onClick:function(e){e.stopPropagation();sw.snapClose();onPin(memo.id);}
         }, typeof w.SvgIcon === 'function' ? w.SvgIcon('pinMulti', {width:17,height:17,strokeWidth:2.2,stroke:'#fff'}) : null,
         memo.pinned ? '\u53D6\u6D88' : '\u7F6E\u9876'),
