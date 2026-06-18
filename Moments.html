@@ -2621,6 +2621,9 @@ window.getDB = getDB;
       DraftStore.clear(memo.id);
       await Promise.resolve(onSave(memo.id, { _delete: true }));
     } else {
+      // 同步 DOM 变更（含 iOS 三指撤销/重做等系统操作）
+      var editorEl = editorBodyRef.current;
+      if (editorEl) docRef.current = parseEditorDOM(editorEl);
       await doSave(JSON.parse(JSON.stringify(docRef.current)));
     }
     setClosing(true);
