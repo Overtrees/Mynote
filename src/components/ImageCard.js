@@ -29,7 +29,7 @@
           var db = await (w.CikeIdb ? w.CikeIdb.getDB() : null);
           if (!db) return;
           for (var attempt = 0; attempt < 5 && !cancelled; attempt++) {
-            var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, firstAtt.fileId).catch(function(){return null;}) : null);
+            var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
             if (!stored) break;
             if (stored.type && stored.type.indexOf('image/') === 0 && (stored.url || stored.thumb)) {
               var t = stored.url || stored.thumb;
