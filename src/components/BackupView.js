@@ -1034,7 +1034,7 @@ const BackupView = ({
       fontSize: 16,
       flexShrink: 0
     }
-  }, '\u26A0\uFE0F'), /*#__PURE__*/React.createElement("span", {
+  }, w.SvgIcon('warning', { width:18, height:18, stroke:'#ff3b30', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 15,
       fontWeight: 700,
@@ -1074,7 +1074,7 @@ const BackupView = ({
       fontSize: 16,
       flexShrink: 0
     }
-  }, '\uD83D\uDD04'), /*#__PURE__*/React.createElement("span", {
+  }, w.SvgIcon('merge', { width:18, height:18, stroke:'#007aff', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: 15,
       fontWeight: 700,

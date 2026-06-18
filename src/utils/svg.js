@@ -45,6 +45,8 @@
   // 多段 path 图标（用 | 分隔）
   PATHS.pinMulti = 'M12 17v5|M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z';
   PATHS.delMulti = 'M3 6h18|M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6|M10 11v6|M14 11v6|M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2';
+  PATHS.warning = 'M12 2L2 20h20L12 2z|M12 10v4|M12 17h.01';
+  PATHS.merge = 'M17 2l4 4-4 4M7 22l-4-4 4-4M21 6H10a6 6 0 0 0-6 6M3 18h11a6 6 0 0 0 6-6';
 
   // 兼容旧的 SVG_ICONS 格式（HTML 字符串）
   // 新的 React 组件用法：w.SvgIcon('pin', { width: 17, height: 17, strokeWidth: 2.2 })
