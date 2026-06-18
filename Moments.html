@@ -5613,9 +5613,6 @@ function MemoList() {
               }
             }
             if (changed) {
-              warn('迁移触发 setMemos，补了 ' + normalized.filter(function(m) {
-                return m.doc && m.doc.some(function(n) { return n.type === 'attachment' && n.image !== undefined; });
-              }).length + ' 个笔记的 image 标记');
               setMemos(normalized.slice());
               try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
             }
@@ -5680,15 +5677,12 @@ function MemoList() {
       })();
     } catch (e) { console.warn('[此刻] localStorage save', e); }
   }, [memos]);
-  var openCount = 0;
   const openEditor = memo => {
     if (memo.id === NEW_CARD_ID) {
       handleNew();
       return;
     }
     isNewNoteRef.current = false;
-    openCount++;
-    if (openCount > 1) warn('打开笔记 #' + openCount, memo.title);
     scrollRestoreRef.current = window.scrollY;
     window.scrollTo(0, 0);
     setEditingMemoId(memo.id);
@@ -5818,9 +5812,7 @@ function MemoList() {
       return next;
     });
   }, []);
-  var prevGroupMap = useRef({});
   const groupedItems = useMemo(() => {
-    var newMap = {};
     const groups = [];
     let pinnedImageMemos = [],
       pinnedTextMemos = [];
@@ -5829,11 +5821,6 @@ function MemoList() {
       curTxt = [];
     filteredMemos.forEach(memo => {
       var isImage = hasImageAttachment(memo);
-      var prevIsImage = prevGroupMap.current[memo.id];
-      if (prevIsImage !== undefined && prevIsImage !== isImage) {
-        warn('卡片组变化', memo.title + ': ' + (prevIsImage ? 'image→text' : 'text→image'));
-      }
-      newMap[memo.id] = isImage;
       if (memo.pinned) {
         if (isImage) pinnedImageMemos.push(memo);else pinnedTextMemos.push(memo);
         return;
@@ -5849,7 +5836,7 @@ function MemoList() {
         curImg = [];
         curTxt = [];
       }
-      if (hasImageAttachment(memo)) curImg.push(memo);else curTxt.push(memo);
+      if (isImage) curImg.push(memo);else curTxt.push(memo);
     });
     if (currentLabel !== null && (curImg.length > 0 || curTxt.length > 0)) groups.push({
       label: currentLabel,
@@ -5861,7 +5848,6 @@ function MemoList() {
       imageMemos: pinnedImageMemos,
       textMemos: pinnedTextMemos
     });
-    prevGroupMap.current = newMap;
     return groups;
   }, [filteredMemos, hasImageAttachment]);
   const isEditorOpen = !!editingMemo;
