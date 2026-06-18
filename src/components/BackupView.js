@@ -1031,8 +1031,9 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 16,
-      flexShrink: 0
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center'
     }
   }, w.SvgIcon('warning', { width:18, height:18, stroke:'#ff3b30', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
@@ -1071,8 +1072,9 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 16,
-      flexShrink: 0
+      flexShrink: 0,
+      display: 'flex',
+      alignItems: 'center'
     }
   }, w.SvgIcon('merge', { width:18, height:18, stroke:'#007aff', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
