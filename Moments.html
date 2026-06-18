@@ -2762,7 +2762,17 @@ window.getDB = getDB;
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [undo, redo]);
-  // ===== beforeinput: iOS 三指手势撤销/重做（已移除，与返回动画冲突） =====
+  // ===== beforeinput: iOS 三指手势撤销/重做（同步执行，不用 setTimeout 避免与关闭动画冲突） =====
+  useEffect(() => {
+    var handler = function(e) {
+      if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
+      else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
+    };
+    var el = editorBodyRef.current;
+    if (!el) return;
+    el.addEventListener('beforeinput', handler);
+    return function() { el.removeEventListener('beforeinput', handler); };
+  }, [undo, redo]);
   // 打开已有笔记时，自动补拉 loading 态音乐/链接卡片
   useEffect(() => {
     const cards = (docRef.current || []).filter(function (n) {
