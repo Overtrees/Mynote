@@ -106,9 +106,7 @@
 
 ---
 
-## 技术说明（简短）
-
-技术上不炫技，够稳、够快、够省心就好：
+## 技术说明
 
 - React 18（UMD）
 - IndexedDB + localStorage
