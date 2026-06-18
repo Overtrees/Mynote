@@ -441,8 +441,8 @@
     }
 
     @keyframes slideInFromRight {
-        from { transform: translateX(100%); }
-        to   { transform: translateX(0); }
+        from { opacity: 0; transform: translateX(24px); }
+        to   { opacity: 1; transform: translateX(0); }
     }
     @keyframes mainFadeIn {
         from { opacity: 0; }
@@ -4432,7 +4432,7 @@ window.getDB = getDB;
       ...(closing ? {
         animation: "slideOutToRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards"
       } : animDone ? {} : {
-        animation: "slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both"
+        animation: "slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards"
       })
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -5616,6 +5616,9 @@ function MemoList() {
               }
             }
             if (changed) {
+              warn('迁移触发 setMemos，补了 ' + normalized.filter(function(m) {
+                return m.doc && m.doc.some(function(n) { return n.type === 'attachment' && n.image !== undefined; });
+              }).length + ' 个笔记的 image 标记');
               setMemos(normalized.slice());
               try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
             }
@@ -5680,12 +5683,15 @@ function MemoList() {
       })();
     } catch (e) { console.warn('[此刻] localStorage save', e); }
   }, [memos]);
+  var openCount = 0;
   const openEditor = memo => {
     if (memo.id === NEW_CARD_ID) {
       handleNew();
       return;
     }
     isNewNoteRef.current = false;
+    openCount++;
+    if (openCount > 1) warn('打开笔记 #' + openCount, memo.title);
     scrollRestoreRef.current = window.scrollY;
     window.scrollTo(0, 0);
     setEditingMemoId(memo.id);
@@ -5815,7 +5821,9 @@ function MemoList() {
       return next;
     });
   }, []);
+  var prevGroupMap = useRef({});
   const groupedItems = useMemo(() => {
+    var newMap = {};
     const groups = [];
     let pinnedImageMemos = [],
       pinnedTextMemos = [];
@@ -5823,8 +5831,14 @@ function MemoList() {
       curImg = [],
       curTxt = [];
     filteredMemos.forEach(memo => {
+      var isImage = hasImageAttachment(memo);
+      var prevIsImage = prevGroupMap.current[memo.id];
+      if (prevIsImage !== undefined && prevIsImage !== isImage) {
+        warn('卡片组变化', memo.title + ': ' + (prevIsImage ? 'image→text' : 'text→image'));
+      }
+      newMap[memo.id] = isImage;
       if (memo.pinned) {
-        if (hasImageAttachment(memo)) pinnedImageMemos.push(memo);else pinnedTextMemos.push(memo);
+        if (isImage) pinnedImageMemos.push(memo);else pinnedTextMemos.push(memo);
         return;
       }
       const label = getSectionLabel(memo.createdAt || memo.updatedAt);
@@ -5850,6 +5864,7 @@ function MemoList() {
       imageMemos: pinnedImageMemos,
       textMemos: pinnedTextMemos
     });
+    prevGroupMap.current = newMap;
     return groups;
   }, [filteredMemos, hasImageAttachment]);
   const isEditorOpen = !!editingMemo;
