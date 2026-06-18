@@ -30,7 +30,7 @@
           var chk = checked
             ? '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'11\' fill=\'%23007AFF\'/%3E%3Cpath d=\'M7 11l3 3 5-5\' stroke=\'white\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E" width="18" height="18" alt="">'
             : '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'9.5\' fill=\'none\' stroke=\'%23C7C7CC\' stroke-width=\'1.8\'/%3E%3C/svg%3E" width="18" height="18" alt="">';
-          return '<div data-blockid="' + node.id + '" data-type="todo"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + chk + '</span><span>' + text + '</span></div>';
+          return '<div data-blockid="' + node.id + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);border-radius:999px"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + chk + '</span><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
         case 'musicCard':
@@ -167,7 +167,7 @@
       if (f && f.type && f.type.startsWith('image/') && f.url) {
         return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><img src="' + f.url + '" alt="' + w.CikeEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:32px;corner-shape:squircle;display:block"></div>';
       }
-      return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><div class="atomic-placeholder">\uD83D\uDCCE ' + w.CikeEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</div></div>';
+      return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><div class="attachment-file"><span class="att-icon">\uD83D\uDCCE</span><span class="att-name">' + w.CikeEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</span><span class="att-hint">\u70B9\u51FB\u6253\u5F00</span></div></div>';
     }
     if (node.type === 'link-card') {
       var url = node.url || '', meta = node.meta;

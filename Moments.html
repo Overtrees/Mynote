@@ -50,7 +50,7 @@
 
 <script src="./src/editor/editor.md.js"></script>
 
-<script src="./src/editor/editor.render.js?v=3"></script>
+<script src="./src/editor/editor.render.js?v=4"></script>
 
 <script src="./src/components/LinkCard.js"></script>
 
@@ -70,6 +70,8 @@
 
 <script src="./src/blocks/registry.js"></script>
 <script src="./src/blocks/all.js"></script>
+
+<script src="./src/error-boundary.js?v=2"></script>
 
 <style>
     :root {
@@ -312,14 +314,14 @@
     .markdown-render tbody tr:last-child td { border-bottom: none; }
     .markdown-render tbody tr:active { background: rgba(0,122,255,0.04); }
     /* ===== Task list — iOS 圆圈勾选框 ===== */
-    .markdown-render ul.task-list { list-style: none; padding-left: 0; }
+    .markdown-render ul.task-list { list-style: none; padding-left: 0; display: flex; flex-direction: column; gap: 4px; }
     .markdown-render ul:not(.task-list) { padding-left: 1em; margin: 0.4em 0; }
     .markdown-render ol { padding-left: 1.2em; margin: 0.4em 0; }
     .markdown-render li { padding: 2px 0; }
     .editor-body ul:not(.task-list) { padding-left: 1em; margin: 0.4em 0; }
     .editor-body ol { padding-left: 1.2em; margin: 0.4em 0; }
     .editor-body li { padding: 2px 0; }
-    .markdown-render .task-list-item { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+    .markdown-render .task-list-item { display: flex; align-items: center; gap: 10px; padding: 3px 12px; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); border: 0.5px solid var(--glass-border); border-radius: 999px; margin: 4px 0; }
     .markdown-render .task-list-item input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 22px; height: 22px; flex-shrink: 0; position: relative; margin: 0; cursor: pointer; border: none; background: url("data:image/svg+xml,%3Csvg width='22' height='22' viewBox='0 0 22 22' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='9.5' stroke='%23C7C7CC' stroke-width='1.8'/%3E%3C/svg%3E") center/contain no-repeat; }
     .markdown-render .task-list-item input[type="checkbox"]:checked { background: url("data:image/svg+xml,%3Csvg width='22' height='22' viewBox='0 0 22 22' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='11' cy='11' r='11' fill='%23007AFF'/%3E%3Cpath d='M7 11l3 3 5-5' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; }
     .markdown-render li.task-list-item-checked { color: var(--text-secondary); text-decoration: line-through; }
@@ -876,7 +878,7 @@
     .editor-body h4 { font-size: 1em; font-weight: 800; }
     .editor-body blockquote { margin: 0.6em 0; padding: 10px 14px 10px 16px; border-left: 3px solid rgba(0,122,255,0.35); border-radius: 999px; border-top: 0.5px solid var(--border-color); border-right: 0.5px solid var(--border-color); border-bottom: 0.5px solid var(--border-color); color: var(--text-secondary); font-size: 14px; line-height: 1.6; box-shadow: 0 1px 3px rgba(0,0,0,0.03); background: var(--card-bg); }
     .editor-body hr { border: none; border-top: 1px solid var(--border-color); margin: 0.6em 0; opacity: 0.5; }
-    .editor-body [data-type="todo"] { display: flex; align-items: center; gap: 6px; margin: 0.2em 0; padding: 4px 12px; background: var(--card-bg); border-radius: 999px; }
+    .editor-body [data-type="todo"] { display: flex; align-items: center; gap: 6px; margin: 0.2em 0; padding: 4px 12px; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); border: 0.5px solid var(--glass-border); border-radius: 999px; }
     .editor-body [data-type="todo"] .todo-checkbox { width: 18px; height: 18px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none; }
     .editor-body [data-type="todo"] .todo-checkbox svg { display: block; }
 .editor-body [data-type="todo"] .todo-checkbox img { display: block; width: 18px; height: 18px; object-fit: contain; }
@@ -886,6 +888,11 @@
     .editor-body .atomic[data-type="gallery"] { margin: 8px 36px; }
 
     .editor-body .atomic.attachment img { max-width: 100%; border-radius: 32px; corner-shape: squircle; display: block; }
+    .editor-body .attachment-file { padding: 16px 20px; background: var(--glass-bg); border-radius: 32px; color: var(--text-secondary); border: 0.5px solid var(--glass-border); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: opacity 0.15s; touch-action: manipulation; -webkit-touch-callout: none; }
+    .editor-body .attachment-file:active { opacity: 0.6; }
+    .editor-body .attachment-file .att-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .editor-body .attachment-file .att-name { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .editor-body .attachment-file .att-hint { font-size: 0.6875rem; color: var(--text-secondary); flex-shrink: 0; background: rgba(127,127,127,0.1); padding: 2px 10px; border-radius: 999px; }
     .editor-body .atomic-placeholder { padding: 24px; text-align: center; background: var(--glass-bg); border-radius: 32px; corner-shape: squircle; color: var(--text-secondary); font-size: 0.9375rem; border: 0.5px solid var(--glass-border); backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); }
     .editor-body .link-card-block, .editor-body .link-card-err, .editor-body .link-card-link-card-loading { margin: 8px 0; border-radius: 32px; corner-shape: squircle; overflow: hidden; background: var(--glass-bg); border: 0.5px solid var(--glass-border); cursor: pointer; backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); -webkit-backdrop-filter: blur(40px) saturate(2.5) brightness(1.15); }
     .editor-body .lkc-cover { width: 100%; aspect-ratio: 2.4/1; overflow: hidden; background: var(--border-color); }
@@ -1025,7 +1032,11 @@ function getDB() {
 
 /* ---------- 安全日志辅助 ---------- */
 // 代替静默 catch(_) {}，保留排查线索但不上报用户
-const warn = (msg, err) => console.warn(`[此刻] ${msg}`, err || '');
+const warn = (msg, err) => {
+  console.warn(`[此刻] ${msg}`, err || '');
+  try { if (window.CikeErrors) window.CikeErrors.addWarn(msg, err); } catch (_) {}
+};
+window.warn = warn;
 function getSectionLabel(dateStr) {
   const now = new Date();
   const date = new Date(dateStr);
@@ -1069,6 +1080,18 @@ async function saveAttachmentToDB(db, obj) {
 }
 async function loadAttachmentFromDB(db, id) {
   return window.CikeIdb ? window.CikeIdb.loadAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
+}
+async function deleteAttachmentFromDB(db, id) {
+  return window.CikeIdb ? window.CikeIdb.deleteAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
+}
+function createThumbnail(dataUrl) {
+  return window.CikeIdb ? window.CikeIdb.createThumbnail(dataUrl) : Promise.resolve(null);
+}
+async function saveAvatarToDB(db, memoId, dataUrl) {
+  return window.CikeIdb ? window.CikeIdb.saveAvatarToDB(db, memoId, dataUrl) : Promise.reject(new Error('CikeIdb not loaded'));
+}
+function dataURLtoBlob(dataUrl) {
+  return window.CikeIdb ? window.CikeIdb.dataURLtoBlob(dataUrl) : null;
 }
 async function deleteAttachmentFromDB(db, id) {
   return window.CikeIdb ? window.CikeIdb.deleteAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
@@ -2937,7 +2960,7 @@ window.getDB = getDB;
   var insertAttachmentAtCursor = useCallback(async file => {
     recordUndoPoint();
     var id = genId();
-    var html = '<div contenteditable="false" class="atomic attachment" data-blockid="' + id + '" data-fileid="' + id + '"><div class="atomic-placeholder">📎 ' + escapeHTML(file.name) + '</div></div>';
+    var html = '<div contenteditable="false" class="atomic attachment" data-blockid="' + id + '" data-fileid="' + id + '"><div class="attachment-file"><span class="att-icon">📎</span><span class="att-name">' + escapeHTML(file.name) + '</span><span class="att-hint">上传中…</span></div></div>';
     insertAtomicBlockToDOM(html, function () {
       docRef.current.push({
         id: id,
@@ -2963,6 +2986,8 @@ window.getDB = getDB;
           try {
             var dataUrl = ev.target.result;
             var isImg = file.type.startsWith("image/");
+            var docNode = docRef.current.find(function(n){ return n.id === id; });
+            if (docNode) docNode.image = isImg;
             var thumb = isImg ? await createThumbnail(dataUrl) : null;
             await saveAttachmentToDB(dbRef.current, {
               id: id,
@@ -3700,6 +3725,37 @@ window.getDB = getDB;
           sel.addRange(range);
         }
         el.focus(); // 聚焦编辑器容器而非段落
+      } else if (e.target.closest('.att-hint')) {
+        e.preventDefault();
+        e.stopPropagation();
+        // 清除选区 + blur 编辑器，阻止 iOS contenteditable 弹出自动填充菜单
+        var sel = window.getSelection();
+        if (sel) sel.removeAllRanges();
+        if (document.activeElement && document.activeElement.isContentEditable) document.activeElement.blur();
+        var atomic = e.target.closest('.atomic.attachment');
+        var fid = atomic ? atomic.dataset.fileid : null;
+        if (fid && files[fid] && files[fid].url) {
+          var fi = files[fid];
+          if (!(fi.type && fi.type.indexOf('image/') === 0)) {
+            var blob = window.CikeIdb ? window.CikeIdb.dataURLtoBlob(fi.url) : null;
+            if (blob) {
+              var sf = new File([blob], fi.name || '文件', { type: fi.type || 'application/octet-stream' });
+              if (navigator.share && navigator.canShare && navigator.canShare({ files: [sf] })) {
+                navigator.share({ files: [sf], title: fi.name || '文件' }).catch(function(er){ if (er.name !== 'AbortError') warn('附件分享失败', er); });
+              } else {
+                var dl = document.createElement('a');
+                dl.href = URL.createObjectURL(blob);
+                dl.download = fi.name || '文件';
+                dl.click();
+                URL.revokeObjectURL(dl.href);
+              }
+            }
+          }
+        }
+        setEditorDocRef(docRef.current);
+        docRef.current = parseEditorDOM(el);
+        triggerAutoSave();
+        return;
       }
       e.preventDefault();
       e.stopPropagation();
@@ -3714,7 +3770,7 @@ window.getDB = getDB;
     if (lc && lc.dataset.url) {
       window.open(lc.dataset.url, '_blank');
     }
-  }, [triggerAutoSave, showMenu]);
+  }, [triggerAutoSave, showMenu, files]);
 
   /* ---- 待办圆点点击：pointerdown 阶段提前拦截光标 ---- */
   var handleTodoClick = useCallback(function (e) {
@@ -4133,7 +4189,7 @@ window.getDB = getDB;
       blurApplyingRef.current = false;
     }, 400);
   }, [triggerAutoSave]);
-  var handleEditorFocus = useCallback(function () {
+  var handleEditorFocus = useCallback(function (e) {
     editorFocusedRef.current = true;
     if (showMenu) closeEditorMenu();
     clearTimeout(mdCheckTimerRef.current);
@@ -5385,7 +5441,9 @@ function MemoList() {
   // ===== IndexedDB 主存储：先清，挂载后从 IDB 加载（localStorage 为只读备份） =====
   const [memos, setMemos] = useState([]);
   const memosRef = useRef([]);
-  const skipSaveEffectRef = useRef(false);
+  const skipSaveCountRef = useRef(0);
+  const saveMountedRef = useRef(true);
+  useEffect(function() { return function() { saveMountedRef.current = false; }; }, []);
   useEffect(() => { memosRef.current = memos; }, [memos]);
   const [weather, setWeather] = useState(function() {
     try { var d = WeatherCache.get(); return d || null; } catch(e) { return null; }
@@ -5534,6 +5592,32 @@ function MemoList() {
         }
         try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
         setMemos(normalized);
+        // migration: add image flag to existing attachments
+        (async function() {
+          try {
+            var db = await getDB();
+            if (!db) return;
+            var changed = false;
+            for (var mi = 0; mi < normalized.length; mi++) {
+              var m = normalized[mi];
+              if (!m.doc) continue;
+              for (var ni2 = 0; ni2 < m.doc.length; ni2++) {
+                var nd = m.doc[ni2];
+                if (nd.type === 'attachment' && nd.image === undefined && nd.fileId) {
+                  try {
+                    var att = await loadAttachmentFromDB(db, nd.fileId);
+                    nd.image = att && att.type ? att.type.indexOf('image/') === 0 : false;
+                    changed = true;
+                  } catch(_) { nd.image = false; }
+                }
+              }
+            }
+            if (changed) {
+              setMemos(normalized.slice());
+              try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
+            }
+          } catch(_) {}
+        })();
         tryOpenNote(normalized);
       } catch(e) { console.warn('[此刻] MemoList IDB init', e); }
     })();
@@ -5577,7 +5661,7 @@ function MemoList() {
   const titleOpacity = 1 - shrinkProgress * 0.3;
   const isCompact = shrinkProgress >= 1;
   useEffect(() => {
-    if (skipSaveEffectRef.current) return;
+    if (skipSaveCountRef.current > 0) return;
     try {
       const safe = memos.map(m => ({
         ...m,
@@ -5675,7 +5759,7 @@ function MemoList() {
     const next = changes && changes._delete
       ? memosRef.current.filter(m => m.id !== id)
       : memosRef.current.map(m => m.id === id ? Object.assign({}, m, changes) : m);
-    skipSaveEffectRef.current = true;
+    skipSaveCountRef.current += 1;
     setMemos(next);
     return (async function() {
       try {
@@ -5684,10 +5768,12 @@ function MemoList() {
           doc: m.doc ? m.doc.map(function(n) { return n; }) : m.doc
         }));
         localStorage.setItem("memos_app_v2", JSON.stringify(safe));
+        if (!saveMountedRef.current) return;
         var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
+        if (!saveMountedRef.current) return;
         if (db) await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, safe) : null);
       } catch (e) { console.warn('[此刻] memo save flush', e); }
-      skipSaveEffectRef.current = false;
+      skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1);
     })();
   }, []);
   const newCardDoc = useMemo(() => [{
@@ -5714,7 +5800,9 @@ function MemoList() {
     });
   }, [sorted, searchQuery]);
   const hasImageAttachment = useCallback(memo => {
-    return memo.doc && memo.doc.some(n => n.type === "attachment");
+    return memo.doc && memo.doc.some(function(n) {
+      return n.type === 'image' || n.type === 'gallery' || n.type === 'imgTextCard' || n.type === 'imageTextRow' || (n.type === 'attachment' && n.image);
+    });
   }, []);
   const [expandedBlocks, setExpandedBlocks] = useState(() => new Set());
   const toggleBlock = useCallback(id => {
@@ -5982,7 +6070,7 @@ function MemoList() {
     onExpand: () => toggleBlock(`${gi}-txt`)
   })))))))))
 }
-ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(MemoList, null));
+ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(window.CikeErrors.Badge, null, /*#__PURE__*/React.createElement(MemoList, null)));
 </script>
 
 <script>

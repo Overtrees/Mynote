@@ -141,32 +141,41 @@
   }
 
   function createThumbnail(dataUrl) {
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
       var img = new Image();
       img.onload = function () {
-        var size = 200;
-        var canvas = document.createElement('canvas');
-        canvas.width = size;
-        canvas.height = size;
-        var ctx = canvas.getContext('2d');
-        var side = Math.min(img.width, img.height);
-        var sx = (img.width - side) / 2;
-        var sy = (img.height - side) / 2;
-        ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-        resolve(canvas.toDataURL('image/jpeg', 0.92));
+        try {
+          var size = 200;
+          var canvas = document.createElement('canvas');
+          canvas.width = size;
+          canvas.height = size;
+          var ctx = canvas.getContext('2d');
+          if (!ctx) { resolve(null); return; }
+          var side = Math.min(img.width, img.height);
+          var sx = (img.width - side) / 2;
+          var sy = (img.height - side) / 2;
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
+        } catch (e) { resolve(null); }
       };
+      img.onerror = function () { resolve(null); };
       img.src = dataUrl;
     });
   }
 
   function dataURLtoBlob(dataURL) {
-    var arr = dataURL.split(',');
-    var mime = arr[0].match(/:(.*?);/)[1];
-    var bstr = atob(arr[1]);
-    var n = bstr.length;
-    var u8arr = new Uint8Array(n);
-    for (var i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
-    return new Blob([u8arr], { type: mime });
+    try {
+      var arr = dataURL.split(',');
+      if (arr.length < 2) return null;
+      var mimeMatch = arr[0].match(/:(.*?);/);
+      if (!mimeMatch) return null;
+      var mime = mimeMatch[1];
+      var bstr = atob(arr[1]);
+      var n = bstr.length;
+      var u8arr = new Uint8Array(n);
+      for (var i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+      return new Blob([u8arr], { type: mime });
+    } catch (e) { return null; }
   }
 
   async function packAttachmentsToZip(db, zipData, onProgress) {
@@ -178,13 +187,19 @@
     });
     for (var i = 0; i < allKeys.length; i++) {
       if (onProgress) onProgress(i, allKeys.length);
-      var record = await loadAttachmentFromDB(db, allKeys[i]);
-      if (record && record.url) {
-        var binStr = atob(record.url.split(',')[1]);
-        var buf = new Uint8Array(binStr.length);
-        for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
-        var safeName = (record.name || allKeys[i]).replace(/[/\\:*?"<>|]/g, '_');
-        zipData['attachments/' + allKeys[i] + '_' + safeName] = buf;
+      try {
+        var record = await loadAttachmentFromDB(db, allKeys[i]);
+        if (record && record.url) {
+          var parts = record.url.split(',');
+          if (parts.length < 2) continue;
+          var binStr = atob(parts[1]);
+          var buf = new Uint8Array(binStr.length);
+          for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
+          var safeName = (record.name || allKeys[i]).replace(/[/\\:*?"<>|]/g, '_');
+          zipData['attachments/' + allKeys[i] + '_' + safeName] = buf;
+        }
+      } catch (e) {
+        if (typeof w.warn === 'function') w.warn('打包附件失败: ' + allKeys[i], e);
       }
     }
   }

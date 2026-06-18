@@ -10,22 +10,22 @@
           var tx = db.transaction('drafts', 'readwrite');
           tx.objectStore('drafts').put({ id: memoId, data: data, updatedAt: new Date().toISOString() });
         }
-      } catch (e) {}
+      } catch (e) { console.warn('[DraftStore] IDB save', e); }
       try {
         localStorage.setItem(this.KEY + memoId, JSON.stringify(data));
-      } catch (e) {}
+      } catch (e) { console.warn('[DraftStore] localStorage save', e); }
     },
     async load(memoId) {
       try {
         var raw = localStorage.getItem(this.KEY + memoId);
         if (raw) return JSON.parse(raw);
-      } catch (e) {}
+      } catch (e) { console.warn('[DraftStore] load', e); }
       return null;
     },
     async clear(memoId) {
       try {
         localStorage.removeItem(this.KEY + memoId);
-      } catch (e) {}
+      } catch (e) { console.warn('[DraftStore] clear', e); }
     }
   };
 

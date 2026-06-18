@@ -214,7 +214,7 @@ const BackupView = ({
       const db = await w.CikeIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
       const oldMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(() => {});
+      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(e => console.warn('[恢复] 删除旧附件失败', e));
       const {
         success,
         fail
@@ -291,7 +291,7 @@ const BackupView = ({
           localStorage.setItem('google_token', tokenResponse.access_token);
           showStatus('✅ Google 账号已连接');
           addHistoryEntry('connect', 'success', 'Google 账号已连接', '');
-          /* 获取 Google 头像 */          fetch('https://www.googleapis.com/oauth2/v2/userinfo', {            headers: { Authorization: 'Bearer ' + tokenResponse.access_token }          }).then(function(r){ return r.json(); }).then(function(data){            if (data && data.picture) localStorage.setItem('google_avatar', data.picture);          }).catch(function(){});
+          /* 获取 Google 头像 */          fetch('https://www.googleapis.com/oauth2/v2/userinfo', {            headers: { Authorization: 'Bearer ' + tokenResponse.access_token }          }).then(function(r){ return r.json(); }).then(function(data){            if (data && data.picture) localStorage.setItem('google_avatar', data.picture);          }).catch(function(e){ console.warn('[备份] 获取 Google 头像失败', e); });
         } else {
           showStatus('❌ 授权失败，请重试');
           addHistoryEntry('connect', 'fail', 'Google 授权失败', '');
@@ -486,7 +486,7 @@ const BackupView = ({
       const db = await w.CikeIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
       const oldMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(() => {});
+      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(e => console.warn('[恢复] 删除旧附件失败', e));
       const {
         success,
         fail

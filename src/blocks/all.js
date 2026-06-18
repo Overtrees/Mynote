@@ -65,7 +65,7 @@
       var checked = (node.attrs && node.attrs.checked) || false;
       return R.createElement('div', {
         key: node.id + '_' + ctx.renderKey, 'data-blockid': node.id, 'data-type': 'todo',
-        style: { display:'flex', alignItems:'center', gap:8, margin:'4px 0' }
+        style: { display:'flex', alignItems:'center', gap:8, margin:'4px 0', padding:'4px 12px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)' }
       }, R.createElement('input', { type:'checkbox', checked:checked, readOnly:true,
         style:{ width:18, height:18, margin:0, cursor:'pointer' },
         onClick:function(e){ e.preventDefault(); ctx.updateBlock && ctx.updateBlock(node.id, { attrs: Object.assign({}, node.attrs||{}, { checked:!checked }) }); }
@@ -123,7 +123,7 @@
       }, items.map(function (item, i) {
         var fi = item && item.fileId;
         var src = (fi && ctx && ctx.files && ctx.files[fi] && ctx.files[fi].url) || (item && item.url) || item;
-        return R.createElement('img', { key:i, src:(typeof w.proxyImg === 'function' ? w.proxyImg(src) : src) || src,
+        return R.createElement('img', { key: fi || item?.id || i, src:(typeof w.proxyImg === 'function' ? w.proxyImg(src) : src) || src,
           style:{ width:'100%', height:366, objectFit:'cover', borderRadius:22 },
           onError:function(e){ e.target.style.display='none'; }
         });
