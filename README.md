@@ -114,9 +114,4 @@
 - 运行时异常捕获模块（ErrorBoundary + 浮动调试面板）
 - 依赖本地化，无运行时 CDN
 
----
-
-## License
-
-[MIT](https://opensource.org/licenses/MIT)
 
