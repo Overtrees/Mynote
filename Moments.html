@@ -5490,6 +5490,34 @@ function MemoList() {
     if (!m.createdAt) m.createdAt = m.updatedAt || new Date().toISOString();
     return m;
   }
+  function runAttachmentMigration(db, memos) {
+    if (!db || !memos) return;
+    setTimeout(function() {
+      (async function() {
+        try {
+          var changed = false;
+          for (var mi = 0; mi < memos.length; mi++) {
+            var m = memos[mi];
+            if (!m.doc) continue;
+            for (var ni2 = 0; ni2 < m.doc.length; ni2++) {
+              var nd = m.doc[ni2];
+              if (nd.type === 'attachment' && nd.image === undefined && nd.fileId) {
+                try {
+                  var att = await loadAttachmentFromDB(db, nd.fileId);
+                  nd.image = att && att.type ? att.type.indexOf('image/') === 0 : false;
+                  changed = true;
+                } catch(_) { nd.image = false; }
+              }
+            }
+          }
+          if (changed) {
+            setMemos(memos.slice());
+            try { localStorage.setItem("memos_app_v2", JSON.stringify(memos)); } catch(e) {}
+          }
+        } catch(_) {}
+      })();
+    }, 0);
+  }
   function buildBuiltinMemos() {
     var now = Date.now();
     var day = 86400000;
@@ -5575,6 +5603,8 @@ function MemoList() {
           var stored = await (window.CikeIdb ? window.CikeIdb.loadMemosFromDB(db) : null);
           if (stored && stored.length > 0) {
             var ns = stored.map(normalizeMemo);
+            // 给已有附件补 image 标记
+            runAttachmentMigration(db, ns);
             setMemos(ns);
             tryOpenNote(ns);
             return;
@@ -5594,34 +5624,7 @@ function MemoList() {
         setMemos(normalized);
         // migration: add image flag to existing attachments
         (async function() {
-          try {
-            var db = await getDB();
-            if (!db) return;
-            var changed = false;
-            for (var mi = 0; mi < normalized.length; mi++) {
-              var m = normalized[mi];
-              if (!m.doc) continue;
-              for (var ni2 = 0; ni2 < m.doc.length; ni2++) {
-                var nd = m.doc[ni2];
-                if (nd.type === 'attachment' && nd.image === undefined && nd.fileId) {
-                  try {
-                    var att = await loadAttachmentFromDB(db, nd.fileId);
-                    nd.image = att && att.type ? att.type.indexOf('image/') === 0 : false;
-                    if (nd.image === false && att === null) warn('迁移：IDB 未找到附件', nd.fileId);
-                    if (nd.image === false && att && att.type) warn('迁移：附件非图片', att.type);
-                    changed = true;
-                  } catch(_) { nd.image = false; }
-                }
-              }
-            }
-            if (changed) {
-              warn('迁移完成，补了 image 标记');
-              setMemos(normalized.slice());
-              try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
-            } else {
-              warn('迁移：无需补充标记');
-            }
-          } catch(_) {}
+          runAttachmentMigration(db, normalized);
         })();
         tryOpenNote(normalized);
       } catch(e) { console.warn('[此刻] MemoList IDB init', e); }
