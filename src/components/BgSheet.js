@@ -6,14 +6,9 @@
   var BgSheet = function BgSheet(_ref) {
     var currentColor = _ref.currentColor, onSelect = _ref.onSelect, onRemove = _ref.onRemove, onClose = _ref.onClose;
     var presetColors = ['#eaeef2', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0'];
-    var _useState = useState(true), closing = _useState[0], setClosing = _useState[1];
+    var _useState = useState(false), closing = _useState[0], setClosing = _useState[1];
     var closeTimerRef = useRef(null);
     var colorNames = ['\u51B7\u96FE', '\u6696\u6C99', '\u6D45\u7EFF', '\u6D45\u84DD', '\u6D45\u7C89', '\u7C73\u6A59', '\u6DE1\u7D2B', '\u6D45\u674F'];
-
-    useEffect(function () {
-      requestAnimationFrame(function () { requestAnimationFrame(function () { setClosing(false); }); });
-      return function () { clearTimeout(closeTimerRef.current); };
-    }, []);
 
     var closeWithAnim = useCallback(function (afterClose) {
       clearTimeout(closeTimerRef.current);
@@ -22,6 +17,7 @@
         if (afterClose) afterClose(); else if (onClose) onClose();
       }, 220);
     }, [onClose]);
+    useEffect(function () { return function () { clearTimeout(closeTimerRef.current); }; }, []);
 
     return R.createElement(R.Fragment, null,
       R.createElement('div', { onPointerDown:function(){closeWithAnim();}, style:{ position:'fixed', inset:0, zIndex:4000, background:'transparent' }}),
