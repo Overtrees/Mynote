@@ -120,8 +120,3 @@
 
 [MIT](https://opensource.org/licenses/MIT)
 
----
-
-## 在线体验
-
-[overtrees.github.io/Mynote](https://overtrees.github.io/Mynote)
