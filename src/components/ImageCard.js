@@ -7,17 +7,22 @@
   function ImageCard(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand;
     var isNewCard = memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
-    var _useState = useState(thumbCache[memo.id] || null), thumb = _useState[0], setThumb = _useState[1];
+    var _useState = useState(function() {
+      var att = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
+      return (att && att.thumb) || thumbCache[memo.id] || null;
+    }), thumb = _useState[0], setThumb = _useState[1];
     var idRef = useRef(memo.id);
     idRef.current = memo.id;
 
     useEffect(function () {
       if (isNewCard) { setThumb(null); return; }
+      // 优先使用 doc 节点上的缩略图（同步可用）
+      var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
+      if (docAtt && docAtt.thumb) { setThumb(docAtt.thumb); thumbCache[memo.id] = docAtt.thumb; return; }
       // 已缓存则跳过 IDB 读取
       if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
       setThumb(null);
-      var firstAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      if (!firstAtt) return;
+      if (!docAtt) return;
       var cancelled = false;
       (async function() {
         try {

@@ -9,7 +9,10 @@
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand, weather = _ref.weather;
     var rowRef = useRef(null), wrapperRef = useRef(null), btn1Ref = useRef(null), btn2Ref = useRef(null);
     var ACTION_W = 168, THRESHOLD = 55, MIN_DX = 5;
-    var _useState = useState(thumbCache[memo.id] || null), thumb = _useState[0], setThumb = _useState[1];
+    var _useState = useState(function() {
+      var att = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
+      return (att && att.thumb) || thumbCache[memo.id] || null;
+    }), thumb = _useState[0], setThumb = _useState[1];
     var isNewCard = memo && memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
     var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
     var idRef = useRef(memo.id);
@@ -38,10 +41,11 @@
     // Thumbnail loading
     useEffect(function () {
       if (isNewCard) return;
+      var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
+      if (docAtt && docAtt.thumb) { setThumb(docAtt.thumb); thumbCache[memo.id] = docAtt.thumb; return; }
       if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
       setThumb(null);
-      var firstAttach = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      if (!firstAttach) return;
+      if (!docAtt) return;
       var cancelled = false;
       (async function() {
         try {

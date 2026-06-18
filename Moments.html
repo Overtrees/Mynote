@@ -2989,6 +2989,8 @@ window.getDB = getDB;
             var docNode = docRef.current.find(function(n){ return n.id === id; });
             if (docNode) docNode.image = isImg;
             var thumb = isImg ? await createThumbnail(dataUrl) : null;
+            // 缩略图同步存到 doc 节点，首页直接渲染无需查 IDB
+            if (docNode && thumb) docNode.thumb = thumb;
             await saveAttachmentToDB(dbRef.current, {
               id: id,
               name: file.name,
@@ -5607,6 +5609,7 @@ function MemoList() {
                   try {
                     var att = await loadAttachmentFromDB(db, nd.fileId);
                     nd.image = att && att.type ? att.type.indexOf('image/') === 0 : false;
+                    if (nd.image && att && (att.thumb || att.url)) nd.thumb = att.thumb || att.url;
                     changed = true;
                   } catch(_) { nd.image = false; }
                 }
