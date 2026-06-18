@@ -25,7 +25,7 @@
 
 ### 记
 - 段落、标题、待办、引用、分割线、代码块、Callout 提示块
-- 图文卡片、图片卡片、音乐卡片（粘贴链接自动识别或/命令使用，目前这块加载可能会受网络环境影响）
+- 图文卡片、图片卡片、文件附件（图片自动渲染，PDF/Word 等文件支持点击系统分享）、音乐卡片（粘贴链接 / 斜杠命令插入，通过 Cloudflare Worker 抓取元数据，部分地区可能受限）
 - 标题胶囊：滚动自适应横竖排，点一下就能改
 - 斜杠命令面板：17 种排版命令，支持搜索筛选和最近使用
 - Markdown 自动渲染（内联语法、==高亮==、~~删除线~~、#标签蓝色胶囊）
@@ -33,7 +33,7 @@
 ### 看
 - 首页按时间分组，信息一眼就能找到
 - 支持置顶、展开/收起长分组
-- 图片直接显示原图，带 32px 圆角
+- 图文卡片自动识别文件类型，图片显示原图，非图片文件可点击打开
 - 从编辑页返回时，首页从右侧跟随滑入，过渡自然
 
 ### 存
@@ -96,16 +96,17 @@
 - React 18（UMD）
 - IndexedDB + localStorage
 - Cloudflare Worker（链接抓取）
+- 运行时异常捕获模块（ErrorBoundary + 浮动调试面板）
 - 依赖本地化，无运行时 CDN
 
 ---
 
 ## License
 
-MIT
+[MIT](https://opensource.org/licenses/MIT)
 
 ---
 
 ## 在线体验
 
-overtrees.github.io/Mynote
+[overtrees.github.io/Mynote](https://overtrees.github.io/Mynote)
