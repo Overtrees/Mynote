@@ -25,7 +25,7 @@
         R.createElement('div', { style:{ width:'100%', maxWidth:600, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', borderRadius:28, boxShadow:'0 2px 8px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.25)', padding:'20px 20px calc(20px + env(safe-area-inset-bottom))', overflow:'hidden', pointerEvents:'auto' } },
           R.createElement('div', { style:{ textAlign:'center', marginBottom:16 } },
             R.createElement('div', { style:{ fontSize:20, fontWeight:700, color:'var(--text-main)', letterSpacing:'-0.3px' } }, '\u80CC\u666F\u8272'),
-            R.createElement('div', { style:{ fontSize:13, color:'var(--text-secondary)', marginTop:4 } }, '\u4E3A\u5F53\u524D\u7B14\u8BB0\u8BBE\u7F6E\u5E95\u8272')),
+            R.createElement('div', { style:{ fontSize:13, color:'var(--text-secondary)', marginTop:4, textShadow:'0 1px 4px rgba(0,0,0,0.08), 0 0 2px var(--glass-bg)' } }, '\u4E3A\u5F53\u524D\u7B14\u8BB0\u8BBE\u7F6E\u5E95\u8272')),
           R.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginBottom:16 } },
             presetColors.map(function (c, i) {
               var selected = currentColor === c;
