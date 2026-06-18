@@ -278,7 +278,7 @@
     .item-meta { font-size: 0.75rem; color: var(--text-secondary); }
     .item-right { display: none; }
     .item-time { font-size: 0.75rem; color: var(--text-secondary); }
-.img-card { background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); box-shadow: inset 0 0 0 0.5px var(--glass-border); border-radius: 32px; corner-shape: squircle; margin-bottom: 6px; }
+.img-card { background-color: var(--card-bg); background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)); box-shadow: inset 0 0 0 0.5px var(--glass-border); border-radius: 32px; corner-shape: squircle; margin-bottom: 6px; transform: translateZ(0); }
     .img-card:last-child { margin-bottom: 0; }
     .img-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--border-color); -webkit-touch-callout: none; border-radius: 32px 32px 0 0; corner-shape: squircle; }
     .img-cover-fb { width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-size: 2.25rem; background: var(--btn-bg); color: var(--text-secondary); border-radius: 32px 32px 0 0; corner-shape: squircle; }
@@ -441,8 +441,8 @@
     }
 
     @keyframes slideInFromRight {
-        from { opacity: 0; transform: translateX(24px); }
-        to   { opacity: 1; transform: translateX(0); }
+        from { transform: translateX(100%); }
+        to   { transform: translateX(0); }
     }
     @keyframes mainFadeIn {
         from { opacity: 0; }
@@ -4432,7 +4432,7 @@ window.getDB = getDB;
       ...(closing ? {
         animation: "slideOutToRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards"
       } : animDone ? {} : {
-        animation: "slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards"
+        animation: "slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both"
       })
     }
   }, /*#__PURE__*/React.createElement("div", {
