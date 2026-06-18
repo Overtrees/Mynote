@@ -3,13 +3,17 @@
   var R = w.React;
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef, useCallback = R.useCallback;
 
+  var thumbCache = {};
+
   function SwipeRow(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand, weather = _ref.weather;
     var rowRef = useRef(null), wrapperRef = useRef(null), btn1Ref = useRef(null), btn2Ref = useRef(null);
     var ACTION_W = 168, THRESHOLD = 55, MIN_DX = 5;
-    var _useState = useState(null), thumb = _useState[0], setThumb = _useState[1];
+    var _useState = useState(thumbCache[memo.id] || null), thumb = _useState[0], setThumb = _useState[1];
     var isNewCard = memo && memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
     var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
+    var idRef = useRef(memo.id);
+    idRef.current = memo.id;
 
     // Preview text calculation
     var preview = '\u65E0\u66F4\u591A\u6587\u672C', attachCount = 0, tags = [];
@@ -34,6 +38,7 @@
     // Thumbnail loading
     useEffect(function () {
       if (isNewCard) return;
+      if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
       setThumb(null);
       var firstAttach = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
       if (!firstAttach) return;
@@ -45,7 +50,7 @@
           for (var attempt = 0; attempt < 5 && !cancelled; attempt++) {
             var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, firstAttach.fileId).catch(function(){return null;}) : null);
             if (!stored) break;
-            if (stored.type && stored.type.indexOf('image/') === 0 && stored.thumb) { if (!cancelled) setThumb(stored.thumb); return; }
+            if (stored.type && stored.type.indexOf('image/') === 0 && stored.thumb) { if (!cancelled) { setThumb(stored.thumb); thumbCache[idRef.current] = stored.thumb; } return; }
             await new Promise(function(r){setTimeout(r,300);});
           }
         } catch(e) {}

@@ -2,14 +2,19 @@
   'use strict';
   var R = w.React;
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef, useCallback = R.useCallback;
+  var thumbCache = {};
 
   function ImageCard(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand;
     var isNewCard = memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
-    var _useState = useState(null), thumb = _useState[0], setThumb = _useState[1];
+    var _useState = useState(thumbCache[memo.id] || null), thumb = _useState[0], setThumb = _useState[1];
+    var idRef = useRef(memo.id);
+    idRef.current = memo.id;
 
     useEffect(function () {
       if (isNewCard) { setThumb(null); return; }
+      // 已缓存则跳过 IDB 读取
+      if (thumbCache[memo.id]) { setThumb(thumbCache[memo.id]); return; }
       setThumb(null);
       var firstAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
       if (!firstAtt) return;
@@ -21,7 +26,11 @@
           for (var attempt = 0; attempt < 5 && !cancelled; attempt++) {
             var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, firstAtt.fileId).catch(function(){return null;}) : null);
             if (!stored) break;
-            if (stored.type && stored.type.indexOf('image/') === 0 && (stored.url || stored.thumb)) { if (!cancelled) setThumb(stored.url || stored.thumb); return; }
+            if (stored.type && stored.type.indexOf('image/') === 0 && (stored.url || stored.thumb)) {
+              var t = stored.url || stored.thumb;
+              if (!cancelled) { setThumb(t); thumbCache[idRef.current] = t; }
+              return;
+            }
             await new Promise(function(r){setTimeout(r,300);});
           }
         } catch(e) {}
