@@ -6080,7 +6080,7 @@ function MemoList() {
     onExpand: () => toggleBlock(`${gi}-txt`)
   })))))))))
 }
-ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(window.CikeErrors.Badge, null, /*#__PURE__*/React.createElement(MemoList, null)));
+ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(window.CikeErrors && window.CikeErrors.Badge ? window.CikeErrors.Badge : React.Fragment, null, /*#__PURE__*/React.createElement(MemoList, null)));
 </script>
 
 <script>
