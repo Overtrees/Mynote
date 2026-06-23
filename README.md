@@ -7,7 +7,7 @@
 <p align="center">
   <strong>此刻</strong>
 </p>
-#
+
 <p align="center">
   <a href="https://github.com/Overtrees/Mynote/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License"></a>
   <a href="https://overtrees.github.io/Mynote"><img src="https://img.shields.io/badge/App-%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-brightgreen" alt="App"></a>
