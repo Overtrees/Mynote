@@ -3374,7 +3374,7 @@ window.getDB = getDB;
         var fn2 = sel2.focusNode;
         var el2 = fn2 ? fn2.nodeType === 1 ? fn2 : fn2.parentElement : null;
         var blkEl2 = el2 ? el2.closest('[data-blockid]') : null;
-        if (blkEl2 && (!blkEl2.dataset || blkEl2.dataset.type !== 'paragraph')) {
+        if (blkEl2 && blkEl2.dataset && blkEl2.dataset.type && blkEl2.dataset.type !== 'paragraph') {
           /* 卡片文字区内按 Enter → 允许浏览器默认行为（在卡片内新建行） */
           var cardTextAreas = ['imgTextCard', 'imageTextRow'];
           if (cardTextAreas.includes(blkEl2.dataset.type)) {
