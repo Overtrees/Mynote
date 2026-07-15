@@ -122,12 +122,14 @@
 
   function saveRenderCacheToDB(db, memoId, cache) {
     if (!db || !memoId) return Promise.resolve();
-    var tx = db.transaction('renderCaches', 'readwrite');
-    tx.objectStore('renderCaches').put({ memoId: memoId, cache: cache, updatedAt: Date.now() });
-    return new Promise(function (resolve, reject) {
-      tx.oncomplete = resolve;
-      tx.onerror = function () { reject(tx.error); };
-    });
+    try {
+      var tx = db.transaction('renderCaches', 'readwrite');
+      tx.objectStore('renderCaches').put({ memoId: memoId, cache: cache, updatedAt: Date.now() });
+      return new Promise(function (resolve, reject) {
+        tx.oncomplete = resolve;
+        tx.onerror = function () { reject(tx.error); };
+      });
+    } catch (e) { return Promise.resolve(); }
   }
 
   function loadRenderCacheFromDB(db, memoId) {
