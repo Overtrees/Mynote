@@ -108,12 +108,13 @@
         }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html { background-color: var(--primary-bg); -webkit-text-size-adjust: auto; text-size-adjust: auto; overflow-x: hidden; }
+    html { background-color: var(--primary-bg); -webkit-text-size-adjust: auto; text-size-adjust: auto; overflow-x: hidden; min-height: 100%; }
     body {
         font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
         background-color: var(--primary-bg);
         color: var(--text-main);
         padding-bottom: env(safe-area-inset-bottom);
+        min-height: 100vh;
     }
 
     @supports (padding: env(safe-area-inset-top)) {
