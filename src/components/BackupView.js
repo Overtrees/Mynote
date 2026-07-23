@@ -436,37 +436,7 @@ const BackupView = ({
           } catch (_) {}
         }
       }
-      // 如果有新增附件，打包并上传新 pack
-      if (newAttachCount > 0) {
-        showStatus('正在打包 ' + newAttachCount + ' 个新增附件...');
-        var packNum = manifest.packIndex + 1;
-        var packName = ATT_PFX + String(packNum).padStart(4, '0') + '.zip';
-        var zipData = {};
-        for (var ai = 0; ai < newIds.length; ai++) {
-          if (ai % 5 === 0) showStatus('打包附件 ' + (ai + 1) + '/' + newAttachCount + '...');
-          try {
-            var rec = await w.CikeIdb.loadAttachmentFromDB(db, newIds[ai]);
-            if (rec && rec.url) {
-              var parts = rec.url.split(',');
-              if (parts.length < 2) continue;
-              var binStr = atob(parts[1]);
-              var buf = new Uint8Array(binStr.length);
-              for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
-              var safeName = (rec.name || newIds[ai]).replace(/[/\\:*?"<>|]/g, '_');
-              zipData['attachments/' + newIds[ai] + '_' + safeName] = buf;
-              manifest.backedUp[newIds[ai]] = packNum;
-            }
-          } catch (_) {}
-        }
-        manifest.packIndex = packNum;
-        var zipped = fflate.zipSync(zipData, { level: 3 });
-        var packBlob = new Blob([zipped], { type: 'application/zip' });
-        showStatus('上传附件包 ' + packNum + '...');
-        await driveUpload(googleToken, packName, packBlob, 'application/zip');
-      } else {
-        showStatus('附件无变化，跳过打包');
-      }
-      // 上传 meta（memos + avatars + manifest）
+      // 1. 上传 meta 先行（体积小，几乎必定成功）
       showStatus('上传笔记数据...');
       var metaPayload = {
         version: 3,
@@ -479,16 +449,66 @@ const BackupView = ({
       var metaBlob = new Blob([metaJson], { type: 'application/json' });
       await driveUpload(googleToken, META_FILE, metaBlob, 'application/json', existingMetaId);
       var memoCount = (backup.memos || []).length;
-      var parts = [];
-      parts.push(memoCount + ' 条笔记');
-      if (newAttachCount > 0) parts.push('新增 ' + newAttachCount + ' 个附件');
+      var parts = [memoCount + ' 条笔记'];
+      // 2. 附件包单独上传，失败不影响笔记
+      var attachOk = false;
+      if (newAttachCount > 0) {
+        showStatus('正在打包 ' + newAttachCount + ' 个新增附件...');
+        var packNum = manifest.packIndex + 1;
+        var packName = ATT_PFX + String(packNum).padStart(4, '0') + '.zip';
+        var zipData = {};
+        for (var ai = 0; ai < newIds.length; ai++) {
+          if (ai % 5 === 0) showStatus('打包附件 ' + (ai + 1) + '/' + newAttachCount + '...');
+          try {
+            var rec = await w.CikeIdb.loadAttachmentFromDB(db, newIds[ai]);
+            if (rec && rec.url) {
+              var parts2 = rec.url.split(',');
+              if (parts2.length < 2) continue;
+              var binStr = atob(parts2[1]);
+              var buf = new Uint8Array(binStr.length);
+              for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
+              var safeName = (rec.name || newIds[ai]).replace(/[/\\:*?"<>|]/g, '_');
+              zipData['attachments/' + newIds[ai] + '_' + safeName] = buf;
+              manifest.backedUp[newIds[ai]] = packNum;
+            }
+          } catch (_) {}
+        }
+        manifest.packIndex = packNum;
+        var zipped = fflate.zipSync(zipData, { level: 3 });
+        var packBlob = new Blob([zipped], { type: 'application/zip' });
+        showStatus('上传附件包 ' + packNum + '...');
+        try {
+          await driveUpload(googleToken, packName, packBlob, 'application/zip');
+          attachOk = true;
+          parts.push('新增 ' + newAttachCount + ' 个附件');
+        } catch (attErr) {
+          // 附件上传失败：从 manifest 回滚这些新增的 ID，下次重试
+          for (var ri = 0; ri < newIds.length; ri++) delete manifest.backedUp[newIds[ri]];
+          manifest.packIndex = packNum - 1;
+          // 重新上传 meta（回滚后的 manifest）
+          var rollbackPayload = {
+            version: 3,
+            exportedAt: new Date().toISOString(),
+            memos: backup.memos,
+            avatars: backup.avatars || {},
+            manifest: manifest
+          };
+          var rollbackJson = fflate.strToU8(JSON.stringify(rollbackPayload));
+          var rollbackBlob = new Blob([rollbackJson], { type: 'application/json' });
+          await driveUpload(googleToken, META_FILE, rollbackBlob, 'application/json', existingMetaId);
+          throw new Error('附件上传失败: ' + (attErr.message === 'Load failed' ? '连接被拒绝，请尝试断开 Google 重连或切换网络' : attErr.message));
+        }
+      } else {
+        showStatus('附件无变化，跳过打包');
+        attachOk = true;
+      }
       if (staleIds.length > 0) parts.push('清理 ' + staleIds.length + ' 个已删除附件');
       if (cleanedPacks > 0) parts.push('删除 ' + cleanedPacks + ' 个过期包');
       showStatus('✅ 云端备份完成');
       addHistoryEntry('upload', 'success', '云端备份成功', parts.join('，'));
     } catch (e) {
-      var errMsg = e.name === 'AbortError' ? '上传超时' : e.message === 'Load failed' ? '上传连接失败，请检查网络' : e.message;
-      showStatus('❌ 云端备份失败: ' + errMsg);
+      var errMsg = e.name === 'AbortError' ? '上传超时，可尝试断开 Google 重新连接' : e.message && e.message.indexOf('附件上传失败') === 0 ? e.message : e.message === 'Load failed' ? '上传连接失败，请尝试断开 Google 账号后重新连接，或切换 WiFi/蜂窝网络' : e.message;
+      showStatus('❌ ' + errMsg);
       addHistoryEntry('upload', 'fail', '云端备份失败', errMsg);
     } finally {
       setBackupLoading(false);
