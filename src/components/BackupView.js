@@ -314,94 +314,144 @@ const BackupView = ({
     localStorage.removeItem('google_avatar');
     showStatus('已断开 Google 账号');
   }, [googleToken, showStatus]);
+  // ===== 增量备份：Drive 文件辅助函数 =====
+  const META_FILE = 'moments_meta.json';
+  const ATT_PFX = 'moments_att_';
+
+  // 执行 resumable upload（创建或更新单个文件）
+  async function driveUpload(token, name, blob, mimeType, existingId) {
+    var meta = { name: name, mimeType: mimeType };
+    if (!existingId) meta.parents = ['appDataFolder'];
+    var url = existingId
+      ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=resumable'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable';
+    var method = existingId ? 'PATCH' : 'POST';
+    var c1 = new AbortController();
+    var t1 = setTimeout(function () { c1.abort(); }, 120000);
+    var sr = await fetch(url, {
+      method: method,
+      headers: {
+        Authorization: 'Bearer ' + token,
+        'Content-Type': 'application/json',
+        'X-Upload-Content-Type': mimeType,
+        'X-Upload-Content-Length': blob.size
+      },
+      body: JSON.stringify(meta),
+      signal: c1.signal
+    });
+    clearTimeout(t1);
+    if (sr.status === 401 || sr.status === 403) throw new Error('Google 授权失效');
+    if (!sr.ok) { var ed = await sr.json().catch(function () { return {}; }); throw new Error(ed.error && ed.error.message || '上传会话 ' + sr.status); }
+    var uplUrl = sr.headers.get('Location');
+    if (!uplUrl) throw new Error('未获取上传地址');
+    var c2 = new AbortController();
+    var t2 = setTimeout(function () { c2.abort(); }, 120000);
+    var ur = await fetch(uplUrl, { method: 'PUT', headers: { 'Content-Length': blob.size, 'Content-Type': mimeType }, body: blob, signal: c2.signal });
+    clearTimeout(t2);
+    if (ur.status === 401 || ur.status === 403) throw new Error('Google 授权失效');
+    if (!ur.ok) { var ed2 = await ur.json().catch(function () { return {}; }); throw new Error(ed2.error && ed2.error.message || '上传 ' + ur.status); }
+    var res = await ur.json().catch(function () { return {}; });
+    return res.id || existingId;
+  }
+
+  // 查找文件 ID（按文件名）
+  async function driveFindId(token, name) {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files?q=name=\'' + name + '\' and trashed=false&spaces=appDataFolder&fields=files(id)', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
+    var d = await r.json();
+    return d.files && d.files.length > 0 ? d.files[0].id : null;
+  }
+
+  // 下载文件内容
+  async function driveDownload(token, fileId) {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
+    if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
+    return await r.arrayBuffer();
+  }
+
   const handleCloudBackup = useCallback(async () => {
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (backupLoading) return;
     setBackupLoading(true);
     try {
-      const backup = await buildBackupPayload();
-      showStatus('正在打包附件...');
-      const zipData = {};
-      zipData['memos.json'] = fflate.strToU8(JSON.stringify(backup, null, 2));
-      const db = await w.CikeIdb.getDB();
-      await w.CikeIdb.packAttachmentsToZip(db, zipData, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
-      const tx = db.transaction('avatars', 'readonly');
-      const allAvatars = await new Promise(res => {
-        const req = tx.objectStore('avatars').getAll();
-        req.onsuccess = () => res(req.result);
+      showStatus('正在读取笔记...');
+      var backup = await buildBackupPayload();
+      var db = await w.CikeIdb.getDB();
+      // 获取所有附件 ID
+      var allAttIds = await new Promise(function (res, rej) {
+        var tx = db.transaction('attachments', 'readonly');
+        var req = tx.objectStore('attachments').getAllKeys();
+        req.onsuccess = function () { res(req.result); };
+        req.onerror = function () { rej(req.error); };
       });
-      if (allAvatars.length > 0) {
-        const avatarsObj = {};
-        for (const a of allAvatars) avatarsObj[a.id] = a.dataUrl;
-        zipData['avatars.json'] = fflate.strToU8(JSON.stringify(avatarsObj));
+      // 读取已有 meta 文件中的 manifest（增量依据）
+      var existingMetaId = await driveFindId(googleToken, META_FILE);
+      var manifest = { packIndex: 0, backedUp: {} }; // { id → packNumber }
+      if (existingMetaId) {
+        try {
+          var oldBuf = await driveDownload(googleToken, existingMetaId);
+          var oldMeta = JSON.parse(fflate.strFromU8(new Uint8Array(oldBuf)));
+          if (oldMeta && oldMeta.manifest) manifest = oldMeta.manifest;
+        } catch (_) {}
       }
-      const zipped = fflate.zipSync(zipData, {
-        level: 3
-      });
-      const blob = new Blob([zipped], {
-        type: 'application/zip'
-      });
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
-        headers: {
-          Authorization: `Bearer ${googleToken}`
+      // 找出新增附件
+      var newIds = allAttIds.filter(function (id) { return !manifest.backedUp.hasOwnProperty(id); });
+      var attachCount = allAttIds.length;
+      var newAttachCount = newIds.length;
+      // 如果有新增附件，打包并上传新 pack
+      if (newAttachCount > 0) {
+        showStatus('正在打包 ' + newAttachCount + ' 个新增附件...');
+        var packNum = manifest.packIndex + 1;
+        var packName = ATT_PFX + String(packNum).padStart(4, '0') + '.zip';
+        var zipData = {};
+        for (var ai = 0; ai < newIds.length; ai++) {
+          if (ai % 5 === 0) showStatus('打包附件 ' + (ai + 1) + '/' + newAttachCount + '...');
+          try {
+            var rec = await w.CikeIdb.loadAttachmentFromDB(db, newIds[ai]);
+            if (rec && rec.url) {
+              var parts = rec.url.split(',');
+              if (parts.length < 2) continue;
+              var binStr = atob(parts[1]);
+              var buf = new Uint8Array(binStr.length);
+              for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
+              var safeName = (rec.name || newIds[ai]).replace(/[/\\:*?"<>|]/g, '_');
+              zipData['attachments/' + newIds[ai] + '_' + safeName] = buf;
+              manifest.backedUp[newIds[ai]] = packNum;
+            }
+          } catch (_) {}
         }
-      });
-      if (checkTokenExpiry(listResp)) return;
-      const listData = await listResp.json();
-      let fileId = null;
-      if (listData.files && listData.files.length > 0) fileId = listData.files[0].id;
-      const metadata = {
-        name: BACKUP_FILE_NAME,
-        mimeType: 'application/zip'
+        manifest.packIndex = packNum;
+        var zipped = fflate.zipSync(zipData, { level: 3 });
+        var packBlob = new Blob([zipped], { type: 'application/zip' });
+        showStatus('上传附件包 ' + packNum + '...');
+        await driveUpload(googleToken, packName, packBlob, 'application/zip');
+      } else {
+        showStatus('附件无变化，跳过打包');
+      }
+      // 上传 meta（memos + avatars + manifest）
+      showStatus('上传笔记数据...');
+      var metaPayload = {
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        memos: backup.memos,
+        avatars: backup.avatars || {},
+        manifest: manifest
       };
-      if (!fileId) metadata.parents = ['appDataFolder'];
-      // 使用可续传上传（resumable），避免 FormData/multipart 在 iOS Safari 上内存崩溃
-      const sessionUrl = fileId
-        ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable`
-        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
-      const sessionMethod = fileId ? 'PATCH' : 'POST';
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000);
-      const sessionResp = await fetch(sessionUrl, {
-        method: sessionMethod,
-        headers: {
-          Authorization: `Bearer ${googleToken}`,
-          'Content-Type': 'application/json',
-          'X-Upload-Content-Type': 'application/zip',
-          'X-Upload-Content-Length': blob.size
-        },
-        body: JSON.stringify(metadata),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-      if (checkTokenExpiry(sessionResp)) return;
-      if (!sessionResp.ok) {
-        const errData = await sessionResp.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `HTTP ${sessionResp.status}`);
-      }
-      const uploadUrl = sessionResp.headers.get('Location');
-      if (!uploadUrl) throw new Error('未获取到上传地址');
-      const ctrl2 = new AbortController();
-      const t2 = setTimeout(() => ctrl2.abort(), 120000);
-      const uploadResp = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Length': blob.size,
-          'Content-Type': 'application/zip'
-        },
-        body: blob,
-        signal: ctrl2.signal
-      });
-      clearTimeout(t2);
-      if (checkTokenExpiry(uploadResp)) return;
-      if (!uploadResp.ok) {
-        const errData = await uploadResp.json().catch(() => ({}));
-        throw new Error(errData.error?.message || `HTTP ${uploadResp.status}`);
-      }
+      var metaJson = fflate.strToU8(JSON.stringify(metaPayload));
+      var metaBlob = new Blob([metaJson], { type: 'application/json' });
+      await driveUpload(googleToken, META_FILE, metaBlob, 'application/json', existingMetaId);
+      var memoCount = (backup.memos || []).length;
+      var detail = memoCount + ' 条笔记';
+      if (newAttachCount > 0) detail += '，新增 ' + newAttachCount + ' 个附件';
       showStatus('✅ 云端备份完成');
-      addHistoryEntry('upload', 'success', '云端备份成功', (backup.memos || []).length + ' 条笔记');
+      addHistoryEntry('upload', 'success', '云端备份成功', detail);
     } catch (e) {
-      var errMsg = e.name === 'AbortError' ? '上传超时，备份文件可能过大' : e.message === 'Load failed' ? '上传连接失败，请检查附件数量和网络' : e.message;
+      var errMsg = e.name === 'AbortError' ? '上传超时' : e.message === 'Load failed' ? '上传连接失败，请检查网络' : e.message;
       showStatus('❌ 云端备份失败: ' + errMsg);
       addHistoryEntry('upload', 'fail', '云端备份失败', errMsg);
     } finally {
@@ -415,77 +465,78 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在下载云端备份...');
     try {
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
-        headers: {
-          Authorization: `Bearer ${googleToken}`
-        }
-      });
-      if (checkTokenExpiry(listResp)) return;
-      const listData = await listResp.json();
-      if (!listData.files || listData.files.length === 0) return showStatus('❌ 云端无备份文件');
-      const fileId = listData.files[0].id;
-      const dlResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: {
-          Authorization: `Bearer ${googleToken}`
-        }
-      });
-      if (checkTokenExpiry(dlResp)) return;
-      const buf = await dlResp.arrayBuffer();
-      const unzipped = fflate.unzipSync(new Uint8Array(buf));
-      const cloudBackup = JSON.parse(fflate.strFromU8(unzipped['memos.json']));
+      var metaId = await driveFindId(googleToken, META_FILE);
+      if (!metaId) return showStatus('❌ 云端无备份文件');
+      var buf = await driveDownload(googleToken, metaId);
+      var cloudBackup = JSON.parse(fflate.strFromU8(new Uint8Array(buf)));
       if (!cloudBackup.memos) throw new Error('无效的备份文件');
-      const localMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      const cloudIds = new Set(cloudBackup.memos.map(m => m.id));
-      const merged = [...cloudBackup.memos.map(function(cb) {
-        var local = localMemos.find(function(m) { return m.id === cb.id; });
+      var manifest = cloudBackup.manifest || { packIndex: 0, backedUp: {} };
+      // 合并 memos
+      var localMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
+      var cloudIds = new Set(cloudBackup.memos.map(function (m) { return m.id; }));
+      var merged = cloudBackup.memos.map(function (cb) {
+        var local = localMemos.find(function (m) { return m.id === cb.id; });
         if (local && local.doc && cb.doc) {
-          cb.doc = cb.doc.map(function(n, i) {
-            if (n.type === 'attachment' && !n.image && local.doc[i] && local.doc[i].image) {
-              return Object.assign({}, n, { image: local.doc[i].image });
-            }
+          cb.doc = cb.doc.map(function (n, i) {
+            if (n.type === 'attachment' && !n.image && local.doc[i] && local.doc[i].image) return Object.assign({}, n, { image: local.doc[i].image });
             return n;
           });
         }
         return cb;
-      }), ...localMemos.filter(function(m) { return !cloudIds.has(m.id); })];
-      const db = await w.CikeIdb.getDB();
-      for (const attPath of Object.keys(unzipped).filter(k => k.startsWith('attachments/'))) {
-        const bytes = unzipped[attPath];
-        if (!bytes) continue;
-        const fileName = attPath.replace('attachments/', '');
-        const firstUnderscore = fileName.indexOf('_');
-        const fileId = firstUnderscore > 0 ? fileName.slice(0, firstUnderscore) : fileName;
-        const displayName = firstUnderscore > 0 ? fileName.slice(firstUnderscore + 1) : fileName;
-        const local = await loadAttachmentFromDB(db, fileId).catch(() => null);
-        if (!local) {
-          const mime = guessMimeFromName(displayName);
-          const blob = new Blob([bytes], {
-            type: mime
-          });
-          const dataUrl = await new Promise((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(r.result);
-            r.onerror = () => rej(new Error('FileReader 读取附件失败: ' + displayName));
-            r.readAsDataURL(blob);
-          });
-          const regenThumb = await createThumbnail(dataUrl).catch(() => null);
-          await saveAttachmentToDB(db, {
-            id: fileId,
-            name: displayName,
-            type: mime,
-            url: dataUrl,
-            thumb: regenThumb
-          });
+      }).concat(localMemos.filter(function (m) { return !cloudIds.has(m.id); }));
+      var db = await w.CikeIdb.getDB();
+      // 收集云端附件 ID 中本地缺失的 → 按 pack 分组
+      var cloudAttIds = [];
+      cloudBackup.memos.forEach(function (m) { if (m.doc) m.doc.forEach(function (n) { if (n.type === 'attachment' && n.fileId) cloudAttIds.push(n.fileId); }); });
+      var neededPacks = {};
+      for (var ci = 0; ci < cloudAttIds.length; ci++) {
+        var aid = cloudAttIds[ci];
+        var localAtt = await loadAttachmentFromDB(db, aid).catch(function () { return null; });
+        if (!localAtt && manifest.backedUp[aid]) {
+          var pn = manifest.backedUp[aid];
+          if (!neededPacks[pn]) neededPacks[pn] = [];
+          neededPacks[pn].push(aid);
         }
       }
-      const cloudAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null;
-      await restoreAvatars(cloudAvatars || cloudBackup.avatars, db);
-      try { localStorage.setItem('memos_app_v2', JSON.stringify(merged)); } catch (lsErr) {
-        console.warn('[合并] localStorage 写入失败（大小超限），数据已存入 IndexedDB', lsErr);
+      var packNums = Object.keys(neededPacks).map(Number).sort(function (a, b) { return a - b; });
+      for (var pi = 0; pi < packNums.length; pi++) {
+        var pn = packNums[pi];
+        showStatus('下载附件包 ' + pn + '...');
+        var pName = ATT_PFX + String(pn).padStart(4, '0') + '.zip';
+        var pId = await driveFindId(googleToken, pName);
+        if (!pId) continue;
+        var pBuf = await driveDownload(googleToken, pId);
+        var unz = fflate.unzipSync(new Uint8Array(pBuf));
+        var targetIds = neededPacks[pn];
+        for (var ati = 0; ati < targetIds.length; ati++) {
+          var tid = targetIds[ati];
+          var attKey = Object.keys(unz).find(function (k) { return k.startsWith('attachments/' + tid + '_'); });
+          if (!attKey) continue;
+          var bytes = unz[attKey];
+          if (!bytes) continue;
+          var fn = attKey.replace('attachments/', '');
+          var us = fn.indexOf('_');
+          var displayName = us > 0 ? fn.slice(us + 1) : fn;
+          var mime = guessMimeFromName(displayName);
+          var blob = new Blob([bytes], { type: mime });
+          var dataUrl = await new Promise(function (res, rej) {
+            var r2 = new FileReader();
+            r2.onload = function () { res(r2.result); };
+            r2.onerror = function () { rej(new Error('读取附件失败')); };
+            r2.readAsDataURL(blob);
+          });
+          var thumb = await createThumbnail(dataUrl).catch(function () { return null; });
+          await saveAttachmentToDB(db, { id: tid, name: displayName, type: mime, url: dataUrl, thumb: thumb });
+        }
       }
-      if (window.CikeIdb) { try { await window.CikeIdb.saveMemosToDB(db, merged); } catch(_){} }
+      // 恢复头像
+      await restoreAvatars(cloudBackup.avatars || {}, db);
+      try { localStorage.setItem('memos_app_v2', JSON.stringify(merged)); } catch (lsErr) {
+        console.warn('[合并] localStorage 写入失败，数据已存入 IndexedDB', lsErr);
+      }
+      if (window.CikeIdb) { try { await window.CikeIdb.saveMemosToDB(db, merged); } catch (_) {} }
       showStatus('✅ 合并成功！正在刷新...');
-      setTimeout(() => window.location.href = location.href, 800);
+      setTimeout(function () { window.location.href = location.href; }, 800);
     } catch (e) {
       showStatus('❌ 合并失败: ' + e.message);
       console.error('[备份] 合并失败', e);
@@ -498,46 +549,103 @@ const BackupView = ({
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (restoreLoading) return;
     if (!window.confirm('确认从云端恢复？当前所有数据将被覆盖，此操作不可撤销。')) return;
-    // 恢复前预写入历史，确保刷新中断也有记录
     addHistoryEntry('restore', 'info', '从云端恢复', '进行中...');
     setRestoreLoading(true);
     showStatus('正在从云端下载...');
     try {
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
-        headers: {
-          Authorization: `Bearer ${googleToken}`
+      var metaId = await driveFindId(googleToken, META_FILE);
+      if (!metaId) return showStatus('❌ 云端无备份文件');
+      var buf = await driveDownload(googleToken, metaId);
+      // 兼容旧格式：如果是 ZIP（旧备份），走旧逻辑
+      var firstBytes = new Uint8Array(buf.slice(0, 4));
+      var isZip = firstBytes[0] === 0x50 && firstBytes[1] === 0x4B;
+      if (isZip) {
+        var oldUnzipped = fflate.unzipSync(new Uint8Array(buf));
+        var oldBackup = JSON.parse(fflate.strFromU8(oldUnzipped['memos.json']));
+        if (!oldBackup.memos) throw new Error('无效的备份文件');
+        var oldDb = await w.CikeIdb.getDB();
+        var oldMemosStr = JSON.stringify(oldBackup.memos);
+        var oldMemosList = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
+        for (var mi = 0; mi < oldMemosList.length; mi++) {
+          var m = oldMemosList[mi];
+          if (m.doc) for (var ni = 0; ni < m.doc.length; ni++) {
+            if (m.doc[ni].type === 'attachment') await deleteAttachmentFromDB(oldDb, m.doc[ni].fileId).catch(function () {});
+          }
         }
-      });
-      if (checkTokenExpiry(listResp)) return;
-      const listData = await listResp.json();
-      if (!listData.files || listData.files.length === 0) return showStatus('❌ 云端无备份文件');
-      const fileId = listData.files[0].id;
-      const dlResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-        headers: {
-          Authorization: `Bearer ${googleToken}`
-        }
-      });
-      if (checkTokenExpiry(dlResp)) return;
-      const buf = await dlResp.arrayBuffer();
-      const unzipped = fflate.unzipSync(new Uint8Array(buf));
-      const backup = JSON.parse(fflate.strFromU8(unzipped['memos.json']));
+        var oldRes = await restoreAttachmentsFromZip(oldUnzipped, oldDb);
+        if (oldRes.fail > 0) showStatus('附件恢复：成功 ' + oldRes.success + '，跳过 ' + oldRes.fail);
+        var oldAvBak = oldUnzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(oldUnzipped['avatars.json'])) : null;
+        await restoreAvatars(oldAvBak || oldBackup.avatars, oldDb);
+        localStorage.setItem('memos_app_v2', oldMemosStr);
+        if (window.CikeIdb) { try { var _od = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_od, oldBackup.memos); } catch (_) {} }
+        showStatus('✅ 云端恢复成功！正在刷新页面...');
+        addHistoryEntry('restore', 'success', '从云端恢复', (oldBackup.memos || []).length + ' 条笔记');
+        setTimeout(function () { window.location.href = location.href; }, 2000);
+        return;
+      }
+      // 新格式恢复
+      var backup = JSON.parse(fflate.strFromU8(new Uint8Array(buf)));
       if (!backup.memos) throw new Error('无效的备份文件');
-      const db = await w.CikeIdb.getDB();
-      const newMemosStr = JSON.stringify(backup.memos);
-      const oldMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(e => console.warn('[恢复] 删除旧附件失败', e));
-      const {
-        success,
-        fail
-      } = await restoreAttachmentsFromZip(unzipped, db);
-      if (fail > 0) showStatus(`附件恢复完成：成功 ${success}，跳过 ${fail}`);
-      const backupAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null;
-      await restoreAvatars(backupAvatars || backup.avatars, db);
+      var manifest2 = backup.manifest || { packIndex: 0, backedUp: {} };
+      var db2 = await w.CikeIdb.getDB();
+      var allCloudAttIds = [];
+      backup.memos.forEach(function (m) { if (m.doc) m.doc.forEach(function (n) { if (n.type === 'attachment' && n.fileId) allCloudAttIds.push(n.fileId); }); });
+      var packsNeeded = {};
+      for (var ci2 = 0; ci2 < allCloudAttIds.length; ci2++) {
+        var aid2 = allCloudAttIds[ci2];
+        if (manifest2.backedUp[aid2]) {
+          var pn2 = manifest2.backedUp[aid2];
+          if (!packsNeeded[pn2]) packsNeeded[pn2] = [];
+          packsNeeded[pn2].push(aid2);
+        }
+      }
+      // 清理本地旧附件
+      var oldMemos2 = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
+      for (var mi2 = 0; mi2 < oldMemos2.length; mi2++) {
+        var m2 = oldMemos2[mi2];
+        if (m2.doc) for (var ni2 = 0; ni2 < m2.doc.length; ni2++) {
+          if (m2.doc[ni2].type === 'attachment') await deleteAttachmentFromDB(db2, m2.doc[ni2].fileId).catch(function () {});
+        }
+      }
+      // 下载并解压每个需要的 pack
+      var packNums2 = Object.keys(packsNeeded).map(Number).sort(function (a, b) { return a - b; });
+      for (var pi2 = 0; pi2 < packNums2.length; pi2++) {
+        var pn3 = packNums2[pi2];
+        showStatus('下载附件包 ' + (pi2 + 1) + '/' + packNums2.length + '...');
+        var pName2 = ATT_PFX + String(pn3).padStart(4, '0') + '.zip';
+        var pId2 = await driveFindId(googleToken, pName2);
+        if (!pId2) continue;
+        var pBuf2 = await driveDownload(googleToken, pId2);
+        var unz2 = fflate.unzipSync(new Uint8Array(pBuf2));
+        var targetIds = packsNeeded[pn3];
+        for (var ati2 = 0; ati2 < targetIds.length; ati2++) {
+          var tid2 = targetIds[ati2];
+          var attKey2 = Object.keys(unz2).find(function (k) { return k.startsWith('attachments/' + tid2 + '_'); });
+          if (!attKey2) continue;
+          var bytes2 = unz2[attKey2];
+          if (!bytes2) continue;
+          var fn2 = attKey2.replace('attachments/', '');
+          var us2 = fn2.indexOf('_');
+          var dn = us2 > 0 ? fn2.slice(us2 + 1) : fn2;
+          var mime2 = guessMimeFromName(dn);
+          var blob2 = new Blob([bytes2], { type: mime2 });
+          var du = await new Promise(function (res, rej) {
+            var r3 = new FileReader();
+            r3.onload = function () { res(r3.result); };
+            r3.onerror = function () { rej(new Error('读取附件失败')); };
+            r3.readAsDataURL(blob2);
+          });
+          var thumb2 = await createThumbnail(du).catch(function () { return null; });
+          await saveAttachmentToDB(db2, { id: tid2, name: dn, type: mime2, url: du, thumb: thumb2 });
+        }
+      }
+      await restoreAvatars(backup.avatars || {}, db2);
+      var newMemosStr = JSON.stringify(backup.memos);
       localStorage.setItem('memos_app_v2', newMemosStr);
-      if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
+      if (window.CikeIdb) { try { await window.CikeIdb.saveMemosToDB(db2, backup.memos); } catch (_) {} }
       showStatus('✅ 云端恢复成功！正在刷新页面...');
       addHistoryEntry('restore', 'success', '从云端恢复', (backup.memos || []).length + ' 条笔记');
-      setTimeout(() => window.location.href = location.href, 2000);
+      setTimeout(function () { window.location.href = location.href; }, 2000);
     } catch (e) {
       showStatus('❌ 云端恢复失败: ' + e.message);
       addHistoryEntry('restore', 'fail', '云端恢复失败', e.message);
