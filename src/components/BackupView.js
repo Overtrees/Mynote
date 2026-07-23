@@ -463,6 +463,8 @@ const BackupView = ({
       setTimeout(() => window.location.href = location.href, 800);
     } catch (e) {
       showStatus('❌ 合并失败: ' + e.message);
+      console.error('[备份] 合并失败', e);
+      addHistoryEntry('restore', 'fail', '合并失败', e.message);
     } finally {
       setRestoreLoading(false);
     }
