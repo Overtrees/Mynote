@@ -525,7 +525,14 @@ const BackupView = ({
       var metaId = await driveFindId(googleToken, META_FILE);
       var isOldZip = false;
       if (!metaId) { metaId = await driveFindId(googleToken, 'memories_backup.json'); if (metaId) isOldZip = true; }
-      if (!metaId) return showStatus('❌ 云端无备份文件');
+      if (!metaId) {
+        try {
+          var ar = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)', { headers: { Authorization: 'Bearer ' + googleToken } });
+          var ad = await ar.json();
+          var ns = (ad.files || []).map(function(f){return f.name;}).join(', ') || '（空）';
+          return showStatus('❌ 云端无备份文件（Drive 中: ' + ns + '）');
+        } catch(le){ return showStatus('❌ 云端无备份文件（列表失败: ' + le.message + '）'); }
+      }
       var buf = await driveDownload(googleToken, metaId);
       var first4 = new Uint8Array(buf.slice(0, 4));
       if (first4[0] === 0x50 && first4[1] === 0x4B) isOldZip = true;
@@ -632,7 +639,14 @@ const BackupView = ({
     try {
       var metaId = await driveFindId(googleToken, META_FILE);
       if (!metaId) metaId = await driveFindId(googleToken, 'memories_backup.json');
-      if (!metaId) return showStatus('❌ 云端无备份文件');
+      if (!metaId) {
+        try {
+          var ar = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)', { headers: { Authorization: 'Bearer ' + googleToken } });
+          var ad = await ar.json();
+          var ns = (ad.files || []).map(function(f){return f.name;}).join(', ') || '（空）';
+          return showStatus('❌ 云端无备份文件（Drive 中: ' + ns + '）');
+        } catch(le){ return showStatus('❌ 云端无备份文件（列表失败: ' + le.message + '）'); }
+      }
       var buf = await driveDownload(googleToken, metaId);
       // 兼容旧格式：如果是 ZIP（旧备份），走旧逻辑
       var firstBytes = new Uint8Array(buf.slice(0, 4));
