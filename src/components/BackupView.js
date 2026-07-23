@@ -365,13 +365,17 @@ const BackupView = ({
       form.append('file', blob);
       const url = fileId ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
       const method = fileId ? 'PATCH' : 'POST';
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2分钟超时
       const uploadResp = await fetch(url, {
         method,
         headers: {
           Authorization: `Bearer ${googleToken}`
         },
-        body: form
+        body: form,
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       if (checkTokenExpiry(uploadResp)) return;
       if (!uploadResp.ok) {
         const errData = await uploadResp.json().catch(() => ({}));
@@ -380,8 +384,9 @@ const BackupView = ({
       showStatus('✅ 云端备份完成');
       addHistoryEntry('upload', 'success', '云端备份成功', (backup.memos || []).length + ' 条笔记');
     } catch (e) {
-      showStatus('❌ 云端备份失败: ' + e.message);
-      addHistoryEntry('upload', 'fail', '云端备份失败', e.message);
+      var errMsg = e.name === 'AbortError' ? '上传超时，备份文件可能过大' : e.message === 'Load failed' ? '上传连接失败，请检查附件数量和网络' : e.message;
+      showStatus('❌ 云端备份失败: ' + errMsg);
+      addHistoryEntry('upload', 'fail', '云端备份失败', errMsg);
     } finally {
       setBackupLoading(false);
     }
