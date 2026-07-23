@@ -374,6 +374,16 @@ const BackupView = ({
     return await r.arrayBuffer();
   }
 
+  // 删除文件
+  async function driveDelete(token, fileId) {
+    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
+    if (r.status !== 204 && r.status !== 200) throw new Error('删除失败 HTTP ' + r.status);
+  }
+
   const handleCloudBackup = useCallback(async () => {
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (backupLoading) return;
@@ -401,8 +411,31 @@ const BackupView = ({
       }
       // 找出新增附件
       var newIds = allAttIds.filter(function (id) { return !manifest.backedUp.hasOwnProperty(id); });
+      // 找出已删除的附件（manifest 中有但 IDB 中已无）
+      var staleIds = Object.keys(manifest.backedUp).filter(function (id) { return allAttIds.indexOf(id) === -1; });
       var attachCount = allAttIds.length;
       var newAttachCount = newIds.length;
+      // 清理已删除附件
+      var cleanedPacks = 0;
+      if (staleIds.length > 0) {
+        var affectedPacks = {};
+        for (var si = 0; si < staleIds.length; si++) {
+          var stalePack = manifest.backedUp[staleIds[si]];
+          if (stalePack) affectedPacks[stalePack] = true;
+          delete manifest.backedUp[staleIds[si]];
+        }
+        // 找出不再被任何附件引用的孤儿 pack → 从 Drive 删除
+        var activePacks = {};
+        Object.keys(manifest.backedUp).forEach(function (id) { activePacks[manifest.backedUp[id]] = true; });
+        var orphanPacks = Object.keys(affectedPacks).filter(function (p) { return !activePacks[p]; });
+        for (var opi = 0; opi < orphanPacks.length; opi++) {
+          try {
+            var opName = ATT_PFX + String(Number(orphanPacks[opi])).padStart(4, '0') + '.zip';
+            var opId = await driveFindId(googleToken, opName);
+            if (opId) { await driveDelete(googleToken, opId); cleanedPacks++; }
+          } catch (_) {}
+        }
+      }
       // 如果有新增附件，打包并上传新 pack
       if (newAttachCount > 0) {
         showStatus('正在打包 ' + newAttachCount + ' 个新增附件...');
@@ -446,10 +479,13 @@ const BackupView = ({
       var metaBlob = new Blob([metaJson], { type: 'application/json' });
       await driveUpload(googleToken, META_FILE, metaBlob, 'application/json', existingMetaId);
       var memoCount = (backup.memos || []).length;
-      var detail = memoCount + ' 条笔记';
-      if (newAttachCount > 0) detail += '，新增 ' + newAttachCount + ' 个附件';
+      var parts = [];
+      parts.push(memoCount + ' 条笔记');
+      if (newAttachCount > 0) parts.push('新增 ' + newAttachCount + ' 个附件');
+      if (staleIds.length > 0) parts.push('清理 ' + staleIds.length + ' 个已删除附件');
+      if (cleanedPacks > 0) parts.push('删除 ' + cleanedPacks + ' 个过期包');
       showStatus('✅ 云端备份完成');
-      addHistoryEntry('upload', 'success', '云端备份成功', detail);
+      addHistoryEntry('upload', 'success', '云端备份成功', parts.join('，'));
     } catch (e) {
       var errMsg = e.name === 'AbortError' ? '上传超时' : e.message === 'Load failed' ? '上传连接失败，请检查网络' : e.message;
       showStatus('❌ 云端备份失败: ' + errMsg);
