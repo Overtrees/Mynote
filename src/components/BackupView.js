@@ -350,32 +350,49 @@ const BackupView = ({
       const listData = await listResp.json();
       let fileId = null;
       if (listData.files && listData.files.length > 0) fileId = listData.files[0].id;
-      const metadata = fileId ? {
+      const metadata = {
         name: BACKUP_FILE_NAME,
         mimeType: 'application/zip'
-      } : {
-        name: BACKUP_FILE_NAME,
-        mimeType: 'application/zip',
-        parents: ['appDataFolder']
       };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], {
-        type: 'application/json'
-      }));
-      form.append('file', blob);
-      const url = fileId ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart` : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-      const method = fileId ? 'PATCH' : 'POST';
+      if (!fileId) metadata.parents = ['appDataFolder'];
+      // 使用可续传上传（resumable），避免 FormData/multipart 在 iOS Safari 上内存崩溃
+      const sessionUrl = fileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=resumable`
+        : `https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable`;
+      const sessionMethod = fileId ? 'PATCH' : 'POST';
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2分钟超时
-      const uploadResp = await fetch(url, {
-        method,
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      const sessionResp = await fetch(sessionUrl, {
+        method: sessionMethod,
         headers: {
-          Authorization: `Bearer ${googleToken}`
+          Authorization: `Bearer ${googleToken}`,
+          'Content-Type': 'application/json',
+          'X-Upload-Content-Type': 'application/zip',
+          'X-Upload-Content-Length': blob.size
         },
-        body: form,
+        body: JSON.stringify(metadata),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
+      if (checkTokenExpiry(sessionResp)) return;
+      if (!sessionResp.ok) {
+        const errData = await sessionResp.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `HTTP ${sessionResp.status}`);
+      }
+      const uploadUrl = sessionResp.headers.get('Location');
+      if (!uploadUrl) throw new Error('未获取到上传地址');
+      const ctrl2 = new AbortController();
+      const t2 = setTimeout(() => ctrl2.abort(), 120000);
+      const uploadResp = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Length': blob.size,
+          'Content-Type': 'application/zip'
+        },
+        body: blob,
+        signal: ctrl2.signal
+      });
+      clearTimeout(t2);
       if (checkTokenExpiry(uploadResp)) return;
       if (!uploadResp.ok) {
         const errData = await uploadResp.json().catch(() => ({}));
