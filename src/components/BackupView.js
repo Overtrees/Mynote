@@ -440,9 +440,10 @@ const BackupView = ({
           const blob = new Blob([bytes], {
             type: mime
           });
-          const dataUrl = await new Promise(res => {
+          const dataUrl = await new Promise((res, rej) => {
             const r = new FileReader();
             r.onload = () => res(r.result);
+            r.onerror = () => rej(new Error('FileReader 读取附件失败: ' + displayName));
             r.readAsDataURL(blob);
           });
           const regenThumb = await createThumbnail(dataUrl).catch(() => null);
@@ -457,8 +458,10 @@ const BackupView = ({
       }
       const cloudAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null;
       await restoreAvatars(cloudAvatars || cloudBackup.avatars, db);
-      localStorage.setItem('memos_app_v2', JSON.stringify(merged));
-      if (window.CikeIdb) { try { var _db3 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db3, merged); } catch(_){} }
+      try { localStorage.setItem('memos_app_v2', JSON.stringify(merged)); } catch (lsErr) {
+        console.warn('[合并] localStorage 写入失败（大小超限），数据已存入 IndexedDB', lsErr);
+      }
+      if (window.CikeIdb) { try { await window.CikeIdb.saveMemosToDB(db, merged); } catch(_){} }
       showStatus('✅ 合并成功！正在刷新...');
       setTimeout(() => window.location.href = location.href, 800);
     } catch (e) {
@@ -468,7 +471,7 @@ const BackupView = ({
     } finally {
       setRestoreLoading(false);
     }
-  }, [googleToken, checkTokenExpiry, restoreLoading, showStatus]);
+  }, [googleToken, checkTokenExpiry, restoreLoading, showStatus, addHistoryEntry]);
   const handleCloudRestore = useCallback(async () => {
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (restoreLoading) return;
