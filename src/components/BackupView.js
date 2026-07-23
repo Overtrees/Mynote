@@ -521,12 +521,30 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在下载云端备份...');
     try {
+      // 查找备份文件：新格式 → 旧格式
       var metaId = await driveFindId(googleToken, META_FILE);
+      var isOldZip = false;
+      if (!metaId) { metaId = await driveFindId(googleToken, 'memories_backup.json'); if (metaId) isOldZip = true; }
       if (!metaId) return showStatus('❌ 云端无备份文件');
       var buf = await driveDownload(googleToken, metaId);
-      var cloudBackup = JSON.parse(fflate.strFromU8(new Uint8Array(buf)));
-      if (!cloudBackup.memos) throw new Error('无效的备份文件');
-      var manifest = cloudBackup.manifest || { packIndex: 0, backedUp: {} };
+      var first4 = new Uint8Array(buf.slice(0, 4));
+      if (first4[0] === 0x50 && first4[1] === 0x4B) isOldZip = true;
+      var cloudBackup, manifest, oldUnz;
+      if (isOldZip) {
+        oldUnz = fflate.unzipSync(new Uint8Array(buf));
+        cloudBackup = JSON.parse(fflate.strFromU8(oldUnz['memos.json']));
+        if (!cloudBackup.memos) throw new Error('无效的备份文件');
+        manifest = { packIndex: 0, backedUp: {} };
+        Object.keys(oldUnz).filter(function (k) { return k.startsWith('attachments/'); }).forEach(function (k) {
+          var fn = k.replace('attachments/', '');
+          var us = fn.indexOf('_');
+          manifest.backedUp[us > 0 ? fn.slice(0, us) : fn] = 0;
+        });
+      } else {
+        cloudBackup = JSON.parse(fflate.strFromU8(new Uint8Array(buf)));
+        if (!cloudBackup.memos) throw new Error('无效的备份文件');
+        manifest = cloudBackup.manifest || { packIndex: 0, backedUp: {} };
+      }
       // 合并 memos
       var localMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
       var cloudIds = new Set(cloudBackup.memos.map(function (m) { return m.id; }));
@@ -541,7 +559,7 @@ const BackupView = ({
         return cb;
       }).concat(localMemos.filter(function (m) { return !cloudIds.has(m.id); }));
       var db = await w.CikeIdb.getDB();
-      // 收集云端附件 ID 中本地缺失的 → 按 pack 分组
+      // 收集缺失的附件 → 按 pack 分组
       var cloudAttIds = [];
       cloudBackup.memos.forEach(function (m) { if (m.doc) m.doc.forEach(function (n) { if (n.type === 'attachment' && n.fileId) cloudAttIds.push(n.fileId); }); });
       var neededPacks = {};
@@ -557,12 +575,15 @@ const BackupView = ({
       var packNums = Object.keys(neededPacks).map(Number).sort(function (a, b) { return a - b; });
       for (var pi = 0; pi < packNums.length; pi++) {
         var pn = packNums[pi];
-        showStatus('下载附件包 ' + pn + '...');
-        var pName = ATT_PFX + String(pn).padStart(4, '0') + '.zip';
-        var pId = await driveFindId(googleToken, pName);
-        if (!pId) continue;
-        var pBuf = await driveDownload(googleToken, pId);
-        var unz = fflate.unzipSync(new Uint8Array(pBuf));
+        var unz;
+        if (pn === 0 && oldUnz) { unz = oldUnz; } else {
+          showStatus('下载附件包 ' + pn + '...');
+          var pName = ATT_PFX + String(pn).padStart(4, '0') + '.zip';
+          var pId = await driveFindId(googleToken, pName);
+          if (!pId) continue;
+          var pBuf = await driveDownload(googleToken, pId);
+          unz = fflate.unzipSync(new Uint8Array(pBuf));
+        }
         var targetIds = neededPacks[pn];
         for (var ati = 0; ati < targetIds.length; ati++) {
           var tid = targetIds[ati];
@@ -610,6 +631,7 @@ const BackupView = ({
     showStatus('正在从云端下载...');
     try {
       var metaId = await driveFindId(googleToken, META_FILE);
+      if (!metaId) metaId = await driveFindId(googleToken, 'memories_backup.json');
       if (!metaId) return showStatus('❌ 云端无备份文件');
       var buf = await driveDownload(googleToken, metaId);
       // 兼容旧格式：如果是 ZIP（旧备份），走旧逻辑
