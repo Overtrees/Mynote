@@ -317,26 +317,6 @@ const BackupView = ({
       prompt: 'consent'
     });
   }, [showStatus, addHistoryEntry]);
-  // 清除云端备份按钮（DOM 方式，避免 JSX 括号错误）
-  useEffect(function () {
-    if (!googleToken) return;
-    var timer = setTimeout(function () {
-      var cards = document.querySelectorAll('.backup-card');
-      if (cards.length < 2) return;
-      var driveCard = cards[0];
-      if (driveCard.querySelector('.clear-cloud-btn')) return;
-      var btn = document.createElement('button');
-      btn.className = 'backup-btn secondary clear-cloud-btn';
-      btn.textContent = '清除云端备份';
-      btn.style.cssText = 'width:100%;margin-top:10px;color:#ff3b30;border-color:rgba(255,69,58,0.3)';
-      btn.onclick = function () {
-        if (!window.confirm('确认清除所有云端备份？此操作不可撤销。')) return;
-        handleCloudClear();
-      };
-      driveCard.appendChild(btn);
-    }, 100);
-    return function () { clearTimeout(timer); };
-  }, [googleToken]);
   const handleGoogleLogout = useCallback(() => {
     if (googleToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(googleToken, () => {});
     setGoogleToken(null);
@@ -347,21 +327,12 @@ const BackupView = ({
   // ===== 备份：单 ZIP + manifest.json + XHR 上传 =====
   const BACKUP_NAME = 'mynote_backup.zip';
 
-  // XHR 上传（兼容 iOS Safari，不用 fetch）
-  function xhrUpload(url, method, headers, body) {
-    return new Promise(function (resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.open(method, url);
-      for (var k in headers) xhr.setRequestHeader(k, headers[k]);
-      xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300) { try { resolve(JSON.parse(xhr.responseText)); } catch (_) { resolve(xhr.responseText); } }
-        else { var em; try { var ed = JSON.parse(xhr.responseText); em = (ed.error && ed.error.message) || xhr.status; } catch (_) { em = xhr.status; } reject(new Error(String(em))); }
-      };
-      xhr.onerror = function () { reject(new Error('网络请求失败')); };
-      xhr.ontimeout = function () { reject(new Error('上传超时')); };
-      xhr.timeout = 180000;
-      xhr.send(body);
-    });
+  // 上传（fetch multipart）
+  async function uploadFile(token, url, method, body) {
+    var r = await fetch(url, { method: method, headers: { Authorization: 'Bearer ' + token }, body: body });
+    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
+    if (!r.ok) { var ed; try { ed = await r.json(); } catch (_) {} throw new Error((ed && ed.error && ed.error.message) || 'HTTP ' + r.status); }
+    return await r.json().catch(function () { return {}; });
   }
 
   // 查找 Drive 文件 ID
@@ -444,7 +415,7 @@ const BackupView = ({
       fd.append('metadata', new Blob([meta], { type: 'application/json' }));
       fd.append('file', new Blob([zipped], { type: 'application/zip' }));
       var uploadUrl = existingId ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart' : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      await xhrUpload(uploadUrl, existingId ? 'PATCH' : 'POST', { Authorization: 'Bearer ' + googleToken }, fd);
+      await uploadFile(googleToken, uploadUrl, existingId ? 'PATCH' : 'POST', fd);
       var detail = (backup.memos || []).length + ' 条笔记';
       if (allKeys.length > 0) detail += '，' + allKeys.length + ' 个附件';
       showStatus('✅ 云端备份完成');
