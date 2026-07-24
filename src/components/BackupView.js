@@ -317,7 +317,26 @@ const BackupView = ({
       prompt: 'consent'
     });
   }, [showStatus, addHistoryEntry]);
-  const handleGoogleLogout = useCallback(() => {
+  // 清除云端备份按钮（DOM 方式，避免 JSX 括号错误）
+  useEffect(function () {
+    if (!googleToken) return;
+    var timer = setTimeout(function () {
+      var cards = document.querySelectorAll('.backup-card');
+      if (cards.length < 2) return;
+      var driveCard = cards[0];
+      if (driveCard.querySelector('.clear-cloud-btn')) return;
+      var btn = document.createElement('button');
+      btn.className = 'backup-btn secondary clear-cloud-btn';
+      btn.textContent = '清除云端备份';
+      btn.style.cssText = 'width:100%;margin-top:10px;color:#ff3b30;border-color:rgba(255,69,58,0.3)';
+      btn.onclick = function () {
+        if (!window.confirm('确认清除所有云端备份？此操作不可撤销。')) return;
+        handleCloudClear();
+      };
+      driveCard.appendChild(btn);
+    }, 100);
+    return function () { clearTimeout(timer); };
+  }, [googleToken]);
     if (googleToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(googleToken, () => {});
     setGoogleToken(null);
     localStorage.removeItem('google_token');
