@@ -1089,7 +1089,7 @@ const BackupView = ({
       color: '#ff3b30',
       borderColor: 'rgba(255,69,58,0.3)'
     }
-  }, "\u6E05\u9664\u4E91\u7AEF\u5907\u4EFD"))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u6E05\u9664\u4E91\u7AEF\u5907\u4EFD")))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
