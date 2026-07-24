@@ -362,10 +362,11 @@ const BackupView = ({
 
   // 下载 Drive 文件
   async function downloadDriveFile(token, fileId) {
-    var r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + token } });
+    var r;
+    try { r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + token } }); } catch (e) { throw new Error('下载请求失败: ' + e.message); }
     if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
     if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
-    return await r.arrayBuffer();
+    try { return await r.arrayBuffer(); } catch (e) { throw new Error('读取下载内容失败: ' + e.message); }
   }
 
   // 魔数 → MIME
