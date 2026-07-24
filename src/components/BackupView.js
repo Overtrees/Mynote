@@ -330,7 +330,7 @@ const BackupView = ({
   // 上传（手动构造 multipart Uint8Array）
   async function uploadFile(token, existingId, zipBytes) {
     var boundary = 'bnd_' + Date.now().toString(36);
-    var metaStr = JSON.stringify({ name: BACKUP_NAME, mimeType: 'application/zip', parents: ['appDataFolder'] });
+    var metaStr = JSON.stringify(existingId ? { name: BACKUP_NAME, mimeType: 'application/zip' } : { name: BACKUP_NAME, mimeType: 'application/zip', parents: ['appDataFolder'] });
     var enc = new TextEncoder();
     var head = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + metaStr + '\r\n--' + boundary + '\r\nContent-Type: application/zip\r\n\r\n';
     var tail = '\r\n--' + boundary + '--\r\n';
