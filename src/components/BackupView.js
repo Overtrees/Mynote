@@ -348,8 +348,7 @@ const BackupView = ({
       r = await fetch(url, { method: existingId ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/mixed; boundary=' + boundary, 'Content-Length': body.length }, body: body, signal: ac.signal });
     } catch (e) { clearTimeout(t); throw new Error('请求失败: ' + e.message); }
     clearTimeout(t);
-    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效，请断开重连');
-    if (!r.ok) { var ed; try { ed = await r.json(); } catch (_) {} throw new Error((ed && ed.error && ed.error.message) || 'HTTP ' + r.status); }
+    if (!r.ok) { var ed; try { ed = await r.json(); } catch (_) {} throw new Error((ed && ed.error && ed.error.message) || 'HTTP ' + r.status + (r.status === 401 || r.status === 403 ? '（授权失败）' : '')); }
     return (await r.json().catch(function () { return {}; })).id || existingId;
   }
 
