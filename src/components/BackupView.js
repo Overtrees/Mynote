@@ -222,6 +222,16 @@ const BackupView = ({
       } = await restoreAttachmentsFromZip(unzipped, db);
       if (fail > 0) showStatus(`附件恢复完成：成功 ${success}，跳过 ${fail}`);
       await restoreAvatars(backup.avatars, db);
+      for (var _lmi = 0; _lmi < backup.memos.length; _lmi++) {
+        var _lm = backup.memos[_lmi];
+        if (!_lm.doc) continue;
+        for (var _lni = 0; _lni < _lm.doc.length; _lni++) {
+          var _lnd = _lm.doc[_lni];
+          if (_lnd.type === 'attachment' && _lnd.fileId && _lnd.image === undefined) {
+            try { var _la = await loadAttachmentFromDB(db, _lnd.fileId); _lnd.image = _la && _la.type ? _la.type.indexOf('image/') === 0 : false; } catch (_) { _lnd.image = false; }
+          }
+        }
+      }
       localStorage.setItem('memos_app_v2', newMemosStr);
       await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, backup.memos) : null);
       showStatus('✅ 恢复成功！正在刷新页面...');
@@ -615,6 +625,20 @@ const BackupView = ({
       }
       // 恢复头像
       await restoreAvatars(cloudBackup.avatars || {}, db);
+      // 补全附件节点的 image 标记（旧备份可能没有）
+      for (var _mi = 0; _mi < merged.length; _mi++) {
+        var _m = merged[_mi];
+        if (!_m.doc) continue;
+        for (var _ni = 0; _ni < _m.doc.length; _ni++) {
+          var _nd = _m.doc[_ni];
+          if (_nd.type === 'attachment' && _nd.fileId && _nd.image === undefined) {
+            try {
+              var _att = await loadAttachmentFromDB(db, _nd.fileId);
+              _nd.image = _att && _att.type ? _att.type.indexOf('image/') === 0 : false;
+            } catch (_) { _nd.image = false; }
+          }
+        }
+      }
       try { localStorage.setItem('memos_app_v2', JSON.stringify(merged)); } catch (lsErr) {
         console.warn('[合并] localStorage 写入失败，数据已存入 IndexedDB', lsErr);
       }
@@ -668,6 +692,16 @@ const BackupView = ({
         if (oldRes.fail > 0) showStatus('附件恢复：成功 ' + oldRes.success + '，跳过 ' + oldRes.fail);
         var oldAvBak = oldUnzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(oldUnzipped['avatars.json'])) : null;
         await restoreAvatars(oldAvBak || oldBackup.avatars, oldDb);
+        for (var _oi = 0; _oi < oldBackup.memos.length; _oi++) {
+          var _om = oldBackup.memos[_oi];
+          if (!_om.doc) continue;
+          for (var _oni = 0; _oni < _om.doc.length; _oni++) {
+            var _ond = _om.doc[_oni];
+            if (_ond.type === 'attachment' && _ond.fileId && _ond.image === undefined) {
+              try { var _oa = await loadAttachmentFromDB(oldDb, _ond.fileId); _ond.image = _oa && _oa.type ? _oa.type.indexOf('image/') === 0 : false; } catch (_) { _ond.image = false; }
+            }
+          }
+        }
         localStorage.setItem('memos_app_v2', oldMemosStr);
         if (window.CikeIdb) { try { var _od = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_od, oldBackup.memos); } catch (_) {} }
         showStatus('✅ 云端恢复成功！正在刷新页面...');
@@ -732,6 +766,17 @@ const BackupView = ({
         }
       }
       await restoreAvatars(backup.avatars || {}, db2);
+      // 补全 image 标记
+      for (var _ri = 0; _ri < backup.memos.length; _ri++) {
+        var _rm = backup.memos[_ri];
+        if (!_rm.doc) continue;
+        for (var _rni = 0; _rni < _rm.doc.length; _rni++) {
+          var _rnd = _rm.doc[_rni];
+          if (_rnd.type === 'attachment' && _rnd.fileId && _rnd.image === undefined) {
+            try { var _ra = await loadAttachmentFromDB(db2, _rnd.fileId); _rnd.image = _ra && _ra.type ? _ra.type.indexOf('image/') === 0 : false; } catch (_) { _rnd.image = false; }
+          }
+        }
+      }
       var newMemosStr = JSON.stringify(backup.memos);
       localStorage.setItem('memos_app_v2', newMemosStr);
       if (window.CikeIdb) { try { await window.CikeIdb.saveMemosToDB(db2, backup.memos); } catch (_) {} }
