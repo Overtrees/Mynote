@@ -327,9 +327,35 @@ const BackupView = ({
   // ===== 备份：单 ZIP + manifest.json + XHR 上传 =====
   const BACKUP_NAME = 'mynote_backup.zip';
 
-  // 上传（fetch multipart）
-  async function uploadFile(token, url, method, body) {
-    var r = await fetch(url, { method: method, headers: { Authorization: 'Bearer ' + token }, body: body });
+  // 构造 raw multipart body（绕过 iOS Safari FormData+Blob bug）
+  function buildMultipartBody(metaObj, zipBytes) {
+    var boundary = 'minis_boundary_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    var metaStr = JSON.stringify(metaObj);
+    // Part 1: metadata
+    var enc = new TextEncoder();
+    var head1 = '--' + boundary + '\r\nContent-Type: application/json\r\n\r\n' + metaStr + '\r\n';
+    var head2 = '--' + boundary + '\r\nContent-Type: application/zip\r\n\r\n';
+    var tail = '\r\n--' + boundary + '--\r\n';
+    var head1Bytes = enc.encode(head1);
+    var head2Bytes = enc.encode(head2);
+    var tailBytes = enc.encode(tail);
+    var total = head1Bytes.length + head2Bytes.length + zipBytes.length + tailBytes.length;
+    var buf = new Uint8Array(total);
+    buf.set(head1Bytes, 0);
+    buf.set(head2Bytes, head1Bytes.length);
+    buf.set(zipBytes, head1Bytes.length + head2Bytes.length);
+    buf.set(tailBytes, head1Bytes.length + head2Bytes.length + zipBytes.length);
+    return { body: buf, boundary: boundary };
+  }
+
+  // 上传（fetch multipart，手动构造 body）
+  async function uploadFile(token, url, method, metaObj, zipBytes) {
+    var mp = buildMultipartBody(metaObj, zipBytes);
+    var r = await fetch(url, {
+      method: method,
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/related; boundary=' + mp.boundary },
+      body: mp.body
+    });
     if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
     if (!r.ok) { var ed; try { ed = await r.json(); } catch (_) {} throw new Error((ed && ed.error && ed.error.message) || 'HTTP ' + r.status); }
     return await r.json().catch(function () { return {}; });
@@ -410,12 +436,10 @@ const BackupView = ({
       // 上传
       showStatus('正在上传...');
       var existingId = await findDriveFile(googleToken, BACKUP_NAME);
-      var meta = JSON.stringify({ name: BACKUP_NAME, mimeType: 'application/zip', parents: existingId ? undefined : ['appDataFolder'] });
-      var fd = new FormData();
-      fd.append('metadata', new Blob([meta], { type: 'application/json' }));
-      fd.append('file', new Blob([zipped], { type: 'application/zip' }));
+      var metaObj = { name: BACKUP_NAME, mimeType: 'application/zip' };
+      if (!existingId) metaObj.parents = ['appDataFolder'];
       var uploadUrl = existingId ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart' : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
-      await uploadFile(googleToken, uploadUrl, existingId ? 'PATCH' : 'POST', fd);
+      await uploadFile(googleToken, uploadUrl, existingId ? 'PATCH' : 'POST', metaObj, zipped);
       var detail = (backup.memos || []).length + ' 条笔记';
       if (allKeys.length > 0) detail += '，' + allKeys.length + ' 个附件';
       showStatus('✅ 云端备份完成');
