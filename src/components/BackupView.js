@@ -624,6 +624,26 @@ const BackupView = ({
           await saveAttachmentToDB(db, { id: tid, name: displayName, type: mime, url: dataUrl, thumb: thumb });
         }
       }
+      // 修复已有附件记录中错误的 type（之前 merge 可能存了错误的类型）
+      for (var _ri = 0; _ri < cloudAttIds.length; _ri++) {
+        var _raId = cloudAttIds[_ri];
+        try {
+          var _ra = await loadAttachmentFromDB(db, _raId);
+          if (_ra && _ra.type === 'application/octet-stream' && _ra.url) {
+            var _raw = _ra.url.split(',')[1];
+            if (_raw) {
+              var _bin = Uint8Array.from(atob(_raw.slice(0, 100)), function (c) { return c.charCodeAt(0); });
+              var _nm = null;
+              if (_bin[0] === 0xFF && _bin[1] === 0xD8 && _bin[2] === 0xFF) _nm = 'image/jpeg';
+              else if (_bin[0] === 0x89 && _bin[1] === 0x50 && _bin[2] === 0x4E && _bin[3] === 0x47) _nm = 'image/png';
+              else if (_bin[0] === 0x47 && _bin[1] === 0x49 && _bin[2] === 0x46) _nm = 'image/gif';
+              else if (_bin[0] === 0x52 && _bin[1] === 0x49 && _bin[2] === 0x46 && _bin[3] === 0x52) _nm = 'image/webp';
+              else if (_bin[0] === 0x42 && _bin[1] === 0x4D) _nm = 'image/bmp';
+              if (_nm) { _ra.type = _nm; await saveAttachmentToDB(db, _ra); }
+            }
+          }
+        } catch (_) {}
+      }
       // 恢复头像
       await restoreAvatars(cloudBackup.avatars || {}, db);
       // 补全附件节点的 image 标记（旧备份可能没有）
