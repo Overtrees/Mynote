@@ -45,13 +45,16 @@ const BackupView = ({
   }, []);
   const [attachCount, setAttachCount] = useState(null);
   useEffect(function () {
-    w.CikeIdb.getDB().then(function (db) {
-      var tx = db.transaction('attachments', 'readonly');
-      var req = tx.objectStore('attachments').count();
-      req.onsuccess = function () {
-        setAttachCount(req.result);
-      };
-    }).catch(function(e) { if(e) console.warn('[\u6B64\u523B]', e); });
+    var memos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
+    var ids = {};
+    for (var mi = 0; mi < memos.length; mi++) {
+      var m = memos[mi];
+      if (!m.doc) continue;
+      for (var ni = 0; ni < m.doc.length; ni++) {
+        if (m.doc[ni].type === 'attachment' && m.doc[ni].fileId) ids[m.doc[ni].fileId] = true;
+      }
+    }
+    setAttachCount(Object.keys(ids).length);
   }, []);
   var lastBackupTime = useMemo(function () {
     var uploads = history.filter(function (e) {
