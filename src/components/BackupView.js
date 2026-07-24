@@ -337,6 +337,7 @@ const BackupView = ({
     }, 100);
     return function () { clearTimeout(timer); };
   }, [googleToken]);
+  const handleGoogleLogout = useCallback(() => {
     if (googleToken && typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(googleToken, () => {});
     setGoogleToken(null);
     localStorage.removeItem('google_token');
