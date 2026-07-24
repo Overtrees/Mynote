@@ -362,8 +362,11 @@ const BackupView = ({
 
   // 下载 Drive 文件
   async function downloadDriveFile(token, fileId) {
+    var ac = new AbortController();
+    var t = setTimeout(function () { ac.abort(); }, 60000);
     var r;
-    try { r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + token } }); } catch (e) { throw new Error('下载请求失败: ' + e.message); }
+    try { r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + token }, signal: ac.signal }); } catch (e) { clearTimeout(t); throw new Error(e.name === 'AbortError' ? '下载超时' : '下载请求失败: ' + e.message); }
+    clearTimeout(t);
     if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
     if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
     try { return await r.arrayBuffer(); } catch (e) { throw new Error('读取下载内容失败: ' + e.message); }
