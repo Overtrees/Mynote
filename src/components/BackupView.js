@@ -687,7 +687,34 @@ const BackupView = ({
       setRestoreLoading(false);
     }
   }, [googleToken, checkTokenExpiry, restoreLoading, showStatus, addHistoryEntry]);
-  const handleCloudRestore = useCallback(async () => {
+  const handleCloudClear = useCallback(async () => {
+    if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
+    if (!window.confirm('确认清除所有云端备份？此操作不可撤销。')) return;
+    setRestoreLoading(true);
+    showStatus('正在清除云端备份...');
+    try {
+      var all = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)', {
+        headers: { Authorization: 'Bearer ' + googleToken }
+      }).then(function(r){return r.json();});
+      var files = all.files || [];
+      var count = 0;
+      for (var fi = 0; fi < files.length; fi++) {
+        try {
+          await fetch('https://www.googleapis.com/drive/v3/files/' + files[fi].id, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + googleToken }
+          });
+          count++;
+        } catch (_) {}
+      }
+      showStatus('✅ 已清除 ' + count + ' 个云端备份文件');
+      addHistoryEntry('restore', 'success', '清除云端', '删除 ' + count + ' 个文件');
+    } catch (e) {
+      showStatus('❌ 清除失败: ' + e.message);
+    } finally {
+      setRestoreLoading(false);
+    }
+  }, [googleToken, showStatus, addHistoryEntry]);
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (restoreLoading) return;
     if (!window.confirm('确认从云端恢复？当前所有数据将被覆盖，此操作不可撤销。')) return;
@@ -1052,7 +1079,17 @@ const BackupView = ({
     style: {
       flex: 1
     }
-  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))), /*#__PURE__*/React.createElement("button", {
+    className: "backup-btn secondary",
+    onClick: handleCloudClear,
+    disabled: backupLoading || restoreLoading,
+    style: {
+      width: '100%',
+      marginTop: 8,
+      color: '#ff3b30',
+      borderColor: 'rgba(255,69,58,0.3)'
+    }
+  }, "\u6E05\u9664\u4E91\u7AEF\u5907\u4EFD"))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
