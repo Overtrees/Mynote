@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>清除云端备份</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#f2f2f7;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px}.card{background:#fff;border-radius:28px;padding:30px;width:100%;max-width:400px;box-shadow:0 8px 30px rgba(0,0,0,.08);text-align:center}h1{font-size:22px;margin-bottom:8px;font-weight:700}p{font-size:15px;color:#666;margin-bottom:20px;line-height:1.5}.btn{display:block;width:100%;padding:14px;border-radius:14px;border:none;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:10px}.btn-primary{background:#007aff;color:#fff}.btn-danger{background:#ff3b30;color:#fff}.btn-danger:disabled{opacity:.4}.btn-outline{background:0 0;border:1px solid #e5e5ea;color:#333}.status{padding:12px;border-radius:12px;margin-top:16px;font-size:14px;display:none}.status.info{display:block;background:#e8f0fe;color:#1a73e8}.status.success{display:block;background:#e6f7e6;color:#1a7d1a}.status.error{display:block;background:#fde8e8;color:#d93025}.hidden{display:none}</style></head>
+<body><div class="card"><h1>☁️ 清除云端备份</h1><p>将删除 Google Drive appDataFolder 中<br>Mynote 的所有备份文件</p><div id="status" class="status"></div><button id="loginBtn" class="btn btn-primary">连接 Google 账号</button><div id="actions" class="hidden"><button id="clearBtn" class="btn btn-danger" disabled>清除云端备份</button><button id="refreshBtn" class="btn btn-outline">刷新列表</button><div id="fileList" style="margin-top:16px;text-align:left;font-size:13px;color:#666"></div></div></div>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script>
+const CLIENT_ID = '1054997615635-m0fs2rj9lhp0vq9t4ut46b5su5e31s0k.apps.googleusercontent.com';
+let token = null;
+const $ = id => document.getElementById(id);
+function show(msg, type) { const s = $('status'); s.textContent = msg; s.className = 'status ' + (type || 'info'); }
+async function listFiles() {
+  const r = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)', { headers: { Authorization: 'Bearer ' + token } });
+  const d = await r.json();
+  return d.files || [];
+}
+$('loginBtn').onclick = () => {
+  google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/drive.appdata',
+    callback: res => {
+      if (res.access_token) {
+        token = res.access_token;
+        $('loginBtn').classList.add('hidden');
+        $('actions').classList.remove('hidden');
+        show('已连接 ✓', 'success');
+        listFiles().then(files => {
+          $('clearBtn').disabled = files.length === 0;
+          $('clearBtn').textContent = '清除 ' + files.length + ' 个备份文件';
+          $('fileList').innerHTML = files.map(f => '📄 ' + f.name).join('<br>') || '（无备份文件）';
+        });
+      } else { show('登录失败', 'error'); }
+    }
+  }).requestAccessToken({ prompt: 'consent' });
+};
+$('clearBtn').onclick = async () => {
+  if (!confirm('确认删除所有云端备份？不可撤销！')) return;
+  $('clearBtn').disabled = true;
+  show('正在删除...');
+  try {
+    const files = await listFiles();
+    let count = 0;
+    for (const f of files) {
+      await fetch('https://www.googleapis.com/drive/v3/files/' + f.id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } });
+      count++;
+    }
+    show('✅ 已删除 ' + count + ' 个文件', 'success');
+    $('fileList').innerHTML = '（空）';
+    $('clearBtn').textContent = '已清除';
+  } catch(e) { show('❌ ' + e.message, 'error'); $('clearBtn').disabled = false; }
+};
+$('refreshBtn').onclick = async () => {
+  const files = await listFiles();
+  $('clearBtn').disabled = files.length === 0;
+  $('clearBtn').textContent = '清除 ' + files.length + ' 个备份文件';
+  $('fileList').innerHTML = files.map(f => '📄 ' + f.name).join('<br>') || '（无备份文件）';
+  show('已刷新', 'info');
+};
+</script></body></html>
