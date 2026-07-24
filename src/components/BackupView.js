@@ -1080,17 +1080,7 @@ const BackupView = ({
     style: {
       flex: 1
     }
-  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))), /*#__PURE__*/React.createElement("button", {
-    className: "backup-btn secondary",
-    onClick: handleCloudClear,
-    disabled: backupLoading || restoreLoading,
-    style: {
-      width: '100%',
-      marginTop: 8,
-      color: '#ff3b30',
-      borderColor: 'rgba(255,69,58,0.3)'
-    }
-  }, "\u6E05\u9664\u4E91\u7AEF\u5907\u4EFD")))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "\u4ECE\u4E91\u7AEF\u6062\u590D"))))), history.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "backup-section-title",
     style: {
       marginTop: 16
