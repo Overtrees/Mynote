@@ -568,9 +568,27 @@ const BackupView = ({
         return cb;
       }).concat(localMemos.filter(function (m) { return !cloudIds.has(m.id); }));
       var db = await w.CikeIdb.getDB();
-      // 收集缺失的附件 → 按 pack 分组
+      // 收集云端所有附件 ID
       var cloudAttIds = [];
       cloudBackup.memos.forEach(function (m) { if (m.doc) m.doc.forEach(function (n) { if (n.type === 'attachment' && n.fileId) cloudAttIds.push(n.fileId); }); });
+      // 统一修复函数：从字节检测 MIME 并覆盖保存
+      async function fixAttType(id, bytes) {
+        if (!bytes || bytes.length < 4) return;
+        var _b = bytes;
+        var _t = null;
+        if (_b[0] === 0xFF && _b[1] === 0xD8 && _b[2] === 0xFF) _t = 'image/jpeg';
+        else if (_b[0] === 0x89 && _b[1] === 0x50 && _b[2] === 0x4E && _b[3] === 0x47) _t = 'image/png';
+        else if (_b[0] === 0x47 && _b[1] === 0x49 && _b[2] === 0x46) _t = 'image/gif';
+        else if (_b[0] === 0x52 && _b[1] === 0x49 && _b[2] === 0x46 && _b[3] === 0x52) _t = 'image/webp';
+        else if (_b[0] === 0x42 && _b[1] === 0x4D) _t = 'image/bmp';
+        if (!_t) return;
+        try {
+          var _old = await loadAttachmentFromDB(db, id).catch(function () { return null; });
+          if (_old && _old.type !== _t) { _old.type = _t; await saveAttachmentToDB(db, _old); }
+          else if (!_old) { /* 不存在，不需要创建 */ }
+        } catch (_) {}
+      }
+      // 1) 从 ZIP 下载缺失附件 + 魔数检测
       var neededPacks = {};
       for (var ci = 0; ci < cloudAttIds.length; ci++) {
         var aid = cloudAttIds[ci];
@@ -604,13 +622,13 @@ const BackupView = ({
           var us = fn.indexOf('_');
           var displayName = us > 0 ? fn.slice(us + 1) : fn;
           var mime = guessMimeFromName(displayName);
-          // 如果文件名推断失败，检查文件头魔数
-          if (mime === 'application/octet-stream' && bytes && bytes.length > 4) {
+          // 只用魔数，不用文件名推断的 MIME
+          if (bytes.length > 4) {
             var b0 = bytes[0], b1 = bytes[1], b2 = bytes[2], b3 = bytes[3];
             if (b0 === 0xFF && b1 === 0xD8 && b2 === 0xFF) mime = 'image/jpeg';
             else if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) mime = 'image/png';
             else if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) mime = 'image/gif';
-            else if (b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46) mime = 'image/webp';
+            else if (b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x52) mime = 'image/webp';
             else if (b0 === 0x42 && b1 === 0x4D) mime = 'image/bmp';
           }
           var blob = new Blob([bytes], { type: mime });
@@ -624,22 +642,17 @@ const BackupView = ({
           await saveAttachmentToDB(db, { id: tid, name: displayName, type: mime, url: dataUrl, thumb: thumb });
         }
       }
-      // 修复已有附件记录中错误的 type（之前 merge 可能存了错误的类型）
+      // 2) 修复已有附件：只要云端引用了且本地有记录，就用魔数重测 type
       for (var _ri = 0; _ri < cloudAttIds.length; _ri++) {
-        var _raId = cloudAttIds[_ri];
         try {
-          var _ra = await loadAttachmentFromDB(db, _raId);
-          if (_ra && _ra.type === 'application/octet-stream' && _ra.url) {
-            var _raw = _ra.url.split(',')[1];
-            if (_raw) {
-              var _bin = Uint8Array.from(atob(_raw.slice(0, 100)), function (c) { return c.charCodeAt(0); });
-              var _nm = null;
-              if (_bin[0] === 0xFF && _bin[1] === 0xD8 && _bin[2] === 0xFF) _nm = 'image/jpeg';
-              else if (_bin[0] === 0x89 && _bin[1] === 0x50 && _bin[2] === 0x4E && _bin[3] === 0x47) _nm = 'image/png';
-              else if (_bin[0] === 0x47 && _bin[1] === 0x49 && _bin[2] === 0x46) _nm = 'image/gif';
-              else if (_bin[0] === 0x52 && _bin[1] === 0x49 && _bin[2] === 0x46 && _bin[3] === 0x52) _nm = 'image/webp';
-              else if (_bin[0] === 0x42 && _bin[1] === 0x4D) _nm = 'image/bmp';
-              if (_nm) { _ra.type = _nm; await saveAttachmentToDB(db, _ra); }
+          var _ra = await loadAttachmentFromDB(db, cloudAttIds[_ri]);
+          if (_ra && _ra.url) {
+            var _b64 = _ra.url.split(',')[1];
+            if (_b64) {
+              var _raw = atob(_b64.slice(0, 100));
+              var _buf = new Uint8Array(_raw.length);
+              for (var _j = 0; _j < _raw.length; _j++) _buf[_j] = _raw.charCodeAt(_j);
+              await fixAttType(cloudAttIds[_ri], _buf);
             }
           }
         } catch (_) {}
