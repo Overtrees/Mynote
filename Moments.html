@@ -1061,8 +1061,10 @@ function openDB() {
 }
 
 // 根据文件名扩展名推断 MIME type（来自 CikeIdb 模块）
-function guessMimeFromName(fileName) {
-  return window.CikeIdb ? window.CikeIdb.guessMimeFromName(fileName) : 'application/octet-stream';
+function guessMimeFromName(fileName, bytes) {
+  var m = window.CikeIdb ? window.CikeIdb.guessMimeFromName(fileName) : 'application/octet-stream';
+  if (m === 'application/octet-stream' && bytes && window.CikeIdb) { var bm = window.CikeIdb.guessMimeFromBytes(bytes); if (bm) return bm; }
+  return m;
 }
 
 // 打包附件到 ZIP data（来自 CikeIdb 模块）

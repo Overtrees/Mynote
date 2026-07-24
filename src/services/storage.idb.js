@@ -74,6 +74,17 @@
     };
     return map[ext] || 'application/octet-stream';
   }
+  
+  function guessMimeFromBytes(bytes) {
+    if (!bytes || bytes.length < 4) return null;
+    var b = bytes;
+    if (b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF) return 'image/jpeg';
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+    if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x52) return 'image/webp';
+    if (b[0] === 0x42 && b[1] === 0x4D) return 'image/bmp';
+    return null;
+  }
 
   function saveAttachmentToDB(db, obj) {
     return new Promise(function (resolve, reject) {
@@ -225,6 +236,7 @@
           displayName = fileName;
         }
         var mime = guessMimeFromName(displayName);
+        if (mime === 'application/octet-stream') { var bm = guessMimeFromBytes(bytes); if (bm) mime = bm; }
         var blob = new Blob([bytes], { type: mime });
         var dataUrl = await new Promise(function (res) {
           var reader = new FileReader();
@@ -266,6 +278,7 @@
     getDB: getDB,
     openDB: openDB,
     guessMimeFromName: guessMimeFromName,
+    guessMimeFromBytes: guessMimeFromBytes,
     saveAttachmentToDB: saveAttachmentToDB,
     loadAttachmentFromDB: loadAttachmentFromDB,
     deleteAttachmentFromDB: deleteAttachmentFromDB,
