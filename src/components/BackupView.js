@@ -338,29 +338,21 @@ const BackupView = ({
     var method = existingId ? 'PATCH' : 'POST';
     var c1 = new AbortController();
     var t1 = setTimeout(function () { c1.abort(); }, 120000);
-    var sr = await fetch(url, {
-      method: method,
-      headers: {
-        Authorization: 'Bearer ' + token,
-        'Content-Type': 'application/json',
-        'X-Upload-Content-Type': mimeType,
-        'X-Upload-Content-Length': blob.size
-      },
-      body: JSON.stringify(meta),
-      signal: c1.signal
-    });
+    var sr, srBody;
+    try { sr = await fetch(url, { method: method, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Upload-Content-Type': mimeType, 'X-Upload-Content-Length': blob.size }, body: JSON.stringify(meta), signal: c1.signal }); } catch (e) { clearTimeout(t1); throw new Error('创建会话失败: ' + e.message); }
     clearTimeout(t1);
     if (sr.status === 401 || sr.status === 403) throw new Error('Google 授权失效');
-    if (!sr.ok) { var ed = await sr.json().catch(function () { return {}; }); throw new Error(ed.error && ed.error.message || '上传会话 ' + sr.status); }
+    if (!sr.ok) { try { srBody = await sr.json(); } catch (_) {} throw new Error((srBody && srBody.error && srBody.error.message) || '上传会话 ' + sr.status); }
     var uplUrl = sr.headers.get('Location');
     if (!uplUrl) throw new Error('未获取上传地址');
     var c2 = new AbortController();
     var t2 = setTimeout(function () { c2.abort(); }, 120000);
-    var ur = await fetch(uplUrl, { method: 'PUT', headers: { 'Content-Length': blob.size, 'Content-Type': mimeType }, body: blob, signal: c2.signal });
+    var ur;
+    try { ur = await fetch(uplUrl, { method: 'PUT', headers: { 'Content-Type': mimeType }, body: blob, signal: c2.signal }); } catch (e) { clearTimeout(t2); throw new Error('上传内容失败: ' + e.message); }
     clearTimeout(t2);
     if (ur.status === 401 || ur.status === 403) throw new Error('Google 授权失效');
-    if (!ur.ok) { var ed2 = await ur.json().catch(function () { return {}; }); throw new Error(ed2.error && ed2.error.message || '上传 ' + ur.status); }
-    var res = await ur.json().catch(function () { return {}; });
+    if (!ur.ok) { var ed2; try { ed2 = await ur.json(); } catch (_) {} throw new Error((ed2 && ed2.error && ed2.error.message) || '上传 ' + ur.status); }
+    var res; try { res = await ur.json(); } catch (_) { res = {}; }
     return res.id || existingId;
   }
 
@@ -506,7 +498,7 @@ const BackupView = ({
           var rollbackJson = fflate.strToU8(JSON.stringify(rollbackPayload));
           var rollbackBlob = new Blob([rollbackJson], { type: 'application/json' });
           await driveUpload(googleToken, META_FILE, rollbackBlob, 'application/json', existingMetaId);
-          throw new Error('附件上传失败: ' + (attErr.message === 'Load failed' ? '连接被拒绝，请尝试断开 Google 重连或切换网络' : attErr.message));
+          throw new Error('附件上传失败: ' + attErr.message);
         }
       } else {
         showStatus('附件无变化，跳过打包');
