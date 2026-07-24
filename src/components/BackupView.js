@@ -327,26 +327,30 @@ const BackupView = ({
   // ===== 备份：单 ZIP + manifest.json + XHR 上传 =====
   const BACKUP_NAME = 'mynote_backup.zip';
 
-  // 上传（raw binary + metadata PATCH，避开所有 multipart/FormData 问题）
+  // 上传（手动构造 multipart Uint8Array）
   async function uploadFile(token, existingId, zipBytes) {
+    var boundary = 'bnd_' + Date.now().toString(36);
+    var metaStr = JSON.stringify({ name: BACKUP_NAME, mimeType: 'application/zip', parents: ['appDataFolder'] });
+    var enc = new TextEncoder();
+    var head = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + metaStr + '\r\n--' + boundary + '\r\nContent-Type: application/zip\r\n\r\n';
+    var tail = '\r\n--' + boundary + '--\r\n';
+    var headB = enc.encode(head);
+    var tailB = enc.encode(tail);
+    var body = new Uint8Array(headB.length + zipBytes.length + tailB.length);
+    body.set(headB, 0); body.set(zipBytes, headB.length); body.set(tailB, headB.length + zipBytes.length);
+    var url = existingId
+      ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart'
+      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
     var ac = new AbortController();
     var t = setTimeout(function () { ac.abort(); }, 180000);
-    // 上传二进制
-    var uploadUrl = existingId
-      ? 'https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=media'
-      : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=media';
-    var uploadMethod = existingId ? 'PATCH' : 'POST';
     var r;
-    try { r = await fetch(uploadUrl, { method: uploadMethod, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/zip', 'Content-Length': zipBytes.length }, body: zipBytes, signal: ac.signal }); } catch (e) { clearTimeout(t); throw new Error('上传失败: ' + e.message); }
+    try {
+      r = await fetch(url, { method: existingId ? 'PATCH' : 'POST', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'multipart/mixed; boundary=' + boundary, 'Content-Length': body.length }, body: body, signal: ac.signal });
+    } catch (e) { clearTimeout(t); throw new Error('请求失败: ' + e.message); }
     clearTimeout(t);
     if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效，请断开重连');
     if (!r.ok) { var ed; try { ed = await r.json(); } catch (_) {} throw new Error((ed && ed.error && ed.error.message) || 'HTTP ' + r.status); }
-    var resultId = existingId;
-    if (!resultId) { try { var j = await r.json(); resultId = j.id; } catch (_) { throw new Error('未获取到文件 ID'); } }
-    // 设置文件名
-    var mr = await fetch('https://www.googleapis.com/drive/v3/files/' + resultId, { method: 'PATCH', headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: JSON.stringify({ name: BACKUP_NAME }) });
-    if (!mr.ok) { /* 非致命 */ }
-    return resultId;
+    return (await r.json().catch(function () { return {}; })).id || existingId;
   }
 
   // 查找 Drive 文件 ID
