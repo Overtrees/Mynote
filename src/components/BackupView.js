@@ -715,6 +715,7 @@ const BackupView = ({
       setRestoreLoading(false);
     }
   }, [googleToken, showStatus, addHistoryEntry]);
+  const handleCloudRestore = useCallback(async () => {
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (restoreLoading) return;
     if (!window.confirm('确认从云端恢复？当前所有数据将被覆盖，此操作不可撤销。')) return;
