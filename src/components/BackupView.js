@@ -612,6 +612,15 @@ const BackupView = ({
           var us = fn.indexOf('_');
           var displayName = us > 0 ? fn.slice(us + 1) : fn;
           var mime = guessMimeFromName(displayName);
+          // 如果文件名推断失败，检查文件头魔数
+          if (mime === 'application/octet-stream' && bytes && bytes.length > 4) {
+            var b0 = bytes[0], b1 = bytes[1], b2 = bytes[2], b3 = bytes[3];
+            if (b0 === 0xFF && b1 === 0xD8 && b2 === 0xFF) mime = 'image/jpeg';
+            else if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) mime = 'image/png';
+            else if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) mime = 'image/gif';
+            else if (b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46) mime = 'image/webp';
+            else if (b0 === 0x42 && b1 === 0x4D) mime = 'image/bmp';
+          }
           var blob = new Blob([bytes], { type: mime });
           var dataUrl = await new Promise(function (res, rej) {
             var r2 = new FileReader();
