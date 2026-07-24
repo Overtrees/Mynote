@@ -317,39 +317,6 @@ const BackupView = ({
     showStatus('已断开 Google 账号');
   }, [googleToken, showStatus]);
   // 清除云端备份
-  const handleCloudClear = useCallback(async () => {
-    if (!googleToken) return;
-    if (!window.confirm('确认清除所有云端备份？此操作不可撤销。')) return;
-    setRestoreLoading(true);
-    showStatus('正在清除...');
-    try {
-      var ar = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)', { headers: { Authorization: 'Bearer ' + googleToken } });
-      var ad = await ar.json();
-      var files = ad.files || [];
-      for (var fi = 0; fi < files.length; fi++) {
-        await fetch('https://www.googleapis.com/drive/v3/files/' + files[fi].id, { method: 'DELETE', headers: { Authorization: 'Bearer ' + googleToken } });
-      }
-      showStatus('✅ 已清除 ' + files.length + ' 个备份文件');
-      addHistoryEntry('restore', 'success', '清除云端', '删除 ' + files.length + ' 个文件');
-    } catch (e) { showStatus('❌ 清除失败: ' + e.message); }
-    finally { setRestoreLoading(false); }
-  }, [googleToken, showStatus, addHistoryEntry]);
-  // 在 Google Drive 卡片底部插入清除按钮
-  useEffect(function () {
-    if (!googleToken) return;
-    var timer = setTimeout(function () {
-      var cards = document.querySelectorAll('.backup-card');
-      if (cards.length < 2) return;
-      if (cards[0].querySelector('.cloud-clear-btn')) return;
-      var btn = document.createElement('button');
-      btn.className = 'backup-btn secondary cloud-clear-btn';
-      btn.textContent = '清除云端备份';
-      btn.style.cssText = 'width:100%;margin-top:8px;color:#ff3b30;border-color:rgba(255,69,58,0.3)';
-      btn.onclick = function () { handleCloudClear(); };
-      cards[0].appendChild(btn);
-    }, 200);
-    return function () { clearTimeout(timer); };
-  }, [googleToken]);
   const handleCloudBackup = useCallback(async () => {
     if (!googleToken) return showStatus('❌ 请先连接 Google 账号');
     if (backupLoading) return;
