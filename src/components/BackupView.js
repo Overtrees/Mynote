@@ -369,7 +369,15 @@ const BackupView = ({
     clearTimeout(t);
     if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
     if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
-    try { return await r.arrayBuffer(); } catch (e) { throw new Error('读取下载内容失败: ' + e.message); }
+    try {
+      var blob = await r.blob();
+      return await new Promise(function (res, rej) {
+        var fr = new FileReader();
+        fr.onload = function () { res(fr.result); };
+        fr.onerror = function () { rej(new Error('读取下载内容失败')); };
+        fr.readAsArrayBuffer(blob);
+      });
+    } catch (e) { throw new Error('下载处理失败: ' + e.message); }
   }
 
   // 魔数 → MIME
