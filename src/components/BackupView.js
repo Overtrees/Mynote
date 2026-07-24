@@ -362,22 +362,24 @@ const BackupView = ({
 
   // 下载 Drive 文件
   async function downloadDriveFile(token, fileId) {
-    var ac = new AbortController();
-    var t = setTimeout(function () { ac.abort(); }, 60000);
-    var r;
-    try { r = await fetch('https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media', { headers: { Authorization: 'Bearer ' + token }, signal: ac.signal }); } catch (e) { clearTimeout(t); throw new Error(e.name === 'AbortError' ? '下载超时' : '下载请求失败: ' + e.message); }
-    clearTimeout(t);
-    if (r.status === 401 || r.status === 403) throw new Error('Google 授权失效');
-    if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
-    try {
-      var blob = await r.blob();
-      return await new Promise(function (res, rej) {
-        var fr = new FileReader();
-        fr.onload = function () { res(fr.result); };
-        fr.onerror = function () { rej(new Error('读取下载内容失败')); };
-        fr.readAsArrayBuffer(blob);
-      });
-    } catch (e) { throw new Error('下载处理失败: ' + e.message); }
+    var url = 'https://www.googleapis.com/drive/v3/files/' + fileId + '?alt=media';
+    return await new Promise(function (resolve, reject) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+      xhr.responseType = 'arraybuffer';
+      var timed = false;
+      var t = setTimeout(function () { timed = true; xhr.abort(); }, 60000);
+      xhr.onload = function () {
+        clearTimeout(t);
+        if (xhr.status === 401 || xhr.status === 403) { reject(new Error('Google 授权失效')); return; }
+        if (xhr.status < 200 || xhr.status >= 300) { reject(new Error('下载失败 HTTP ' + xhr.status)); return; }
+        resolve(new Uint8Array(xhr.response));
+      };
+      xhr.onerror = function () { clearTimeout(t); reject(new Error('下载请求失败')); };
+      xhr.onabort = function () { clearTimeout(t); reject(new Error(timed ? '下载超时' : '下载已取消')); };
+      xhr.send();
+    });
   }
 
   // 魔数 → MIME
