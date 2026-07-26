@@ -107,7 +107,12 @@
         doc.push(prev || { id:id, type:type, url:el.dataset.url||'', meta:null, status:'empty' });
         continue;
       }
-      if (type === 'attachment' || type === 'image') { doc.push(prev || { id:id, type:type, fileId:el.dataset.fileid||'' }); continue; }
+      if (type === 'attachment' || type === 'image') { 
+        var _fid = el.dataset.fileid || '';
+        var _isImg = type === 'image' || (type === 'attachment' && el.querySelector('img'));
+        doc.push(prev || { id:id, type:type, fileId:_fid, image:_isImg }); 
+        continue; 
+      }
       // 增量优化：对段落/标题/todo 检测文本是否变化
       if (type === 'heading') {
         var rawH = el.textContent || '';
