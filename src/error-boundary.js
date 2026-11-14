@@ -193,7 +193,7 @@
   }
 
   // ===== 暴露 =====
-  w.CikeErrors = {
+  w.MynoteErrors = {
     errors: errors,
     addError: addError,
     addWarn: addWarn,

@@ -28,8 +28,8 @@
           checked = node.attrs && node.attrs.checked || false;
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
           var chk = checked
-            ? ((w.CikeTodoIcons || {}).checked || '')
-            : ((w.CikeTodoIcons || {}).unchecked || '');
+            ? ((w.MynoteTodoIcons || {}).checked || '')
+            : ((w.MynoteTodoIcons || {}).unchecked || '');
           return '<div data-blockid="' + node.id + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);border-radius:999px"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + chk + '</span><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
@@ -152,12 +152,12 @@
     if (doc.length === 0) {
       var rootText = (containerEl.textContent || '').replace(/\u200B/g, '').trim();
       if (rootText) {
-        doc.push({ id: (w.CikeId && w.CikeId.genId ? w.CikeId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:rootText}] });
+        doc.push({ id: (w.MynoteId && w.MynoteId.genId ? w.MynoteId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:rootText}] });
       }
     }
     // 兜底：doc 不能为空，否则保存会把 memo 写空
     if (doc.length === 0) {
-      doc.push({ id: (w.CikeId && w.CikeId.genId ? w.CikeId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:''}] });
+      doc.push({ id: (w.MynoteId && w.MynoteId.genId ? w.MynoteId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:''}] });
     }
     return doc;
   }
@@ -166,16 +166,16 @@
     if (node.type === 'attachment') {
       var f = files && files[node.fileId];
       if (f && f.type && f.type.startsWith('image/') && f.url) {
-        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><img src="' + f.url + '" alt="' + w.CikeEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:32px;corner-shape:squircle;display:block"></div>';
+        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><img src="' + f.url + '" alt="' + w.MynoteEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:32px;corner-shape:squircle;display:block"></div>';
       }
-      return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><div class="attachment-file"><span class="att-icon">\uD83D\uDCCE</span><span class="att-name">' + w.CikeEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</span><span class="att-hint">\u70B9\u51FB\u6253\u5F00</span></div></div>';
+      return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><div class="attachment-file"><span class="att-icon">\uD83D\uDCCE</span><span class="att-name">' + w.MynoteEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</span><span class="att-hint">\u70B9\u51FB\u6253\u5F00</span></div></div>';
     }
     if (node.type === 'link-card') {
       var url = node.url || '', meta = node.meta;
       if (!meta || !meta.title) {
         var domain = '';
         try { domain = new URL(url).hostname.replace('www.', ''); } catch (e) {}
-        return '<div contenteditable="false" class="atomic link-card-err" data-blockid="' + node.id + '" data-url="' + w.CikeEditor.escapeHTML(url) + '"><div class="lkc-body"><div class="lkc-title">' + w.CikeEditor.escapeHTML(domain || url) + '</div><div class="lkc-source"><span class="lkc-source-icon">\uD83D\uDD17</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.CikeEditor.escapeHTML(url) + '</span></div></div></div>';
+        return '<div contenteditable="false" class="atomic link-card-err" data-blockid="' + node.id + '" data-url="' + w.MynoteEditor.escapeHTML(url) + '"><div class="lkc-body"><div class="lkc-title">' + w.MynoteEditor.escapeHTML(domain || url) + '</div><div class="lkc-source"><span class="lkc-source-icon">\uD83D\uDD17</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(url) + '</span></div></div></div>';
       }
       var icon = typeof w.getTypeIcon === 'function' ? w.getTypeIcon(meta.type) : '\uD83D\uDD17';
       var coverUrl = typeof w.proxyImg === 'function' ? w.proxyImg(meta.cover) : meta.cover;
@@ -183,7 +183,7 @@
       var srcDomain = '';
       try { srcDomain = new URL(url).hostname.replace('www.', ''); } catch (e) {}
       var isBilibili = meta && (meta.source === '\u54D4\u54E9\u54D4\u54E9' || meta.type === 'video' && (url.indexOf('bilibili') >= 0 || url.indexOf('b23.tv') >= 0));
-      return '<div contenteditable="false" class="atomic link-card-block" data-blockid="' + node.id + '" data-url="' + w.CikeEditor.escapeHTML(url) + '">' + coverHTML + '<div class="lkc-body' + (coverHTML ? ' has-cover' : '') + '"><div class="lkc-title">' + w.CikeEditor.escapeHTML(meta.title) + '</div>' + (!isBilibili && meta.subtitle ? '<div class="lkc-subtitle">' + w.CikeEditor.escapeHTML(meta.subtitle) + '</div>' : '') + '<div class="lkc-source"><span class="lkc-source-icon">' + icon + '</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.CikeEditor.escapeHTML(meta.source || srcDomain || '') + '</span></div></div></div>';
+      return '<div contenteditable="false" class="atomic link-card-block" data-blockid="' + node.id + '" data-url="' + w.MynoteEditor.escapeHTML(url) + '">' + coverHTML + '<div class="lkc-body' + (coverHTML ? ' has-cover' : '') + '"><div class="lkc-title">' + w.MynoteEditor.escapeHTML(meta.title) + '</div>' + (!isBilibili && meta.subtitle ? '<div class="lkc-subtitle">' + w.MynoteEditor.escapeHTML(meta.subtitle) + '</div>' : '') + '<div class="lkc-source"><span class="lkc-source-icon">' + icon + '</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(meta.source || srcDomain || '') + '</span></div></div></div>';
     }
     if (node.type === 'musicCard') {
       var muUrl = node.url || '', muMeta = node.meta, muStatus = node.status || 'empty';
@@ -193,22 +193,22 @@
       if (muUrl && muMeta && muMeta.title) {
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
         var muTitle = muMeta.title || '\u97F3\u4E50';
-        var muHtml2 = '<div contenteditable="false" class="link-card-block" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.CikeEditor.escapeHTML(muUrl) + '">';
+        var muHtml2 = '<div contenteditable="false" class="link-card-block" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.MynoteEditor.escapeHTML(muUrl) + '">';
         if (muCover) muHtml2 += '<div class="lkc-cover"><img src="' + muCover + '" alt="" onerror="this.closest(\'.lkc-cover\').style.display=\'none\'"></div>';
-        muHtml2 += '<div class="lkc-body' + (muCover ? ' has-cover' : '') + '"><div class="lkc-title">' + w.CikeEditor.escapeHTML(muTitle) + '</div>';
-        if (muMeta.subtitle) muHtml2 += '<div class="lkc-subtitle">' + w.CikeEditor.escapeHTML(muMeta.subtitle) + '</div>';
-        muHtml2 += '<div class="lkc-source"><span class="lkc-source-icon">\uD83C\uDFB5</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.CikeEditor.escapeHTML(muMeta.source || '\u97F3\u4E50') + '</span></div></div></div>';
+        muHtml2 += '<div class="lkc-body' + (muCover ? ' has-cover' : '') + '"><div class="lkc-title">' + w.MynoteEditor.escapeHTML(muTitle) + '</div>';
+        if (muMeta.subtitle) muHtml2 += '<div class="lkc-subtitle">' + w.MynoteEditor.escapeHTML(muMeta.subtitle) + '</div>';
+        muHtml2 += '<div class="lkc-source"><span class="lkc-source-icon">\uD83C\uDFB5</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(muMeta.source || '\u97F3\u4E50') + '</span></div></div></div>';
         return muHtml2;
       }
       if (muStatus === 'loading' && muUrl) {
-        return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.CikeEditor.escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
+        return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.MynoteEditor.escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       }
-      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.CikeEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
+      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
     }
     return '';
   }
 
-  w.CikeEditor = {
+  w.MynoteEditor = {
     setEditorDocRef: setEditorDocRef,
     getEditorDocRef: getEditorDocRef,
     escapeHTML: escapeHTML,

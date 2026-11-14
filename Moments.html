@@ -924,13 +924,13 @@
 </style>
 
 <script>
-    // ===== Markdown 工具函数（来自 CikeMd 模块） =====
-    window.preprocessExtendedMarkdown = window.CikeMd.preprocessExtendedMarkdown;
-    window.looksLikeMarkdown = window.CikeMd.looksLikeMarkdown;
-    window.looksLikeCiaoMarkdown = window.CikeMd.looksLikeCiaoMarkdown;
-    window.stripMarkdownForPreview = window.CikeMd.stripMarkdownForPreview;
-    window.renderMarkdownHtml = window.CikeMd.renderMarkdownHtml;
-    window.shouldConvertPureUrlToCard = window.CikeMd.shouldConvertPureUrlToCard;
+    // ===== Markdown 工具函数（来自 MynoteMd 模块） =====
+    window.preprocessExtendedMarkdown = window.MynoteMd.preprocessExtendedMarkdown;
+    window.looksLikeMarkdown = window.MynoteMd.looksLikeMarkdown;
+    window.looksLikeCiaoMarkdown = window.MynoteMd.looksLikeCiaoMarkdown;
+    window.stripMarkdownForPreview = window.MynoteMd.stripMarkdownForPreview;
+    window.renderMarkdownHtml = window.MynoteMd.renderMarkdownHtml;
+    window.shouldConvertPureUrlToCard = window.MynoteMd.shouldConvertPureUrlToCard;
     if (window.marked) {
         marked.setOptions({ breaks: true, gfm: true });
         var _origParse = marked.parse.bind(marked);
@@ -957,27 +957,27 @@ const {
 const {
   flushSync
 } = ReactDOM;
-const genId = () => window.CikeId.genId();
+const genId = () => window.MynoteId.genId();
 function focusEditableWithCaret(target, offset = 0) {
-  return window.CikeDom && window.CikeDom.focusEditableWithCaret
-    ? window.CikeDom.focusEditableWithCaret(target, offset, typeof warn === 'function' ? warn : null)
+  return window.MynoteDom && window.MynoteDom.focusEditableWithCaret
+    ? window.MynoteDom.focusEditableWithCaret(target, offset, typeof warn === 'function' ? warn : null)
     : false;
 }
 
 window.getDB = getDB;
 
 /* ---------- Worker API ---------- */
-const API_BASE = window.CikeConstants.API_BASE; // 常量唯一源：src/constants.js
-const URL_REGEX = window.CikeConstants.URL_REGEX; // 常量唯一源
-const URL_INLINE_REGEX = window.CikeConstants.URL_INLINE_REGEX; // 常量唯一源
+const API_BASE = window.MynoteConstants.API_BASE; // 常量唯一源：src/constants.js
+const URL_REGEX = window.MynoteConstants.URL_REGEX; // 常量唯一源
+const URL_INLINE_REGEX = window.MynoteConstants.URL_INLINE_REGEX; // 常量唯一源
 function isUrl(str) {
-  return window.CikeConstants.isUrl(str);
+  return window.MynoteConstants.isUrl(str);
 }
 function extractUrlFromText(str) {
-  return window.CikeConstants.extractUrlFromText(str);
+  return window.MynoteConstants.extractUrlFromText(str);
 }
 function getTypeIcon(type) {
-  return window.CikeConstants.getTypeIcon(type);
+  return window.MynoteConstants.getTypeIcon(type);
 }
 async function fetchLinkMeta(url) {
   const controller = new AbortController();
@@ -1007,31 +1007,31 @@ function proxyImg(url) {
 /* ---------- LinkCard 组件 ---------- */
 // LinkCard \u79FB\u81F3 src/components/LinkCard.js\u6A21\u5757
 
-// 检测 iOS 系统 24 小时制开关（优先来自 CikeTime 模块）
+// 检测 iOS 系统 24 小时制开关（优先来自 MynoteTime 模块）
 function is24hFormat() {
-  return window.CikeTime.is24hFormat();
+  return window.MynoteTime.is24hFormat();
 }
 function timeAgo(iso) {
-  return window.CikeTime.timeAgo(iso);
+  return window.MynoteTime.timeAgo(iso);
 }
-const NEW_CARD_ID = window.CikeConstants.NEW_CARD_ID;
+const NEW_CARD_ID = window.MynoteConstants.NEW_CARD_ID;
 
 /* ---------- Google Drive 配置 ---------- */
-const GOOGLE_CLIENT_ID = window.CikeConstants.GOOGLE_CLIENT_ID;
-const GOOGLE_API_KEY = window.CikeConstants.GOOGLE_API_KEY;
-const BACKUP_FILE_NAME = window.CikeConstants.BACKUP_FILE_NAME;
+const GOOGLE_CLIENT_ID = window.MynoteConstants.GOOGLE_CLIENT_ID;
+const GOOGLE_API_KEY = window.MynoteConstants.GOOGLE_API_KEY;
+const BACKUP_FILE_NAME = window.MynoteConstants.BACKUP_FILE_NAME;
 
-/* ---------- DB 单例（来自 CikeIdb 模块） ---------- */
+/* ---------- DB 单例（来自 MynoteIdb 模块） ---------- */
 var _dbInstance = null;
 function getDB() {
-  return window.CikeIdb.getDB();
+  return window.MynoteIdb.getDB();
 }
 
 /* ---------- 安全日志辅助 ---------- */
 // 代替静默 catch(_) {}，保留排查线索但不上报用户
 const warn = (msg, err) => {
   console.warn(`[此刻] ${msg}`, err || '');
-  try { if (window.CikeErrors) window.CikeErrors.addWarn(msg, err); } catch (_) {}
+  try { if (window.MynoteErrors) window.MynoteErrors.addWarn(msg, err); } catch (_) {}
 };
 window.warn = warn;
 function getSectionLabel(dateStr) {
@@ -1051,75 +1051,75 @@ function getSectionLabel(dateStr) {
   return `${date.getFullYear()}年`;
 }
 
-/* ---------- IndexedDB（来自 CikeIdb 模块） ---------- */
+/* ---------- IndexedDB（来自 MynoteIdb 模块） ---------- */
 function openDB() {
-  return window.CikeIdb.openDB();
+  return window.MynoteIdb.openDB();
 }
 
-// 根据文件名扩展名推断 MIME type（来自 CikeIdb 模块）
+// 根据文件名扩展名推断 MIME type（来自 MynoteIdb 模块）
 function guessMimeFromName(fileName, bytes) {
-  var m = window.CikeIdb.guessMimeFromName(fileName);
-  if (m === 'application/octet-stream' && bytes && window.CikeIdb) { var bm = window.CikeIdb.guessMimeFromBytes(bytes); if (bm) return bm; }
+  var m = window.MynoteIdb.guessMimeFromName(fileName);
+  if (m === 'application/octet-stream' && bytes && window.MynoteIdb) { var bm = window.MynoteIdb.guessMimeFromBytes(bytes); if (bm) return bm; }
   return m;
 }
 
-// 打包附件到 ZIP data（来自 CikeIdb 模块）
+// 打包附件到 ZIP data（来自 MynoteIdb 模块）
 async function packAttachmentsToZip(db, zipData, onProgress) {
-  return window.CikeIdb.packAttachmentsToZip(db, zipData, onProgress);
+  return window.MynoteIdb.packAttachmentsToZip(db, zipData, onProgress);
 }
-// 从 ZIP 恢复附件到 IDB（来自 CikeIdb 模块）
+// 从 ZIP 恢复附件到 IDB（来自 MynoteIdb 模块）
 async function restoreAttachmentsFromZip(unzipped, db) {
-  return window.CikeIdb.restoreAttachmentsFromZip(unzipped, db);
+  return window.MynoteIdb.restoreAttachmentsFromZip(unzipped, db);
 }
 async function restoreAvatars(avatars, db) {
-  return window.CikeIdb.restoreAvatars(avatars, db);
+  return window.MynoteIdb.restoreAvatars(avatars, db);
 }
 async function saveAttachmentToDB(db, obj) {
-  return window.CikeIdb.saveAttachmentToDB(db, obj);
+  return window.MynoteIdb.saveAttachmentToDB(db, obj);
 }
 async function loadAttachmentFromDB(db, id) {
-  return window.CikeIdb.loadAttachmentFromDB(db, id);
+  return window.MynoteIdb.loadAttachmentFromDB(db, id);
 }
 async function deleteAttachmentFromDB(db, id) {
-  return window.CikeIdb.deleteAttachmentFromDB(db, id);
+  return window.MynoteIdb.deleteAttachmentFromDB(db, id);
 }
 async function saveAvatarToDB(db, memoId, dataUrl) {
-  return window.CikeIdb.saveAvatarToDB(db, memoId, dataUrl);
+  return window.MynoteIdb.saveAvatarToDB(db, memoId, dataUrl);
 }
 
-/* ---------- renderCache 读写（来自 CikeIdb 模块） ---------- */
+/* ---------- renderCache 读写（来自 MynoteIdb 模块） ---------- */
 async function saveRenderCacheToDB(db, memoId, cache) {
-  return window.CikeIdb.saveRenderCacheToDB(db, memoId, cache);
+  return window.MynoteIdb.saveRenderCacheToDB(db, memoId, cache);
 }
 async function loadRenderCacheFromDB(db, memoId) {
-  return window.CikeIdb.loadRenderCacheFromDB(db, memoId);
+  return window.MynoteIdb.loadRenderCacheFromDB(db, memoId);
 }
 async function loadAvatarFromDB(db, memoId) {
-  return window.CikeIdb.loadAvatarFromDB(db, memoId);
+  return window.MynoteIdb.loadAvatarFromDB(db, memoId);
 }
 function createThumbnail(dataUrl) {
-  return window.CikeIdb.createThumbnail(dataUrl);
+  return window.MynoteIdb.createThumbnail(dataUrl);
 }
 function dataURLtoBlob(dataURL) {
-  return window.CikeIdb.dataURLtoBlob(dataURL);
+  return window.MynoteIdb.dataURLtoBlob(dataURL);
 }
 
 /* ---------- SwipeRow ---------- */
 
 /* ---------- ImageCard ---------- */
-const DraftStore = window.CikeLocal ? window.CikeLocal.DraftStore : {
+const DraftStore = window.MynoteLocal ? window.MynoteLocal.DraftStore : {
   KEY: 'memo_draft_',
   async save(memoId, data) { try { localStorage.setItem(this.KEY + memoId, JSON.stringify(data)); } catch (e) { console.warn('[此刻] DraftStore save', e); } },
   async load(memoId) { try { var raw = localStorage.getItem(this.KEY + memoId); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } },
   async clear(memoId) { try { localStorage.removeItem(this.KEY + memoId); } catch (e) { console.warn('[此刻] DraftStore clear', e); } }
 };
 /* ---------- 编辑器变量 ---------- */
-function escapeHTML(str) { return window.CikeEditor ? window.CikeEditor.escapeHTML(str) : String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-var __editorDocRef = window.CikeEditor ? window.CikeEditor.getEditorDocRef() : null;
-function setEditorDocRef(doc) { __editorDocRef = doc; if(window.CikeEditor) window.CikeEditor.setEditorDocRef(doc); }
+function escapeHTML(str) { return window.MynoteEditor ? window.MynoteEditor.escapeHTML(str) : String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+var __editorDocRef = window.MynoteEditor ? window.MynoteEditor.getEditorDocRef() : null;
+function setEditorDocRef(doc) { __editorDocRef = doc; if(window.MynoteEditor) window.MynoteEditor.setEditorDocRef(doc); }
 function renderAtomicHTML(node, files) {
-  if (window.CikeEditor && window.CikeEditor.renderAtomicHTML) {
-    var html = window.CikeEditor.renderAtomicHTML(node, files);
+  if (window.MynoteEditor && window.MynoteEditor.renderAtomicHTML) {
+    var html = window.MynoteEditor.renderAtomicHTML(node, files);
     if (!html && node.type === 'musicCard') {
       if (node.status === 'input') {
         return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
@@ -1134,11 +1134,11 @@ function renderAtomicHTML(node, files) {
 }
 function renderDocToEditorHTML(doc, files) {
   // 实现只在 src/editor/editor.render.js，这里不再保留第二份
-  return window.CikeEditor.renderDocToEditorHTML(doc, files);
+  return window.MynoteEditor.renderDocToEditorHTML(doc, files);
 }
 
 function parseEditorDOM(containerEl) {
-  return window.CikeEditor.parseEditorDOM(containerEl);
+  return window.MynoteEditor.parseEditorDOM(containerEl);
 }
 function Editor({
   memo,
@@ -2307,9 +2307,9 @@ window.getDB = getDB;
       var gi = 0;
       while (gi < uncached.length) {
         var ct = (uncached[gi].textContent || '').trim();
-        if (CikeMdBlocks.isFenceLine(ct)) {
-          // 收集规则（含「单段落已含完整围栏」）见 CikeMdBlocks
-          var fg2 = CikeMdBlocks.collectFenceGroup(uncached, gi);
+        if (MynoteMdBlocks.isFenceLine(ct)) {
+          // 收集规则（含「单段落已含完整围栏」）见 MynoteMdBlocks
+          var fg2 = MynoteMdBlocks.collectFenceGroup(uncached, gi);
           // 首次加载路径历史上只替换首段的围栏段，后续行保留原样（与旧实现逐字一致，勿"顺手修好"）
           var grp2 = [uncached[fg2.start]];
           gi = fg2.end;
@@ -2318,13 +2318,13 @@ window.getDB = getDB;
           var tmpG2 = document.createElement('div');
           tmpG2.innerHTML = htmlG2;
           if (tmpG2.firstElementChild && tmpG2.firstElementChild.tagName === 'PRE') {
-            CikeMdBlocks.replaceGroupWithPreview(grp2, merged2, htmlG2);
+            MynoteMdBlocks.replaceGroupWithPreview(grp2, merged2, htmlG2);
           }
           continue;
         }
-        if (CikeMdBlocks.isListLine(ct)) {
-          var lg3 = CikeMdBlocks.collectListGroup(uncached, gi);
-          var grp3 = CikeMdBlocks.range(lg3.start, lg3.end).map(function (k) {
+        if (MynoteMdBlocks.isListLine(ct)) {
+          var lg3 = MynoteMdBlocks.collectListGroup(uncached, gi);
+          var grp3 = MynoteMdBlocks.range(lg3.start, lg3.end).map(function (k) {
             return uncached[k];
           });
           gi = lg3.end;
@@ -2333,7 +2333,7 @@ window.getDB = getDB;
           var tmpG3 = document.createElement('div');
           tmpG3.innerHTML = htmlG3;
           if (tmpG3.firstElementChild && (tmpG3.firstElementChild.tagName === 'UL' || tmpG3.firstElementChild.tagName === 'OL')) {
-            CikeMdBlocks.replaceGroupWithPreview(grp3, merged3, htmlG3);
+            MynoteMdBlocks.replaceGroupWithPreview(grp3, merged3, htmlG3);
           }
           continue;
         }
@@ -2356,8 +2356,8 @@ window.getDB = getDB;
             if (!cp || !cp.parentNode) continue;
             var txt2 = (cp.textContent || '').trim();
             if (!txt2 || !looksLikeCiaoMarkdown(txt2)) continue;
-            // 块级/内联判定与渲染统一走 CikeMdBlocks（与失焦路径同一实现，不完整语法保护仅在失焦路径启用）
-            CikeMdBlocks.renderSingleParagraph(cp, txt2, { ensureTrailing: ensureTrailingParagraphBlock });
+            // 块级/内联判定与渲染统一走 MynoteMdBlocks（与失焦路径同一实现，不完整语法保护仅在失焦路径启用）
+            MynoteMdBlocks.renderSingleParagraph(cp, txt2, { ensureTrailing: ensureTrailingParagraphBlock });
           }
           if (idx2 < grouped.length) setTimeout(pb, 16);
         })();
@@ -2469,7 +2469,7 @@ window.getDB = getDB;
     };
     updateGradient();
     // 滚动期间每帧最多执行一次（getComputedStyle + 正则解析本身不便宜）
-    var onScrollThrottled = window.CikeDom && window.CikeDom.rafThrottle ? window.CikeDom.rafThrottle(updateGradient) : updateGradient;
+    var onScrollThrottled = window.MynoteDom && window.MynoteDom.rafThrottle ? window.MynoteDom.rafThrottle(updateGradient) : updateGradient;
     window.addEventListener('scroll', onScrollThrottled, { passive: true });
     return function() {
       window.removeEventListener('scroll', onScrollThrottled);
@@ -3689,7 +3689,7 @@ window.getDB = getDB;
         if (fid && files[fid] && files[fid].url) {
           var fi = files[fid];
           if (!(fi.type && fi.type.indexOf('image/') === 0)) {
-            var blob = window.CikeIdb.dataURLtoBlob(fi.url);
+            var blob = window.MynoteIdb.dataURLtoBlob(fi.url);
             if (blob) {
               var sf = new File([blob], fi.name || '文件', { type: fi.type || 'application/octet-stream' });
               if (navigator.share && navigator.canShare && navigator.canShare({ files: [sf] })) {
@@ -3737,8 +3737,8 @@ window.getDB = getDB;
     checkbox.dataset.checked = newChecked;
     // 替换 SVG
     checkbox.innerHTML = newChecked
-      ? ((window.CikeTodoIcons || {}).checked || '')
-      : ((window.CikeTodoIcons || {}).unchecked || '');
+      ? ((window.MynoteTodoIcons || {}).checked || '')
+      : ((window.MynoteTodoIcons || {}).unchecked || '');
     var block = todoBlock.closest('[data-blockid]');
     if (block) {
       var id = block.dataset.blockid;
@@ -3807,15 +3807,15 @@ window.getDB = getDB;
       /* ---- 第一遍：识别代码块/列表行组，合并渲染 ---- */
       var ti = 0;
       if (!skipHeavy) {
-        // 代码块：以 ``` 开头和结尾的行组（收集规则见 CikeMdBlocks）
+        // 代码块：以 ``` 开头和结尾的行组（收集规则见 MynoteMdBlocks）
         var codeGroups = [];
         ti = 0;
         while (ti < ps.length) {
           var txt = (ps[ti].textContent || '').trim();
-          if (CikeMdBlocks.isFenceLine(txt)) {
-            var fg = CikeMdBlocks.collectFenceGroup(ps, ti);
+          if (MynoteMdBlocks.isFenceLine(txt)) {
+            var fg = MynoteMdBlocks.collectFenceGroup(ps, ti);
             codeGroups.push({
-              indices: CikeMdBlocks.range(fg.start, fg.end),
+              indices: MynoteMdBlocks.range(fg.start, fg.end),
               texts: fg.texts
             });
             ti = fg.end;
@@ -3824,15 +3824,15 @@ window.getDB = getDB;
           }
         }
 
-        // 列表：连续以 -、*、数字. 开头的行组（收集规则见 CikeMdBlocks）
+        // 列表：连续以 -、*、数字. 开头的行组（收集规则见 MynoteMdBlocks）
         var listGroups = [];
         ti = 0;
         while (ti < ps.length) {
           var txt = (ps[ti].textContent || '').trim();
-          if (CikeMdBlocks.isListLine(txt)) {
-            var lg = CikeMdBlocks.collectListGroup(ps, ti);
+          if (MynoteMdBlocks.isListLine(txt)) {
+            var lg = MynoteMdBlocks.collectListGroup(ps, ti);
             listGroups.push({
-              indices: CikeMdBlocks.range(lg.start, lg.end),
+              indices: MynoteMdBlocks.range(lg.start, lg.end),
               texts: lg.texts
             });
             ti = lg.end;
@@ -3851,7 +3851,7 @@ window.getDB = getDB;
           var tmp2 = document.createElement('div');
           tmp2.innerHTML = html2;
           if (tmp2.firstElementChild && tmp2.firstElementChild.tagName === 'PRE') {
-            CikeMdBlocks.replaceGroupWithPreview(grp2.indices.map(function (k) {
+            MynoteMdBlocks.replaceGroupWithPreview(grp2.indices.map(function (k) {
               return ps[k];
             }), merged2, html2);
           }
@@ -3866,7 +3866,7 @@ window.getDB = getDB;
           var tmp3 = document.createElement('div');
           tmp3.innerHTML = html3;
           if (tmp3.firstElementChild && (tmp3.firstElementChild.tagName === 'UL' || tmp3.firstElementChild.tagName === 'OL')) {
-            CikeMdBlocks.replaceGroupWithPreview(grp3.indices.map(function (k) {
+            MynoteMdBlocks.replaceGroupWithPreview(grp3.indices.map(function (k) {
               return ps[k];
             }), merged3, html3);
           }
@@ -3980,7 +3980,7 @@ window.getDB = getDB;
         if (!text || !looksLikeCiaoMarkdown(text)) continue;
         var id = p.dataset.blockid;
         if (!id) continue;
-        var res = CikeMdBlocks.renderSingleParagraph(p, text, { guards: true, ensureTrailing: ensureTrailingParagraphBlock });
+        var res = MynoteMdBlocks.renderSingleParagraph(p, text, { guards: true, ensureTrailing: ensureTrailingParagraphBlock });
         if (res === 'skip') continue;
         if (res === 'inline') {
           // 内联渲染后把光标放回末尾，避免失焦后选区丢失
@@ -5151,7 +5151,7 @@ async function fetchWeather() {
   }
   if (lat == null) return null;
   /* 和风天气 */
-  var qwKey = window.CikeConstants && window.CikeConstants.QWEATHER_API_KEY;
+  var qwKey = window.MynoteConstants && window.MynoteConstants.QWEATHER_API_KEY;
   if (!qwKey) return null;
 
   try {
@@ -5371,9 +5371,9 @@ function MemoList() {
     idbInited.current = true;
     (async function() {
       try {
-        var db = await window.CikeIdb.getDB();
+        var db = await window.MynoteIdb.getDB();
         if (db) {
-          var stored = await window.CikeIdb.loadMemosFromDB(db);
+          var stored = await window.MynoteIdb.loadMemosFromDB(db);
           if (stored && stored.length > 0) {
             var ns = stored.map(normalizeMemo);
             // 给已有附件补 image 标记
@@ -5391,7 +5391,7 @@ function MemoList() {
           normalized = buildBuiltinMemos();
         }
         if (db && normalized.length > 0) {
-          await window.CikeIdb.saveMemosToDB(db, normalized);
+          await window.MynoteIdb.saveMemosToDB(db, normalized);
         }
         try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
         setMemos(normalized);
@@ -5452,8 +5452,8 @@ function MemoList() {
       // 同步到 IndexedDB
       (async function() {
         try {
-          var db = await window.CikeIdb.getDB();
-          if (db) await window.CikeIdb.saveMemosToDB(db, safe);
+          var db = await window.MynoteIdb.getDB();
+          if (db) await window.MynoteIdb.saveMemosToDB(db, safe);
         } catch(e) { console.warn('[此刻] IDB save', e); }
       })();
     } catch (e) { console.warn('[此刻] localStorage save', e); }
@@ -5570,9 +5570,9 @@ function MemoList() {
         }));
         localStorage.setItem("memos_app_v2", JSON.stringify(safe));
         if (!saveMountedRef.current) return;
-        var db = await window.CikeIdb.getDB();
+        var db = await window.MynoteIdb.getDB();
         if (!saveMountedRef.current) return;
-        if (db) await window.CikeIdb.saveMemosToDB(db, safe);
+        if (db) await window.MynoteIdb.saveMemosToDB(db, safe);
       } catch (e) { console.warn('[此刻] memo save flush', e); }
       skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1);
     })();
@@ -5872,7 +5872,7 @@ function MemoList() {
     onExpand: () => toggleBlock(`${gi}-txt`)
   })))))))))
 }
-ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(window.CikeErrors && window.CikeErrors.Badge ? window.CikeErrors.Badge : React.Fragment, null, /*#__PURE__*/React.createElement(MemoList, null)));
+ReactDOM.createRoot(document.getElementById("memo-list-root")).render( /*#__PURE__*/React.createElement(window.MynoteErrors && window.MynoteErrors.Badge ? window.MynoteErrors.Badge : React.Fragment, null, /*#__PURE__*/React.createElement(MemoList, null)));
 </script>
 
 <script>

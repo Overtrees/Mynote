@@ -453,7 +453,7 @@
     return { staged: st.staged, failed: st.failed, failures: st.failures };
   }
 
-  w.CikeIdb = {
+  w.MynoteIdb = {
     getDB: getDB,
     openDB: openDB,
     guessMimeFromName: guessMimeFromName,

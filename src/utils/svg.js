@@ -58,6 +58,6 @@
   // 新的 React 组件用法：w.SvgIcon('pin', { width: 17, height: 17, strokeWidth: 2.2 })
 
   w.SvgIcon = SvgIcon;
-  w.CikeTodoIcons = TODO_ICONS;
+  w.MynoteTodoIcons = TODO_ICONS;
   w.SvgPaths = PATHS;
 })(window);

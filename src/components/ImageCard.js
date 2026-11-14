@@ -5,7 +5,7 @@
 
   function ImageCard(_ref) {
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand;
-    var isNewCard = memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
+    var isNewCard = memo.id === (w.MynoteConstants ? w.MynoteConstants.NEW_CARD_ID : '__new_memo_card__');
     var _useState = useState(null), thumb = _useState[0], setThumb = _useState[1];
 
     useEffect(function () {
@@ -16,10 +16,10 @@
       var cancelled = false;
       (async function() {
         try {
-          var db = await (w.CikeIdb ? w.CikeIdb.getDB() : null);
+          var db = await (w.MynoteIdb ? w.MynoteIdb.getDB() : null);
           if (!db) return;
           for (var attempt = 0; attempt < 5 && !cancelled; attempt++) {
-            var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
+            var stored = await (w.MynoteIdb ? w.MynoteIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
             if (!stored) break;
             if (stored.type && stored.type.indexOf('image/') === 0 && (stored.url || stored.thumb)) {
               if (!cancelled) setThumb(stored.url || stored.thumb);
@@ -32,13 +32,13 @@
       return function(){ cancelled = true; };
     }, [memo.id, memo.doc, isNewCard]);
 
-    // 预览摘要由 CikePreview 统一计算，长度 60（与 SwipeRow 同一份逻辑）
-    var summary = (w.CikePreview && w.CikePreview.summarizeMemoDoc ? w.CikePreview.summarizeMemoDoc(memo.doc, 60) : null);
+    // 预览摘要由 MynotePreview 统一计算，长度 60（与 SwipeRow 同一份逻辑）
+    var summary = (w.MynotePreview && w.MynotePreview.summarizeMemoDoc ? w.MynotePreview.summarizeMemoDoc(memo.doc, 60) : null);
     var preview = summary ? summary.preview : '\u65E0\u66F4\u591A\u6587\u672C';
     var tags = summary ? summary.tags : [];
 
     // Swipe gesture (via shared hook)
-    var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
+    var sw = w.MynoteHooks.useSwipeGesture({ isNewCard: isNewCard });
 
     return R.createElement('div', { className:'swipe-wrapper', ref:sw.wrapperRef },
       !isNewCard && R.createElement('div', { className:'swipe-actions' },

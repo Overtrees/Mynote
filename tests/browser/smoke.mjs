@@ -67,7 +67,7 @@ check('前缀转换后正文仍在', conv.has, `blocks=${conv.blocks}`);
 
 // ---- 原子恢复 ----
 const restore = await page.evaluate(async () => {
-  const C = window.CikeIdb, db = await C.getDB();
+  const C = window.MynoteIdb, db = await C.getDB();
   const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
   const keys = s => new Promise(res => { const t = db.transaction(s, 'readonly'); const r = t.objectStore(s).getAllKeys(); r.onsuccess = () => res(r.result.slice().sort()); });
   const good = {
@@ -97,10 +97,10 @@ check('正常恢复生效', restore.finalAtt.includes('a9'), JSON.stringify(rest
 
 // ---- 待办图标统一常量 / 附件导出导入往返 / 长文档全渲染 ----
 const extra = await page.evaluate(async () => {
-  const C = window.CikeIdb, db = await C.getDB();
+  const C = window.MynoteIdb, db = await C.getDB();
   const out = {};
-  const todoHtml = window.CikeEditor.renderDocToEditorHTML([{ id: 't1', type: 'todo', attrs: { checked: true }, children: [{ text: 'x' }] }], {});
-  out.todoIcon = todoHtml.includes(window.CikeTodoIcons.checked);
+  const todoHtml = window.MynoteEditor.renderDocToEditorHTML([{ id: 't1', type: 'todo', attrs: { checked: true }, children: [{ text: 'x' }] }], {});
+  out.todoIcon = todoHtml.includes(window.MynoteTodoIcons.checked);
   const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
   await C.saveAttachmentToDB(db, { id: 'att_cn_1', name: '中文 名字(1).png', type: 'image/png', url: png, thumb: null });
   const zipData = { 'memos.json': fflate.strToU8('{"version":2,"memos":[]}') };

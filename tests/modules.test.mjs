@@ -22,33 +22,33 @@ test('核心模块可在浏览器环境桩下完成注册', () => {
     'src/utils/dom.js', 'src/utils/preview.js', 'src/utils/svg.js', 'src/services/storage.local.js',
     'src/editor/editor.md.js', 'src/editor/editor.render.js']) load(env, f);
   const w = env.win;
-  for (const key of ['CikeConstants', 'CikeId', 'CikeTime', 'CikeDom', 'CikePreview', 'CikeLocal', 'CikeMd']) {
+  for (const key of ['MynoteConstants', 'MynoteId', 'MynoteTime', 'MynoteDom', 'MynotePreview', 'MynoteLocal', 'MynoteMd']) {
     assert.ok(w[key], '未注册全局: ' + key);
   }
-  assert.equal(typeof w.CikePreview.summarizeMemoDoc, 'function');
-  assert.equal(typeof w.CikeMd.stripMarkdownForPreview, 'function');
+  assert.equal(typeof w.MynotePreview.summarizeMemoDoc, 'function');
+  assert.equal(typeof w.MynoteMd.stripMarkdownForPreview, 'function');
 });
 
 test('id / time / dom / constants 基础行为', () => {
   const env = makeEnv();
   for (const f of ['src/constants.js', 'src/utils/id.js', 'src/utils/time.js', 'src/utils/dom.js']) load(env, f);
   const w = env.win;
-  assert.match(w.CikeId.genId(), /^[a-z0-9]+$/i);
-  assert.notEqual(w.CikeId.genId(), w.CikeId.genId());
-  assert.equal(w.CikeDom.escapeHTML('<a href="x">&'), '&lt;a href=&quot;x&quot;&gt;&amp;');
-  assert.equal(w.CikeConstants.isUrl('https://example.com/a?b=1'), true);
-  assert.equal(w.CikeConstants.isUrl('不是链接'), false);
-  assert.ok(typeof w.CikeTime.timeAgo(new Date().toISOString()) === 'string');
+  assert.match(w.MynoteId.genId(), /^[a-z0-9]+$/i);
+  assert.notEqual(w.MynoteId.genId(), w.MynoteId.genId());
+  assert.equal(w.MynoteDom.escapeHTML('<a href="x">&'), '&lt;a href=&quot;x&quot;&gt;&amp;');
+  assert.equal(w.MynoteConstants.isUrl('https://example.com/a?b=1'), true);
+  assert.equal(w.MynoteConstants.isUrl('不是链接'), false);
+  assert.ok(typeof w.MynoteTime.timeAgo(new Date().toISOString()) === 'string');
 });
 
 test('URL 提取：中文路径不再被截断（回归用例，原缺陷已修复）', () => {
   const env = makeEnv();
   load(env, 'src/constants.js');
   const w = env.win;
-  assert.equal(w.CikeConstants.extractUrlFromText('看这个 https://zh.wikipedia.org/wiki/中文条目 很好'), 'https://zh.wikipedia.org/wiki/中文条目');
+  assert.equal(w.MynoteConstants.extractUrlFromText('看这个 https://zh.wikipedia.org/wiki/中文条目 很好'), 'https://zh.wikipedia.org/wiki/中文条目');
   // 多个链接只取第一个；纯 ASCII 链接行为不变
-  assert.equal(w.CikeConstants.extractUrlFromText('见 https://example.com/a?b=1 和 https://b.cn/x'), 'https://example.com/a?b=1');
-  assert.equal(w.CikeConstants.extractUrlFromText('没有链接'), null);
-  assert.equal(w.CikeConstants.isUrl('https://zh.wikipedia.org/wiki/中文条目'), true);
+  assert.equal(w.MynoteConstants.extractUrlFromText('见 https://example.com/a?b=1 和 https://b.cn/x'), 'https://example.com/a?b=1');
+  assert.equal(w.MynoteConstants.extractUrlFromText('没有链接'), null);
+  assert.equal(w.MynoteConstants.isUrl('https://zh.wikipedia.org/wiki/中文条目'), true);
 });
 

@@ -117,9 +117,9 @@ const BackupView = ({
     var memos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
     // 优先从 IDB 读取（主存储）
     try {
-      var _db5 = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
+      var _db5 = await (window.MynoteIdb ? window.MynoteIdb.getDB() : null);
       if (_db5) {
-        var _idb = await (window.CikeIdb ? window.CikeIdb.loadMemosFromDB(_db5) : null);
+        var _idb = await (window.MynoteIdb ? window.MynoteIdb.loadMemosFromDB(_db5) : null);
         if (_idb && _idb.length > 0) memos = _idb;
       }
     } catch (_) {}
@@ -127,7 +127,7 @@ const BackupView = ({
       ...m,
       doc: m.doc ? m.doc.map(n => n) : m.doc
     }));
-    const db = await w.CikeIdb.getDB();
+    const db = await w.MynoteIdb.getDB();
     const tx = db.transaction('avatars', 'readonly');
     const allAvatars = await new Promise(res => {
       const req = tx.objectStore('avatars').getAll();
@@ -150,8 +150,8 @@ const BackupView = ({
       const backup = await buildBackupPayload();
       const zipData = {};
       zipData['memos.json'] = fflate.strToU8(JSON.stringify(backup, null, 2));
-      const db = await w.CikeIdb.getDB();
-      await w.CikeIdb.packAttachmentsToZip(db, zipData, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
+      const db = await w.MynoteIdb.getDB();
+      await w.MynoteIdb.packAttachmentsToZip(db, zipData, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
       const zipped = fflate.zipSync(zipData, {
         level: 6
       });
@@ -215,13 +215,13 @@ const BackupView = ({
       if (!jsonBytes) throw new Error('ZIP 中未找到备份数据');
       const backup = JSON.parse(fflate.strFromU8(jsonBytes));
       if (!backup.memos || !Array.isArray(backup.memos)) throw new Error('无效的备份文件，未找到备忘录数据');
-      const db = await w.CikeIdb.getDB();
+      const db = await w.MynoteIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
       // 两阶段原子恢复：附件先写入暂存区（此阶段完全不碰线上数据），
       // 全部校验通过后再用【单个跨 store 事务】把附件/文档/头像一起切换。
       // 中途失败或崩溃时线上数据保持原样，不再出现「文档已换、附件已删」的半损状态。
       showStatus('正在校验并暂存备份内容...');
-      const atomicResult = await w.CikeIdb.restoreFromZipAtomic(db, unzipped, backup, {
+      const atomicResult = await w.MynoteIdb.restoreFromZipAtomic(db, unzipped, backup, {
         onProgress: (i, total) => showStatus(`正在校验附件 ${i + 1}/${total}...`)
       });
       if (atomicResult.failed > 0) showStatus(`附件恢复完成：成功 ${atomicResult.staged}，跳过 ${atomicResult.failed}`);
@@ -327,13 +327,13 @@ const BackupView = ({
       showStatus('正在打包附件...');
       const zipData = {};
       zipData['memos.json'] = fflate.strToU8(JSON.stringify(backup, null, 2));
-      const db = await w.CikeIdb.getDB();
-      await w.CikeIdb.packAttachmentsToZip(db, zipData, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
+      const db = await w.MynoteIdb.getDB();
+      await w.MynoteIdb.packAttachmentsToZip(db, zipData, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
       // 构建 manifest（附件 MIME type 映射）
       var manifest = { version: 1, attachments: {} };
       var allKeys = await new Promise(function(res, rej) { var tx2 = db.transaction('attachments', 'readonly'); var r2 = tx2.objectStore('attachments').getAllKeys(); r2.onsuccess = function(){res(r2.result);}; r2.onerror = function(){rej(r2.error);}; });
       for (var mi = 0; mi < allKeys.length; mi++) {
-        try { var rec = await w.CikeIdb.loadAttachmentFromDB(db, allKeys[mi]); if (rec) manifest.attachments[allKeys[mi]] = { name: rec.name || '', type: rec.type || 'application/octet-stream' }; } catch(_) {}
+        try { var rec = await w.MynoteIdb.loadAttachmentFromDB(db, allKeys[mi]); if (rec) manifest.attachments[allKeys[mi]] = { name: rec.name || '', type: rec.type || 'application/octet-stream' }; } catch(_) {}
       }
       zipData['manifest.json'] = fflate.strToU8(JSON.stringify(manifest));
       const tx = db.transaction('avatars', 'readonly');
@@ -437,7 +437,7 @@ const BackupView = ({
         }
         return cb;
       }), ...localMemos.filter(function(m) { return !cloudIds.has(m.id); })];
-      const db = await w.CikeIdb.getDB();
+      const db = await w.MynoteIdb.getDB();
       for (const attPath of Object.keys(unzipped).filter(k => k.startsWith('attachments/'))) {
         const bytes = unzipped[attPath];
         if (!bytes) continue;
@@ -469,7 +469,7 @@ const BackupView = ({
       const cloudAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null;
       await restoreAvatars(cloudAvatars || cloudBackup.avatars, db);
       localStorage.setItem('memos_app_v2', JSON.stringify(merged));
-      if (window.CikeIdb) { try { var _db3 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db3, merged); } catch(_){} }
+      if (window.MynoteIdb) { try { var _db3 = await window.MynoteIdb.getDB(); await window.MynoteIdb.saveMemosToDB(_db3, merged); } catch(_){} }
       // 从 manifest 修正 MIME type
       try { var manRaw4 = unzipped['manifest.json']; if (manRaw4) { var man4 = JSON.parse(fflate.strFromU8(manRaw4)); var atts4 = man4.attachments || {}; for (var fid4 in atts4) { try { var rec4 = await loadAttachmentFromDB(db, fid4); if (rec4 && atts4[fid4].type) rec4.type = atts4[fid4].type; await saveAttachmentToDB(db, rec4); } catch(_) {} } } } catch(_) {}
       showStatus('✅ 合并成功！正在刷新...');
@@ -510,11 +510,11 @@ const BackupView = ({
       const unzipped = fflate.unzipSync(new Uint8Array(buf));
       const backup = JSON.parse(fflate.strFromU8(unzipped['memos.json']));
       if (!backup.memos) throw new Error('无效的备份文件');
-      const db = await w.CikeIdb.getDB();
+      const db = await w.MynoteIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
       // 与本地导入同一套两阶段原子恢复（见 restoreFromZipAtomic）
       showStatus('正在校验并暂存云端备份...');
-      const atomicRes = await w.CikeIdb.restoreFromZipAtomic(db, unzipped, {
+      const atomicRes = await w.MynoteIdb.restoreFromZipAtomic(db, unzipped, {
         memos: backup.memos,
         avatars: (unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null) || backup.avatars
       }, {

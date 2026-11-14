@@ -51,11 +51,11 @@ const fixtures = [
 ];
 
 for (const maxLen of [80, 60]) {
-  test(`CikePreview.summarizeMemoDoc 与重构前实现逐字一致（maxLen=${maxLen}）`, () => {
+  test(`MynotePreview.summarizeMemoDoc 与重构前实现逐字一致（maxLen=${maxLen}）`, () => {
     const w = withPreview();
     for (const doc of fixtures) {
       // vm 沙箱内对象的原型与测试进程不同，先序列化再比较
-      const got = JSON.parse(JSON.stringify(w.CikePreview.summarizeMemoDoc(doc, maxLen)));
+      const got = JSON.parse(JSON.stringify(w.MynotePreview.summarizeMemoDoc(doc, maxLen)));
       assert.deepEqual(got, legacySummary(doc, maxLen), '不一致的 doc: ' + JSON.stringify(doc));
     }
   });
@@ -64,14 +64,14 @@ for (const maxLen of [80, 60]) {
 test('maxLen 缺省为 80，非法值回退 80', () => {
   const w = withPreview();
   const doc = [P('x'.repeat(100))];
-  assert.equal(w.CikePreview.summarizeMemoDoc(doc).preview.length, 80);
-  assert.equal(w.CikePreview.summarizeMemoDoc(doc, 0).preview.length, 80);
-  assert.equal(w.CikePreview.summarizeMemoDoc(doc, 60).preview.length, 60);
+  assert.equal(w.MynotePreview.summarizeMemoDoc(doc).preview.length, 80);
+  assert.equal(w.MynotePreview.summarizeMemoDoc(doc, 0).preview.length, 80);
+  assert.equal(w.MynotePreview.summarizeMemoDoc(doc, 60).preview.length, 60);
 });
 
 test('tags 去重且最多 3 个，无正文时用标签兜底', () => {
   const w = withPreview();
-  const r = w.CikePreview.summarizeMemoDoc([P('#a #b #a #c #d')], 80);
+  const r = w.MynotePreview.summarizeMemoDoc([P('#a #b #a #c #d')], 80);
   assert.deepEqual(JSON.parse(JSON.stringify(r.tags)), ['#a', '#b', '#c']);
   assert.equal(r.preview, 'a');
 });

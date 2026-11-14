@@ -67,7 +67,7 @@
     };
   }
 
-  w.CikeDom = {
+  w.MynoteDom = {
     escapeHTML: escapeHTML,
     focusEditableWithCaret: focusEditableWithCaret,
     rafThrottle: rafThrottle

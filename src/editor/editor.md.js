@@ -105,7 +105,7 @@
     return (/^https?:\/\/[^\s]+$/).test(raw.trim());
   }
 
-  w.CikeMd = {
+  w.MynoteMd = {
     preprocessExtendedMarkdown: preprocessExtendedMarkdown,
     looksLikeMarkdown: looksLikeMarkdown,
     looksLikeCiaoMarkdown: looksLikeCiaoMarkdown,

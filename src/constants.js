@@ -29,5 +29,5 @@
     return '🔗';
   };
 
-  w.CikeConstants = C;
+  w.MynoteConstants = C;
 })(window);

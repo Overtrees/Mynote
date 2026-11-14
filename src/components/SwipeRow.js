@@ -7,11 +7,11 @@
     var memo = _ref.memo, onOpen = _ref.onOpen, onPin = _ref.onPin, onDelete = _ref.onDelete, expandText = _ref.expandText, onExpand = _ref.onExpand, weather = _ref.weather;
     var rowRef = useRef(null), wrapperRef = useRef(null), btn1Ref = useRef(null), btn2Ref = useRef(null);
     var ACTION_W = 168, THRESHOLD = 55, MIN_DX = 5;
-    var isNewCard = memo && memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
-    var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
+    var isNewCard = memo && memo.id === (w.MynoteConstants ? w.MynoteConstants.NEW_CARD_ID : '__new_memo_card__');
+    var sw = w.MynoteHooks.useSwipeGesture({ isNewCard: isNewCard });
 
-    // Preview text calculation（统一由 CikePreview 计算，长度 80）
-    var summary = (w.CikePreview && w.CikePreview.summarizeMemoDoc ? w.CikePreview.summarizeMemoDoc(memo.doc, 80) : null);
+    // Preview text calculation（统一由 MynotePreview 计算，长度 80）
+    var summary = (w.MynotePreview && w.MynotePreview.summarizeMemoDoc ? w.MynotePreview.summarizeMemoDoc(memo.doc, 80) : null);
     var preview = summary ? summary.preview : '\u65E0\u66F4\u591A\u6587\u672C';
     var attachCount = summary ? summary.attachCount : 0;
     var tags = summary ? summary.tags : [];

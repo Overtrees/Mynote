@@ -117,7 +117,7 @@
     return w.renderMarkdownHtml(text);
   }
 
-  w.CikeMdBlocks = {
+  w.MynoteMdBlocks = {
     isFenceLine: isFenceLine,
     isListLine: isListLine,
     collectFenceGroup: collectFenceGroup,

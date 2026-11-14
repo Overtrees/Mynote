@@ -65,7 +65,7 @@
     return result;
   }
 
-  w.CikePreview = {
+  w.MynotePreview = {
     EMPTY_PREVIEW: EMPTY_PREVIEW,
     summarizeMemoDoc: summarizeMemoDoc
   };

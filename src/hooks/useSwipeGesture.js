@@ -47,6 +47,6 @@
     };
   }
 
-  w.CikeHooks = w.CikeHooks || {};
-  w.CikeHooks.useSwipeGesture = useSwipeGesture;
+  w.MynoteHooks = w.MynoteHooks || {};
+  w.MynoteHooks.useSwipeGesture = useSwipeGesture;
 })(window);

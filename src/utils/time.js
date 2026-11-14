@@ -32,7 +32,7 @@
     return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
   }
 
-  w.CikeTime = {
+  w.MynoteTime = {
     is24hFormat: is24hFormat,
     timeAgo: timeAgo
   };

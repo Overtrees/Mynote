@@ -5,7 +5,7 @@
     KEY: 'memo_draft_',
     async save(memoId, data) {
       try {
-        var db = await (w.CikeIdb ? w.CikeIdb.getDB() : null);
+        var db = await (w.MynoteIdb ? w.MynoteIdb.getDB() : null);
         if (db) {
           var tx = db.transaction('drafts', 'readwrite');
           tx.objectStore('drafts').put({ id: memoId, data: data, updatedAt: new Date().toISOString() });
@@ -29,7 +29,7 @@
     }
   };
 
-  w.CikeLocal = {
+  w.MynoteLocal = {
     DraftStore: DraftStore,
     // 将来可以扩展其他 localStorage 工具
   };
