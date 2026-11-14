@@ -51,6 +51,7 @@
 
 <script src="./src/editor/editor.md.js"></script>
 
+<script src="./src/editor/md-blocks.js?v=2.1.0"></script>
 <script src="./src/editor/editor.render.js?v=2.1.0"></script>
 
 <script src="./src/components/LinkCard.js"></script>
@@ -1951,9 +1952,11 @@ window.getDB = getDB;
       return;
     }
     var level = cmd.level || 1;
+    // 这 5 类在插入时统一降级为普通段落：在构造时就定值，避免"先写再覆盖"的死值
+    var forcedParagraph = type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'decorative_divider' || type === 'callout';
     var newBlock = {
       id: blkId,
-      type: type,
+      type: forcedParagraph ? 'paragraph' : type,
       ...(type === 'paragraph' ? {
         children: [{
           text: cleanedText
@@ -2037,7 +2040,6 @@ window.getDB = getDB;
         }
       } : {})
     };
-    if (type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'decorative_divider' || type === 'callout') newBlock.type = 'paragraph';
     if (type === 'callout') {
       newBlock.children[0].text = cleanedText || newBlock.children[0].text;
     }
@@ -2309,64 +2311,33 @@ window.getDB = getDB;
       var gi = 0;
       while (gi < uncached.length) {
         var ct = (uncached[gi].textContent || '').trim();
-        if (/^```/.test(ct)) {
-          var grp2 = [uncached[gi]],
-            gtxts2 = [ct];
-          gi++;
-          // 单段落已含完整代码块（开闭 ``` 都在一段内）→ 跳过收集中
-          if (ct.indexOf('```', 3) < 0) {
-            while (gi < uncached.length) {
-              var cn2 = (uncached[gi].textContent || '').trim();
-              gtxts2.push(cn2);
-              gi++;
-              if (/^```/.test(cn2)) break;
-            }
-          }
-          var merged2 = gtxts2.join('\n'),
+        if (CikeMdBlocks.isFenceLine(ct)) {
+          // 收集规则（含「单段落已含完整围栏」）见 CikeMdBlocks
+          var fg2 = CikeMdBlocks.collectFenceGroup(uncached, gi);
+          // 首次加载路径历史上只替换首段的围栏段，后续行保留原样（与旧实现逐字一致，勿"顺手修好"）
+          var grp2 = [uncached[fg2.start]];
+          gi = fg2.end;
+          var merged2 = fg2.texts.join('\n'),
             htmlG2 = renderMarkdownHtml(merged2);
           var tmpG2 = document.createElement('div');
           tmpG2.innerHTML = htmlG2;
           if (tmpG2.firstElementChild && tmpG2.firstElementChild.tagName === 'PRE') {
-            var dvG2 = document.createElement('div');
-            dvG2.contentEditable = 'false';
-            dvG2.className = 'md-preview block markdown-render';
-            dvG2.dataset.blockid = grp2[0].dataset.blockid;
-            dvG2.dataset.mdtext = merged2;
-            dvG2.innerHTML = htmlG2;
-            grp2[0].replaceWith(dvG2);
-            for (var riG2 = grp2.length - 1; riG2 >= 1; riG2--) {
-              if (grp2[riG2].parentNode) grp2[riG2].remove();
-            }
+            CikeMdBlocks.replaceGroupWithPreview(grp2, merged2, htmlG2);
           }
           continue;
         }
-        if (/^[-*]\s/.test(ct) || /^\d+\.\s/.test(ct)) {
-          var grp3 = [uncached[gi]],
-            gtxts3 = [ct];
-          gi++;
-          while (gi < uncached.length) {
-            var cn3 = (uncached[gi].textContent || '').trim();
-            if (/^[-*]\s/.test(cn3) || /^\d+\.\s/.test(cn3)) {
-              grp3.push(uncached[gi]);
-              gtxts3.push(cn3);
-              gi++;
-            } else break;
-          }
-          var merged3 = gtxts3.join('\n'),
+        if (CikeMdBlocks.isListLine(ct)) {
+          var lg3 = CikeMdBlocks.collectListGroup(uncached, gi);
+          var grp3 = CikeMdBlocks.range(lg3.start, lg3.end).map(function (k) {
+            return uncached[k];
+          });
+          gi = lg3.end;
+          var merged3 = lg3.texts.join('\n'),
             htmlG3 = renderMarkdownHtml(merged3);
           var tmpG3 = document.createElement('div');
           tmpG3.innerHTML = htmlG3;
           if (tmpG3.firstElementChild && (tmpG3.firstElementChild.tagName === 'UL' || tmpG3.firstElementChild.tagName === 'OL')) {
-            var dvG3 = document.createElement('div');
-            dvG3.contentEditable = 'false';
-            dvG3.className = 'md-preview block markdown-render';
-            dvG3.dataset.blockid = grp3[0].dataset.blockid;
-            dvG3.dataset.mdtext = merged3;
-            dvG3.innerHTML = htmlG3;
-            grp3[0].replaceWith(dvG3);
-            for (var riG3 = grp3.length - 1; riG3 >= 1; riG3--) {
-              if (grp3[riG3].parentNode) grp3[riG3].remove();
-            }
+            CikeMdBlocks.replaceGroupWithPreview(grp3, merged3, htmlG3);
           }
           continue;
         }
@@ -3867,60 +3838,35 @@ window.getDB = getDB;
       /* ---- 第一遍：识别代码块/列表行组，合并渲染 ---- */
       var ti = 0;
       if (!skipHeavy) {
-        // 代码块：以 ``` 开头和结尾的行组
+        // 代码块：以 ``` 开头和结尾的行组（收集规则见 CikeMdBlocks）
         var codeGroups = [];
         ti = 0;
         while (ti < ps.length) {
           var txt = (ps[ti].textContent || '').trim();
-          if (/^```/.test(txt)) {
-            var idx1 = ti;
-            var ctxts = [txt];
-            ti++;
-            // 单段落已含完整代码块 → 跳过收集中
-            if (txt.indexOf('```', 3) < 0) {
-              while (ti < ps.length) {
-                var nt = (ps[ti].textContent || '').trim();
-                ctxts.push(nt);
-                ti++;
-                if (/^```/.test(nt)) break;
-              }
-            }
+          if (CikeMdBlocks.isFenceLine(txt)) {
+            var fg = CikeMdBlocks.collectFenceGroup(ps, ti);
             codeGroups.push({
-              indices: Array.from({
-                length: ti - idx1
-              }, function (_, ii) {
-                return idx1 + ii;
-              }),
-              texts: ctxts
+              indices: CikeMdBlocks.range(fg.start, fg.end),
+              texts: fg.texts
             });
+            ti = fg.end;
           } else {
             ti++;
           }
         }
 
-        // 列表：连续以 -、*、数字. 开头的行组
+        // 列表：连续以 -、*、数字. 开头的行组（收集规则见 CikeMdBlocks）
         var listGroups = [];
         ti = 0;
         while (ti < ps.length) {
           var txt = (ps[ti].textContent || '').trim();
-          if (/^[-*]\s/.test(txt) || /^\d+\.\s/.test(txt)) {
-            var li = ti,
-              ltxts = [];
-            while (ti < ps.length) {
-              var nt = (ps[ti].textContent || '').trim();
-              if (/^[-*]\s/.test(nt) || /^\d+\.\s/.test(nt)) {
-                ltxts.push(nt);
-                ti++;
-              } else break;
-            }
+          if (CikeMdBlocks.isListLine(txt)) {
+            var lg = CikeMdBlocks.collectListGroup(ps, ti);
             listGroups.push({
-              indices: Array.from({
-                length: ti - li
-              }, function (_, ii) {
-                return li + ii;
-              }),
-              texts: ltxts
+              indices: CikeMdBlocks.range(lg.start, lg.end),
+              texts: lg.texts
             });
+            ti = lg.end;
           } else {
             ti++;
           }
@@ -3936,21 +3882,9 @@ window.getDB = getDB;
           var tmp2 = document.createElement('div');
           tmp2.innerHTML = html2;
           if (tmp2.firstElementChild && tmp2.firstElementChild.tagName === 'PRE') {
-            /* 防重复渲染 */
-            if (!ps[grp2.indices[0]] || !ps[grp2.indices[0]].parentNode) {
-              continue;
-            }
-            var dv2 = document.createElement('div');
-            dv2.contentEditable = 'false';
-            dv2.className = 'md-preview block markdown-render';
-            dv2.dataset.blockid = ps[grp2.indices[0]].dataset.blockid;
-            dv2.dataset.mdtext = merged2;
-            dv2.innerHTML = html2;
-            ps[grp2.indices[0]].replaceWith(dv2);
-            for (var ri2 = grp2.indices.length - 1; ri2 >= 1; ri2--) {
-              var tr2 = ps[grp2.indices[ri2]];
-              if (tr2.parentNode) tr2.remove();
-            }
+            CikeMdBlocks.replaceGroupWithPreview(grp2.indices.map(function (k) {
+              return ps[k];
+            }), merged2, html2);
           }
         }
 
@@ -3963,21 +3897,9 @@ window.getDB = getDB;
           var tmp3 = document.createElement('div');
           tmp3.innerHTML = html3;
           if (tmp3.firstElementChild && (tmp3.firstElementChild.tagName === 'UL' || tmp3.firstElementChild.tagName === 'OL')) {
-            /* 防重复渲染 */
-            if (!ps[grp3.indices[0]] || !ps[grp3.indices[0]].parentNode) {
-              continue;
-            }
-            var dv3 = document.createElement('div');
-            dv3.contentEditable = 'false';
-            dv3.className = 'md-preview block markdown-render';
-            dv3.dataset.blockid = ps[grp3.indices[0]].dataset.blockid;
-            dv3.dataset.mdtext = merged3;
-            dv3.innerHTML = html3;
-            ps[grp3.indices[0]].replaceWith(dv3);
-            for (var ri3 = grp3.indices.length - 1; ri3 >= 1; ri3--) {
-              var tr3 = ps[grp3.indices[ri3]];
-              if (tr3.parentNode) tr3.remove();
-            }
+            CikeMdBlocks.replaceGroupWithPreview(grp3.indices.map(function (k) {
+              return ps[k];
+            }), merged3, html3);
           }
         }
       } /* end if (!skipHeavy) */
