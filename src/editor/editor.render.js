@@ -104,9 +104,30 @@
       var id = el.dataset.blockid || '';
       var type = el.dataset.type || (/^H[1-6]$/.test(el.tagName) ? 'heading' : el.tagName === 'BLOCKQUOTE' ? 'quote' : el.tagName === 'HR' ? 'divider' : null) || 'paragraph';
       var prev = prevMap[id] || null;
-      // 原子块与不可编辑块：保留 prev
+      // 原子块与不可编辑块：图片说明可编辑，解析时保留媒体属性并同步说明文字。
       var atomicTypes = ['gallery','imgTextCard','imageTextRow'];
-      if (atomicTypes.indexOf(type) >= 0) { doc.push(prev || { id:id, type:type }); continue; }
+      if (atomicTypes.indexOf(type) >= 0) {
+        if (prev && (type === 'imgTextCard' || type === 'imageTextRow')) {
+          var captionEl = el.querySelector(type === 'imgTextCard' ? '.itc-text' : '.itr-text');
+          if (captionEl) {
+            var captionText = captionEl.textContent || '';
+            var oldChildren = prev.children || [];
+            var oldCaption = oldChildren[0] && oldChildren[0].text || '';
+            if (captionText !== oldCaption) {
+              var updated = Object.assign({}, prev);
+              updated.children = oldChildren.length
+                ? oldChildren.map(function(child, childIndex) {
+                    return childIndex === 0 ? Object.assign({}, child, { text: captionText }) : child;
+                  })
+                : [{ text: captionText }];
+              doc.push(updated);
+              continue;
+            }
+          }
+        }
+        doc.push(prev || { id:id, type:type });
+        continue;
+      }
       if (el.contentEditable === 'false') {
         // 块级渲染优先用 data-mdtext 保存原始 md 源码，防止 prev 为 null 时丢文本
         if (el.dataset.mdtext) {

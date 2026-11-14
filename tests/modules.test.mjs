@@ -92,6 +92,33 @@ test('编辑器解析保留 H1/H2/H3、引用块与分割线类型', () => {
   ]);
 });
 
+test('图文卡片与图文横排的说明文字编辑后保存且保留媒体属性', () => {
+  const env = makeEnv();
+  load(env, 'src/editor/editor.render.js');
+  const original = [
+    { id: 'card', type: 'imgTextCard', attrs: { imgUrl: 'data:image/png;base64,AA==' }, children: [{ text: '旧说明' }] },
+    { id: 'row', type: 'imageTextRow', attrs: { imgUrl: 'data:image/png;base64,BB==' }, children: [{ text: '旧横排说明' }] },
+    { id: 'gallery', type: 'gallery', attrs: { items: ['file-a'] } }
+  ];
+  env.win.MynoteEditor.setEditorDocRef(original);
+  const elements = [
+    { dataset: { blockid: 'card', type: 'imgTextCard' }, tagName: 'DIV', contentEditable: 'false',
+      querySelector: selector => selector === '.itc-text' ? { textContent: '新说明' } : null },
+    { dataset: { blockid: 'row', type: 'imageTextRow' }, tagName: 'DIV', contentEditable: 'false',
+      querySelector: selector => selector === '.itr-text' ? { textContent: '新横排说明' } : null },
+    { dataset: { blockid: 'gallery', type: 'gallery' }, tagName: 'DIV', contentEditable: 'false',
+      querySelector: () => null }
+  ];
+  const parsed = JSON.parse(JSON.stringify(env.win.MynoteEditor.parseEditorDOM({ children: elements })));
+  assert.deepEqual(parsed, [
+    { id: 'card', type: 'imgTextCard', attrs: { imgUrl: 'data:image/png;base64,AA==' }, children: [{ text: '新说明' }] },
+    { id: 'row', type: 'imageTextRow', attrs: { imgUrl: 'data:image/png;base64,BB==' }, children: [{ text: '新横排说明' }] },
+    { id: 'gallery', type: 'gallery', attrs: { items: ['file-a'] } }
+  ]);
+  assert.equal(original[0].children[0].text, '旧说明', '解析不应改写已保存对象');
+  assert.equal(original[1].children[0].text, '旧横排说明', '解析不应改写已保存对象');
+});
+
 test('ZIP 预检拒绝超大声明与危险路径', () => {
   const env = makeEnv();
   env.win.TextDecoder = TextDecoder;
