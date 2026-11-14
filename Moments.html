@@ -1058,7 +1058,7 @@ function openDB() {
 
 // 根据文件名扩展名推断 MIME type（来自 CikeIdb 模块）
 function guessMimeFromName(fileName, bytes) {
-  var m = window.CikeIdb ? window.CikeIdb.guessMimeFromName(fileName) : 'application/octet-stream';
+  var m = window.CikeIdb.guessMimeFromName(fileName);
   if (m === 'application/octet-stream' && bytes && window.CikeIdb) { var bm = window.CikeIdb.guessMimeFromBytes(bytes); if (bm) return bm; }
   return m;
 }
@@ -3689,7 +3689,7 @@ window.getDB = getDB;
         if (fid && files[fid] && files[fid].url) {
           var fi = files[fid];
           if (!(fi.type && fi.type.indexOf('image/') === 0)) {
-            var blob = window.CikeIdb ? window.CikeIdb.dataURLtoBlob(fi.url) : null;
+            var blob = window.CikeIdb.dataURLtoBlob(fi.url);
             if (blob) {
               var sf = new File([blob], fi.name || '文件', { type: fi.type || 'application/octet-stream' });
               if (navigator.share && navigator.canShare && navigator.canShare({ files: [sf] })) {
@@ -5371,9 +5371,9 @@ function MemoList() {
     idbInited.current = true;
     (async function() {
       try {
-        var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
+        var db = await window.CikeIdb.getDB();
         if (db) {
-          var stored = await (window.CikeIdb ? window.CikeIdb.loadMemosFromDB(db) : null);
+          var stored = await window.CikeIdb.loadMemosFromDB(db);
           if (stored && stored.length > 0) {
             var ns = stored.map(normalizeMemo);
             // 给已有附件补 image 标记
@@ -5391,7 +5391,7 @@ function MemoList() {
           normalized = buildBuiltinMemos();
         }
         if (db && normalized.length > 0) {
-          await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, normalized) : null);
+          await window.CikeIdb.saveMemosToDB(db, normalized);
         }
         try { localStorage.setItem("memos_app_v2", JSON.stringify(normalized)); } catch(e) {}
         setMemos(normalized);
@@ -5452,8 +5452,8 @@ function MemoList() {
       // 同步到 IndexedDB
       (async function() {
         try {
-          var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
-          if (db) await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, safe) : null);
+          var db = await window.CikeIdb.getDB();
+          if (db) await window.CikeIdb.saveMemosToDB(db, safe);
         } catch(e) { console.warn('[此刻] IDB save', e); }
       })();
     } catch (e) { console.warn('[此刻] localStorage save', e); }
@@ -5570,9 +5570,9 @@ function MemoList() {
         }));
         localStorage.setItem("memos_app_v2", JSON.stringify(safe));
         if (!saveMountedRef.current) return;
-        var db = await (window.CikeIdb ? window.CikeIdb.getDB() : null);
+        var db = await window.CikeIdb.getDB();
         if (!saveMountedRef.current) return;
-        if (db) await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, safe) : null);
+        if (db) await window.CikeIdb.saveMemosToDB(db, safe);
       } catch (e) { console.warn('[此刻] memo save flush', e); }
       skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1);
     })();
