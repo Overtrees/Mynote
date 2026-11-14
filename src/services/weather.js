@@ -38,12 +38,12 @@ async function fetchWeather() {
   } catch(e) {}
   /* ip-api 兜底（GPS失败时） */
   /* 获取城市名（无论 GPS 还是 ip-api 都尝试） */
-  if (!lat) {
+  if (!Number.isFinite(lat)) {
     try {
       var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
       if (ipRes.ok) {
         ipD = await ipRes.json();
-        if (ipD && ipD.lat) { lat = ipD.lat; lng = ipD.lon; }
+        if (ipD && Number.isFinite(ipD.lat) && Number.isFinite(ipD.lon)) { lat = ipD.lat; lng = ipD.lon; }
       }
     } catch(e) { console.warn('[此刻] weather ip 兜底失败', e); }
   }

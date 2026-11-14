@@ -385,6 +385,7 @@ function MemoList() {
         for (let j = 0; j < a.items.length; j++) {
           const it = a.items[j];
           if (it && typeof it === 'object') push(it.fileId);
+          else if (typeof it === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(it)) push(it);
         }
       }
     }

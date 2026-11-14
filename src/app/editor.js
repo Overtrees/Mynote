@@ -1464,6 +1464,17 @@ function Editor({
         return n;
       });
       var reader = new FileReader();
+      var rollbackFailedAttachment = function (err) {
+        docRef.current = docRef.current.filter(function (n) { return n.id !== id; });
+        var ce = editorBodyRef.current;
+        var node = ce && ce.querySelector('[data-blockid="' + id + '"]');
+        if (node) node.remove();
+        setFiles(function (prev) { var n = Object.assign({}, prev); delete n[id]; return n; });
+        try { URL.revokeObjectURL(url); } catch (_) {}
+        setEditorDocRef(docRef.current);
+        triggerAutoSave();
+        if (window.MynoteErrors) window.MynoteErrors.addWarn('附件保存失败，已取消插入，请重试。', err);
+      };
       var savePromise = new Promise(function (resolveAttach) {
         reader.onload = async function (ev) {
           try {
@@ -1506,6 +1517,7 @@ function Editor({
               }));
             }
           } catch (err) {
+            rollbackFailedAttachment(err);
             console.error("附件保存失败", err);
           } finally {
             delete pendingAttachmentsRef.current[id];
@@ -1513,10 +1525,12 @@ function Editor({
           }
         };
         reader.onerror = function () {
+          rollbackFailedAttachment(reader.error || new Error('文件读取失败'));
           delete pendingAttachmentsRef.current[id];
           resolveAttach();
         };
         reader.onabort = function () {
+          rollbackFailedAttachment(new Error('文件读取已取消'));
           delete pendingAttachmentsRef.current[id];
           resolveAttach();
         };
@@ -1569,7 +1583,11 @@ function Editor({
                   };
                   return n;
                 });
-              } catch (e) {}
+              } catch (e) {
+                if (window.MynoteErrors) window.MynoteErrors.addWarn('卡片图片保存失败，未添加图片，请重试。', e);
+                resolve();
+                return;
+              }
               var blk = docRef.current.find(function (n) {
                 return n.id === pendingBlockId;
               });
@@ -1823,6 +1841,12 @@ function Editor({
     }, 80);
   }, [triggerAutoSave, updateSlashStateFromSelection]);
   var handleEditorKeyDown = useCallback(function (e) {
+    var focusedMusicLink = e.target && e.target.closest && e.target.closest('a.music-card-link[data-url]');
+    if (focusedMusicLink && e.key === 'Enter') {
+      e.preventDefault();
+      window.open(focusedMusicLink.dataset.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (showSlash) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -1968,13 +1992,13 @@ function Editor({
             var tl = meta && meta.title || muUrl;
             var sr = meta && meta.source || '音乐';
             var hasCv = !!cv;
-            var rh = '<div contenteditable="false" class="link-card-block" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '">';
+            var rh = '<a contenteditable="false" aria-label="打开音乐链接" class="link-card-block music-card-link" href="' + escapeHTML(muUrl) + '" target="_blank" rel="noopener noreferrer" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '">';
             if (hasCv) rh += '<div class="lkc-cover"><img src="' + escapeHTML(cv) + '" alt="" onerror="var lc=this.closest(\'.lkc-cover\');if(lc)lc.style.display=\'none\'"></div>';
             rh += '<div class="lkc-body' + (hasCv ? ' has-cover' : '') + '">';
             rh += '<div class="lkc-title">' + escapeHTML(tl) + '</div>';
             if (meta && meta.subtitle) rh += '<div class="lkc-subtitle">' + escapeHTML(meta.subtitle) + '</div>';
             rh += '<div class="lkc-source"><span class="lkc-source-icon">🎵</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + escapeHTML(sr) + '</span></div>';
-            rh += '</div></div>';
+            rh += '</div></a>';
             el2.outerHTML = rh;
             triggerAutoSave();
           }
@@ -1984,7 +2008,7 @@ function Editor({
         if (ce2) {
           var el2 = ce2.querySelector('[data-blockid="' + mId + '"]');
           if (el2) {
-            el2.outerHTML = '<div contenteditable="false" data-blockid="' + mId + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>🎵</span><span>' + escapeHTML(muUrl) + '</span></div>';
+            el2.outerHTML = renderAtomicHTML({ id: mId, type: 'musicCard', url: muUrl, meta: null, status: 'error' }, files);
           }
         }
         triggerAutoSave();
@@ -2124,7 +2148,13 @@ function Editor({
 
     // 点击图片/附件左右边缘 → 插入新段落
     // 点击音乐卡片 → 输入链接
-    var musicCard = e.target.closest('[data-type="musicCard"]');
+    var musicCard = e.target && e.target.closest && e.target.closest('[data-type="musicCard"]');
+    /* Some browsers retarget clicks from non-editable atoms inside contentEditable to the editor.
+       Resolve the visually hit card so a rendered music link remains clickable. */
+    if (!musicCard && e.target === editorBodyRef.current && Number.isFinite(e.clientX) && Number.isFinite(e.clientY)) {
+      var hitTarget = document.elementFromPoint(e.clientX, e.clientY);
+      musicCard = hitTarget && hitTarget.closest && hitTarget.closest('[data-type="musicCard"]');
+    }
     if (musicCard) {
       var blockId2 = musicCard.dataset.blockid;
       var url2 = musicCard.dataset.url || '';
@@ -2155,8 +2185,11 @@ function Editor({
           s3.addRange(r3);
         }
         inputDiv.focus();
-      } else {
-        window.open(url2, '_blank');
+      }
+      if (url2) {
+        // Chromium can retarget clicks inside contenteditable to the editing host; open the link explicitly.
+        e.preventDefault();
+        window.open(url2, '_blank', 'noopener,noreferrer');
       }
       return;
     }
@@ -2472,9 +2505,13 @@ function Editor({
                 var cv = meta && meta.cover ? proxyImg(meta.cover) : '';
                 var tl = meta && meta.title || muUrl3;
                 var sr = meta && meta.source || '音乐';
-                var finalDiv = document.createElement('div');
+                var finalDiv = document.createElement('a');
                 finalDiv.contentEditable = 'false';
-                finalDiv.className = 'link-card-block';
+                finalDiv.className = 'link-card-block music-card-link';
+                finalDiv.href = muUrl3;
+                finalDiv.target = '_blank';
+                finalDiv.rel = 'noopener noreferrer';
+                finalDiv.setAttribute('aria-label', '打开音乐链接');
                 finalDiv.dataset.blockid = muId;
                 finalDiv.dataset.type = 'musicCard';
                 finalDiv.dataset.url = muUrl3;
@@ -2495,7 +2532,7 @@ function Editor({
             if (ce2) {
               var el2 = ce2.querySelector('[data-blockid="' + muId + '"]');
               if (el2) {
-                el2.outerHTML = '<div contenteditable="false" data-blockid="' + muId + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>🎵</span><span>' + escapeHTML(muUrl3) + '</span></div>';
+                el2.outerHTML = renderAtomicHTML({ id: muId, type: 'musicCard', url: muUrl3, meta: null, status: 'error' }, files);
               }
             }
             triggerAutoSave();

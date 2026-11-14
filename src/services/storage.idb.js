@@ -693,6 +693,11 @@
               if (!value || typeof value !== 'object') return;
               if (Array.isArray(value)) { value.forEach(visit); return; }
               if (typeof value.fileId === 'string') referenced[value.fileId] = true;
+              if (value.type === 'gallery' && value.attrs && Array.isArray(value.attrs.items)) {
+                value.attrs.items.forEach(function (item) {
+                  if (typeof item === 'string' && isLegacyGalleryFileId(item)) referenced[item] = true;
+                });
+              }
               Object.keys(value).forEach(function (key) { if (key !== 'fileId') visit(value[key]); });
             }
             (req.result || []).forEach(visit);
@@ -755,12 +760,21 @@
     return write;
   }
 
+  function isLegacyGalleryFileId(value) {
+    return typeof value === 'string' && /^[A-Za-z0-9_-]{1,256}$/.test(value);
+  }
+
   function collectAttachmentIds(value) {
     var ids = Object.create(null);
     function visit(item) {
       if (!item || typeof item !== 'object') return;
       if (Array.isArray(item)) { item.forEach(visit); return; }
       if (typeof item.fileId === 'string' && item.fileId) ids[item.fileId] = true;
+      if (item.type === 'gallery' && item.attrs && Array.isArray(item.attrs.items)) {
+        item.attrs.items.forEach(function (entry) {
+          if (typeof entry === 'string' && isLegacyGalleryFileId(entry)) ids[entry] = true;
+        });
+      }
       Object.keys(item).forEach(function (key) { if (key !== 'fileId') visit(item[key]); });
     }
     visit(value);

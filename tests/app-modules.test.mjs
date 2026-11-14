@@ -91,3 +91,43 @@ test('Drive 备份选择优先使用最新 ZIP，且不会丢失完整附件 ID'
   assert.equal(win.MynoteIdb.resolveAttachmentId('att_cn_1', {}, ['att_cn_1']), 'att_cn_1');
   assert.deepEqual(Array.from(win.MynoteIdb.collectAttachmentIds([{ fileId: 'att_cn_1' }, { attrs: { fileId: 'att_other' } }])).sort(), ['att_cn_1', 'att_other']);
 });
+
+test('附件收集兼容旧格式画廊 ID，忽略 URL 与 data URL', () => {
+  const { win } = makeAppEnv();
+  const ids = Array.from(win.MynoteIdb.collectAttachmentIds([
+    { type: 'gallery', attrs: { items: ['legacy_id_1', 'https://example.test/a.png', 'data:image/png;base64,AA==', { fileId: 'modern_id' }] } }
+  ])).sort();
+  assert.deepEqual(ids, ['legacy_id_1', 'modern_id']);
+});
+
+test('IP 兜底返回赤道纬度 0 时仍查询天气', async () => {
+  const { win } = makeAppEnv();
+  const calls = [];
+  win.localStorage.removeItem('weather_cache');
+  win.MynoteConstants.QWEATHER_API_KEY = 'test-only';
+  win.navigator.geolocation = { getCurrentPosition(_ok, fail) { fail(new Error('no GPS')); } };
+  win.fetch = async url => {
+    calls.push(String(url));
+    if (String(url).includes('ip-api.com')) return { ok: true, json: async () => ({ lat: 0, lon: 0, city: 'Equator' }) };
+    if (String(url).includes('/weather/now')) return { ok: true, json: async () => ({ code: '200', now: { temp: '25', text: '晴' } }) };
+    if (String(url).includes('/geo/v2/')) return { ok: true, json: async () => ({ code: '200', location: [] }) };
+    throw new Error('unexpected request');
+  };
+  const result = await win.MynoteWeather.fetchWeather();
+  assert.equal(result.lat, 0);
+  assert.equal(result.lng, 0);
+  assert.ok(calls.some(url => url.includes('/weather/now?location=0,0')));
+});
+
+test('音乐卡片元数据失败仍保留可访问的外链卡片结构', () => {
+  const { win } = makeAppEnv();
+  const html = win.MynoteEditor.renderDocToEditorHTML([
+    { id: 'music-failed', type: 'musicCard', url: 'https://open.spotify.com/track/example', status: 'error', meta: null }
+  ], {});
+  assert.match(html, /music-card-error/);
+  // The test DOM has no DOMPurify, so the fail-closed path escapes the rendered markup.
+  const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  assert.match(decoded, /data-url="https:\/\/open\.spotify\.com\/track\/example"/);
+  assert.match(decoded, /<a[^>]+href="https:\/\/open\.spotify\.com\/track\/example"[^>]+target="_blank"[^>]+rel="noopener noreferrer"/);
+  assert.match(decoded, /预览不可用/);
+});

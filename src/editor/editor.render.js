@@ -22,7 +22,7 @@
   function sanitizeRenderedHTML(html) {
     var purifier = w.DOMPurify;
     if (purifier && typeof purifier.sanitize === 'function') {
-      return purifier.sanitize(String(html || ''), { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type'] });
+      return purifier.sanitize(String(html || ''), { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type', 'target', 'rel'] });
     }
     // Sanitizer must fail closed. The editor displays the escaped source rather than executing markup.
     return escapeHTML(html || '');
@@ -214,17 +214,19 @@
       if (muUrl && muMeta && muMeta.title) {
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
         var muTitle = muMeta.title || '\u97F3\u4E50';
-        var muHtml2 = '<div contenteditable="false" class="link-card-block" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '">';
+        var muHtml2 = '<a contenteditable="false" class="link-card-block music-card-link" href="' + safeHttpUrl(muUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="打开音乐链接" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '">';
         if (muCover) muHtml2 += '<div class="lkc-cover"><img src="' + safeImageUrl(muCover) + '" alt="" onerror="this.closest(\'.lkc-cover\').style.display=\'none\'"></div>';
         muHtml2 += '<div class="lkc-body' + (muCover ? ' has-cover' : '') + '"><div class="lkc-title">' + w.MynoteEditor.escapeHTML(muTitle) + '</div>';
         if (muMeta.subtitle) muHtml2 += '<div class="lkc-subtitle">' + w.MynoteEditor.escapeHTML(muMeta.subtitle) + '</div>';
-        muHtml2 += '<div class="lkc-source"><span class="lkc-source-icon">\uD83C\uDFB5</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(muMeta.source || '\u97F3\u4E50') + '</span></div></div></div>';
+        muHtml2 += '<div class="lkc-source"><span class="lkc-source-icon">\uD83C\uDFB5</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(muMeta.source || '\u97F3\u4E50') + '</span></div></div></a>';
         return muHtml2;
       }
       if (muStatus === 'loading' && muUrl) {
         return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       }
-      return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
+      var fallbackTag = muUrl ? 'a' : 'div';
+      var fallbackAttrs = muUrl ? ' href="' + safeHttpUrl(muUrl) + '" target="_blank" rel="noopener noreferrer"' : '';
+      return '<' + fallbackTag + ' contenteditable="false"' + fallbackAttrs + (muUrl ? ' aria-label="打开音乐链接"' : '') + ' class="' + (muUrl ? 'link-card-block music-card-error music-card-link' : '') + '" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard"' + (muUrl ? ' data-url="' + safeHttpUrl(muUrl) + '"' : '') + ' style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(muUrl || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span>' + (muUrl && muStatus === 'error' ? '<span class="lkc-source-text">预览不可用 · 点击打开</span>' : '') + '</' + fallbackTag + '>';
     }
     return '';
   }

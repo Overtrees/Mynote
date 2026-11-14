@@ -26,9 +26,16 @@ const check = (name, ok, detail = '') => {
 const browser = await chromium.launch({ executablePath: CHROME, args: ARGS });
 const ctx = await browser.newContext({ viewport: { width: 430, height: 900 }, ignoreHTTPSErrors: true });
 const page = await ctx.newPage();
+// Isolate music-link metadata from external services; exercise only the app's rendering flow.
+await ctx.route('https://open.spotify.com/**', async route => route.fulfill({ status: 200, contentType: 'text/html', body: '<title>Mock Spotify destination</title>' }));
+await page.route('**/meta?*', async route => {
+  const url = route.request().url();
+  if (url.includes('fail-track')) return route.fulfill({ status: 502, body: 'mock metadata failure' });
+  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Mock Song', subtitle: 'Mock Artist', source: 'Spotify' }) });
+});
 const errors = [];
 page.on('pageerror', e => errors.push(e.message.split('\n')[0]));
-page.on('console', m => { if (m.type() === 'error' && !/404|CERT|Failed to load resource/.test(m.text())) errors.push(m.text()); });
+page.on('console', m => { if (m.type() === 'error' && !/404|CERT|Failed to load resource|mock IndexedDB write failure/.test(m.text())) errors.push(m.text()); });
 
 await page.goto(BASE, { waitUntil: 'load', timeout: 45000 });
 await page.waitForSelector('.list-item', { timeout: 30000 });
@@ -155,10 +162,20 @@ const attachmentSafety = await page.evaluate(async () => {
   await C.saveMemosToDB(db, [{ id: 'ref_b', title: 'B', doc: [] }]);
   const deleted = await C.deleteUnreferencedAttachments(db, ['shared_ref']);
   const gone = await C.loadAttachmentFromDB(db, 'shared_ref');
-  return { sharedKept: !!kept, orphanDeleted: deleted.includes('shared_ref') && !gone };
+
+  await C.saveAttachmentToDB(db, { id: 'legacy_gallery_ref', name: 'legacy.txt', type: 'text/plain', url: 'data:text/plain;base64,eA==', thumb: null });
+  await C.saveMemosToDB(db, [{ id: 'legacy_gallery', title: '旧画廊', doc: [{ type: 'gallery', attrs: { items: ['legacy_gallery_ref'] } }] }]);
+  const legacyDeleted = await C.deleteUnreferencedAttachments(db, ['legacy_gallery_ref']);
+  const legacyKept = await C.loadAttachmentFromDB(db, 'legacy_gallery_ref');
+  await C.saveMemosToDB(db, [{ id: 'legacy_gallery', title: '旧画廊', doc: [{ type: 'gallery', attrs: { items: ['https://example.test/x.png', 'data:image/png;base64,AA=='] } }] }]);
+  const legacyOrphanDeleted = await C.deleteUnreferencedAttachments(db, ['legacy_gallery_ref']);
+  const legacyGone = await C.loadAttachmentFromDB(db, 'legacy_gallery_ref');
+  return { sharedKept: !!kept, orphanDeleted: deleted.includes('shared_ref') && !gone, legacyKept: !!legacyKept && !legacyDeleted.includes('legacy_gallery_ref'), legacyOrphanDeleted: legacyOrphanDeleted.includes('legacy_gallery_ref') && !legacyGone };
 });
 check('附件仍被其他笔记引用时不删除', attachmentSafety.sharedKept);
 check('无引用附件在提交后可安全回收', attachmentSafety.orphanDeleted);
+check('旧格式画廊字符串附件 ID 仍受引用保护', attachmentSafety.legacyKept);
+check('旧画廊仅剩 URL/data URL 时可回收孤儿附件', attachmentSafety.legacyOrphanDeleted);
 
 const writeOrder = await page.evaluate(async () => {
   const C = window.MynoteIdb, db = await C.getDB();
@@ -214,6 +231,128 @@ const long = await page.evaluate(async () => {
   return body ? { paras: body.querySelectorAll('p').length, hasLast: body.innerText.includes('第59段') } : { paras: 0, hasLast: false };
 });
 check('长文档全量渲染（虚拟滚动已移除）', long.paras >= 60 && long.hasLast, JSON.stringify(long));
+
+// ---- 实际可见菜单与音乐链接粘贴交互 ----
+const menuLabels = await (async () => {
+  await page.locator('.editor-fab.right').click();
+  const menu = page.locator('button').filter({ hasText: '撤销' });
+  await menu.waitFor({ state: 'visible' });
+  const labels = await page.locator('.editor-fab.right').evaluate(button => {
+    const menu = button.parentElement;
+    return [...document.querySelectorAll('button')].filter(b => {
+      const t = b.innerText || '';
+      return ['撤销','重做','添加附件','更换背景色'].some(x => t.includes(x));
+    }).map(b => b.innerText.trim().replace(/\s+/g, ' '));
+  });
+  await page.locator('.editor-fab.right').click();
+  return labels;
+})();
+check('编辑器菜单四项入口可见', menuLabels.length === 4 && ['撤销','重做','添加附件','更换背景色'].every(x => menuLabels.some(t => t.includes(x))), JSON.stringify(menuLabels));
+
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('MENU_ACTION');
+await page.waitForTimeout(500);
+await page.locator('.editor-fab.right').click();
+await page.locator('button').filter({ hasText: '撤销' }).click({ force: true });
+await page.waitForTimeout(350);
+const menuUndoOk = !(await page.locator('.editor-body').innerText()).includes('MENU_ACTION');
+await page.locator('.editor-fab.right').click();
+await page.locator('button').filter({ hasText: '重做' }).click({ force: true });
+await page.waitForTimeout(350);
+const menuRedoOk = (await page.locator('.editor-body').innerText()).includes('MENU_ACTION');
+check('菜单撤销/重做可用', menuUndoOk && menuRedoOk, `undo=${menuUndoOk}, redo=${menuRedoOk}`);
+
+await page.locator('.editor-fab.right').click();
+const chooserPromise = page.waitForEvent('filechooser');
+await page.locator('button').filter({ hasText: '添加附件' }).click({ force: true });
+const chooser = await chooserPromise;
+await page.evaluate(() => {
+  window.__saveAttachmentOriginal = window.MynoteIdb.saveAttachmentToDB;
+  window.MynoteIdb.saveAttachmentToDB = async () => { throw new Error('mock IndexedDB write failure'); };
+});
+await chooser.setFiles({ name: 'fault-test.txt', mimeType: 'text/plain', buffer: Buffer.from('safe test payload') });
+await page.waitForFunction(() => !document.querySelector('.editor-body [data-type="attachment"][data-fileid]'), { timeout: 5000 }).catch(() => {});
+const attachmentRollback = await page.evaluate(() => {
+  const errorLogged = window.MynoteErrors && window.MynoteErrors.errors.some(e => /附件保存失败/.test(e.message || e.text || ''));
+  window.MynoteIdb.saveAttachmentToDB = window.__saveAttachmentOriginal;
+  return { noRef: !document.querySelector('.editor-body [data-type="attachment"][data-fileid]'), errorLogged };
+});
+check('附件写库失败时菜单插入回滚且提示', attachmentRollback.noRef && attachmentRollback.errorLogged, JSON.stringify(attachmentRollback));
+
+await page.locator('.editor-fab.right').click();
+await page.locator('button').filter({ hasText: '更换背景色' }).click({ force: true });
+await page.getByRole('button', { name: '暖沙' }).waitFor({ state: 'visible' });
+await page.getByRole('button', { name: '暖沙' }).click();
+await page.waitForTimeout(350);
+const backgroundSaved = await page.evaluate(async () => {
+  const memos = await window.MynoteIdb.loadMemosFromDB(await window.MynoteIdb.getDB());
+  const target = memos.find(m => m.id === 'm_long');
+  return !!(target && target.bgColor);
+});
+check('背景色面板可选择并持久化', backgroundSaved);
+
+// Use genuine paste event handling, with metadata fetch stubbed above (no third-party playback/account).
+const music = await page.evaluate(async () => {
+  const body = document.querySelector('.editor-body');
+  body.focus();
+  const range = document.createRange(); range.selectNodeContents(body); range.collapse(false);
+  const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+  const paste = value => {
+    const data = new DataTransfer(); data.setData('text/plain', value);
+    body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  };
+  paste('https://open.spotify.com/track/mock-track');
+  await new Promise(r => setTimeout(r, 500));
+  const card = body.querySelector('[data-type="musicCard"][data-url*="spotify"]');
+  const ready = card && card.classList.contains('link-card-block') && card.querySelector('.lkc-title')?.textContent === 'Mock Song';
+  const visible = card && card.getBoundingClientRect().width > 0 && card.getBoundingClientRect().height > 0 && getComputedStyle(card).display !== 'none';
+  const access = card && card.tagName === 'A' && card.getAttribute('href') === 'https://open.spotify.com/track/mock-track' && card.getAttribute('target') === '_blank' && card.getAttribute('rel') === 'noopener noreferrer';
+  return { ready: !!ready, visible: !!visible, access: !!access, url: card?.dataset.url || '' };
+});
+check('粘贴 Spotify 链接自动成可见可访问音乐卡', music.ready && music.visible && music.access, JSON.stringify(music));
+const musicCardLocator = page.locator('.editor-body [data-type="musicCard"][data-url*="spotify"]');
+await musicCardLocator.scrollIntoViewIfNeeded();
+await page.evaluate(() => {
+  window.__openedMusic = null;
+  window.open = (...args) => { window.__openedMusic = args; return null; };
+});
+const musicAnchor = await musicCardLocator.evaluate(e => ({
+  tag: e.tagName, href: e.getAttribute('href'), target: e.getAttribute('target'), rel: e.getAttribute('rel'),
+  visible: e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().height > 0
+}));
+await musicCardLocator.click({ position: { x: 190, y: 40 }, timeout: 5000 });
+const musicClickResult = await page.evaluate(() => window.__openedMusic);
+check('点击音乐卡安全打开原链接', musicAnchor.tag === 'A' && musicAnchor.href === 'https://open.spotify.com/track/mock-track' && musicAnchor.target === '_blank' && musicAnchor.rel.includes('noopener') && musicAnchor.visible && musicClickResult?.[0] === musicAnchor.href && musicClickResult?.[1] === '_blank' && musicClickResult?.[2] === 'noopener,noreferrer', JSON.stringify({ ...musicAnchor, opened: musicClickResult }));
+await musicCardLocator.focus();
+await page.keyboard.press('Enter');
+const musicKeyboardResult = await page.evaluate(() => window.__openedMusic);
+check('键盘 Enter 可打开音乐卡', musicKeyboardResult?.[0] === musicAnchor.href && musicKeyboardResult?.[1] === '_blank' && musicKeyboardResult?.[2] === 'noopener,noreferrer', JSON.stringify(musicKeyboardResult));
+
+const musicFailure = await page.evaluate(async () => {
+  const body = document.querySelector('.editor-body');
+  body.focus(); const range = document.createRange(); range.selectNodeContents(body); range.collapse(false);
+  const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range);
+  const data = new DataTransfer(); data.setData('text/plain', 'https://open.spotify.com/track/fail-track');
+  body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  await new Promise(r => setTimeout(r, 400));
+  const card = [...body.querySelectorAll('[data-type="musicCard"]')].find(e => e.dataset.url?.includes('fail-track'));
+  return { fallback: !!(card && card.classList.contains('music-card-error') && card.innerText.includes('点击打开')), visible: !!(card && card.getBoundingClientRect().width > 0), url: card?.dataset.url || '' };
+});
+check('音乐元数据失败仍显示可恢复链接卡', musicFailure.fallback && musicFailure.visible && musicFailure.url.includes('fail-track'), JSON.stringify(musicFailure));
+
+// Slash menu: verify real menu rendering and apply a non-destructive heading command.
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+const slashCount = await page.locator('.slash-row').count();
+check('斜杠命令菜单可渲染', slashCount >= 29, `当前可见命令 ${slashCount}`);
+const headingCommand = page.locator('.slash-row').filter({ hasText: '标题 1' }).first();
+await headingCommand.click();
+await page.locator('.editor-body h1').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+const headingApplied = await page.locator('.editor-body h1').count() > 0;
+check('斜杠标题命令可执行', headingApplied);
 
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 
