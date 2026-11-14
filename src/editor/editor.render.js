@@ -79,11 +79,7 @@
     var children = containerEl.children;
     for (var i = 0; i < children.length; i++) {
       var el = children[i];
-      if (el.nodeType !== 1) {
-        var txt = (el.textContent || '').trim();
-        if (txt) doc.push({ id: (w.CikeId && w.CikeId.genId ? w.CikeId.genId() : Math.random().toString(36).slice(2,10)), type:'paragraph', children:[{text:txt}] });
-        continue;
-      }
+      // children 是元素集合，nodeType 恒为 1（原先的文本节点分支不可达，已删除）
       var id = el.dataset.blockid || '';
       var type = el.dataset.type || (el.tagName === 'H1'||el.tagName==='H2'||el.tagName==='H3' ? 'heading' : el.tagName === 'H4'||el.tagName==='H5'||el.tagName==='H6' ? 'heading' : null) || 'paragraph';
       var prev = prevMap[id] || null;
