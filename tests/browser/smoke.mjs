@@ -353,6 +353,62 @@ await headingCommand.click();
 await page.locator('.editor-body h1').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
 const headingApplied = await page.locator('.editor-body h1').count() > 0;
 check('斜杠标题命令可执行', headingApplied);
+await page.waitForTimeout(900);
+const headingPersistence = await page.evaluate(async () => {
+  const node = [...document.querySelectorAll('.editor-body h1')].at(-1);
+  if (!node) return null;
+  const id = node.dataset.blockid;
+  const memos = await MynoteIdb.loadMemosFromDB(await MynoteIdb.getDB());
+  const memo = memos.find(m => Array.isArray(m.doc) && m.doc.some(b => b.id === id));
+  const block = memo?.doc.find(b => b.id === id);
+  return block && { type: block.type, level: block.attrs?.level };
+});
+check('H1 命令保存后仍是一级标题', headingPersistence?.type === 'heading' && headingPersistence.level === 1, JSON.stringify(headingPersistence));
+
+async function applyExactSlash(title) {
+  const body = page.locator('.editor-body');
+  await body.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('/');
+  await page.locator('.slash-row').first().waitFor({ state: 'visible', timeout: 5000 });
+  const index = await page.locator('.slash-row').evaluateAll((els, wanted) => els.findIndex(e => e.children[1]?.children[0]?.querySelector('span')?.textContent?.trim() === wanted), title);
+  if (index < 0) throw new Error(`Slash command not found: ${title}`);
+  await page.locator('.slash-row').nth(index).click();
+  await page.waitForTimeout(900);
+}
+async function storedBlockForLast(selector) {
+  return page.evaluate(async selector => {
+    const node = [...document.querySelectorAll('.editor-body ' + selector)].at(-1);
+    if (!node) return null;
+    const id = node.dataset.blockid;
+    const memos = await MynoteIdb.loadMemosFromDB(await MynoteIdb.getDB());
+    const memo = memos.find(m => Array.isArray(m.doc) && m.doc.some(b => b.id === id));
+    const block = memo?.doc.find(b => b.id === id);
+    return block && { type: block.type, attrs: block.attrs || {}, text: block.children?.[0]?.text || '' };
+  }, selector);
+}
+await applyExactSlash('引用');
+const quoteSaved = await storedBlockForLast('blockquote');
+check('引用命令保存后保留引用块', quoteSaved?.type === 'quote', JSON.stringify(quoteSaved));
+await applyExactSlash('分割线');
+const dividerSaved = await storedBlockForLast('hr');
+check('分割线命令保存后保留分割线', dividerSaved?.type === 'divider', JSON.stringify(dividerSaved));
+await applyExactSlash('待办');
+const todo = page.locator('.editor-body [data-type="todo"]').last();
+await todo.locator('span').last().click();
+await page.keyboard.type('AUDIT_TASK');
+await page.waitForTimeout(800);
+await todo.locator('.todo-checkbox').click();
+await page.waitForTimeout(800);
+const todoSaved = await page.evaluate(async () => {
+  const node = [...document.querySelectorAll('.editor-body [data-type="todo"]')].at(-1);
+  const id = node?.dataset.blockid;
+  const memos = await MynoteIdb.loadMemosFromDB(await MynoteIdb.getDB());
+  const memo = memos.find(m => Array.isArray(m.doc) && m.doc.some(b => b.id === id));
+  const block = memo?.doc.find(b => b.id === id);
+  return { checked: node?.querySelector('.todo-checkbox')?.dataset.checked === 'true', text: block?.children?.[0]?.text || '', savedChecked: block?.attrs?.checked };
+});
+check('待办可编辑、勾选并保存状态', todoSaved.checked && todoSaved.text.includes('AUDIT_TASK') && todoSaved.savedChecked === true, JSON.stringify(todoSaved));
 
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 

@@ -102,7 +102,7 @@
       var el = children[i];
       // children 是元素集合，nodeType 恒为 1（原先的文本节点分支不可达，已删除）
       var id = el.dataset.blockid || '';
-      var type = el.dataset.type || (el.tagName === 'H1'||el.tagName==='H2'||el.tagName==='H3' ? 'heading' : el.tagName === 'H4'||el.tagName==='H5'||el.tagName==='H6' ? 'heading' : null) || 'paragraph';
+      var type = el.dataset.type || (/^H[1-6]$/.test(el.tagName) ? 'heading' : el.tagName === 'BLOCKQUOTE' ? 'quote' : el.tagName === 'HR' ? 'divider' : null) || 'paragraph';
       var prev = prevMap[id] || null;
       // 原子块与不可编辑块：保留 prev
       var atomicTypes = ['gallery','imgTextCard','imageTextRow'];
@@ -134,8 +134,15 @@
       if (type === 'heading') {
         var rawH = el.textContent || '';
         if (prev && prev.type === 'heading' && prev.children && prev.children[0] && prev.children[0].text === rawH) { doc.push(prev); continue; }
-        var level = parseInt(el.dataset.level,10) || 2;
+        var level = parseInt(el.dataset.level,10) || (/^H[1-6]$/.test(el.tagName) ? parseInt(el.tagName.slice(1),10) : 2);
         doc.push({ id:id, type:type, attrs:{level:level}, children:[{text:rawH}] });
+        continue;
+      }
+      if (type === 'quote') {
+        var rawQuote = el.textContent || '';
+        if (rawQuote === '\u200B') rawQuote = '';
+        if (prev && prev.type === 'quote' && prev.children && prev.children[0] && prev.children[0].text === rawQuote) { doc.push(prev); continue; }
+        doc.push({ id:id, type:'quote', children:[{text:rawQuote}] });
         continue;
       }
       if (type === 'todo') {
@@ -145,7 +152,7 @@
         doc.push({ id:id, type:type, attrs:{checked:checked}, children:[{text:rawTodo}] });
         continue;
       }
-      if (type === 'divider') { doc.push(prev || { id:id, type:type }); continue; }
+      if (type === 'divider') { doc.push(prev && prev.type === 'divider' ? prev : { id:id, type:'divider' }); continue; }
       // data-mdtext 优先（渲染块如表格/代码块/Callout/内联渲染）：保存原始 markdown 文本
       if (el.dataset.mdtext) { doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue; }
       // 不可编辑块：优先 data-mdtext，其次 prev

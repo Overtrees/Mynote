@@ -72,6 +72,26 @@ test('文档渲染在 DOMPurify 缺失时转义不可信属性', () => {
   assert.match(html, /&lt;p/);
 });
 
+test('编辑器解析保留 H1/H2/H3、引用块与分割线类型', () => {
+  const env = makeEnv();
+  load(env, 'src/editor/editor.render.js');
+  const nodes = [
+    { tagName: 'H1', dataset: { blockid: 'h1' }, textContent: '一级', contentEditable: 'inherit', querySelector: () => null },
+    { tagName: 'H2', dataset: { blockid: 'h2' }, textContent: '二级', contentEditable: 'inherit', querySelector: () => null },
+    { tagName: 'H3', dataset: { blockid: 'h3' }, textContent: '三级', contentEditable: 'inherit', querySelector: () => null },
+    { tagName: 'BLOCKQUOTE', dataset: { blockid: 'quote' }, textContent: '引用内容', contentEditable: 'inherit', querySelector: () => null },
+    { tagName: 'HR', dataset: { blockid: 'divider' }, textContent: '', contentEditable: 'inherit', querySelector: () => null }
+  ];
+  const parsed = env.win.MynoteEditor.parseEditorDOM({ children: nodes });
+  assert.deepEqual(JSON.parse(JSON.stringify(parsed)), [
+    { id: 'h1', type: 'heading', attrs: { level: 1 }, children: [{ text: '一级' }] },
+    { id: 'h2', type: 'heading', attrs: { level: 2 }, children: [{ text: '二级' }] },
+    { id: 'h3', type: 'heading', attrs: { level: 3 }, children: [{ text: '三级' }] },
+    { id: 'quote', type: 'quote', children: [{ text: '引用内容' }] },
+    { id: 'divider', type: 'divider' }
+  ]);
+});
+
 test('ZIP 预检拒绝超大声明与危险路径', () => {
   const env = makeEnv();
   env.win.TextDecoder = TextDecoder;
