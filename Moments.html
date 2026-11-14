@@ -1024,7 +1024,7 @@ const BACKUP_FILE_NAME = window.CikeConstants.BACKUP_FILE_NAME;
 /* ---------- DB 单例（来自 CikeIdb 模块） ---------- */
 var _dbInstance = null;
 function getDB() {
-  return window.CikeIdb ? window.CikeIdb.getDB() : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.getDB();
 }
 
 /* ---------- 安全日志辅助 ---------- */
@@ -1053,7 +1053,7 @@ function getSectionLabel(dateStr) {
 
 /* ---------- IndexedDB（来自 CikeIdb 模块） ---------- */
 function openDB() {
-  return window.CikeIdb ? window.CikeIdb.openDB() : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.openDB();
 }
 
 // 根据文件名扩展名推断 MIME type（来自 CikeIdb 模块）
@@ -1065,43 +1065,43 @@ function guessMimeFromName(fileName, bytes) {
 
 // 打包附件到 ZIP data（来自 CikeIdb 模块）
 async function packAttachmentsToZip(db, zipData, onProgress) {
-  return window.CikeIdb ? window.CikeIdb.packAttachmentsToZip(db, zipData, onProgress) : undefined;
+  return window.CikeIdb.packAttachmentsToZip(db, zipData, onProgress);
 }
 // 从 ZIP 恢复附件到 IDB（来自 CikeIdb 模块）
 async function restoreAttachmentsFromZip(unzipped, db) {
-  return window.CikeIdb ? window.CikeIdb.restoreAttachmentsFromZip(unzipped, db) : {success:0,fail:0};
+  return window.CikeIdb.restoreAttachmentsFromZip(unzipped, db);
 }
 async function restoreAvatars(avatars, db) {
-  return window.CikeIdb ? window.CikeIdb.restoreAvatars(avatars, db) : undefined;
+  return window.CikeIdb.restoreAvatars(avatars, db);
 }
 async function saveAttachmentToDB(db, obj) {
-  return window.CikeIdb ? window.CikeIdb.saveAttachmentToDB(db, obj) : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.saveAttachmentToDB(db, obj);
 }
 async function loadAttachmentFromDB(db, id) {
-  return window.CikeIdb ? window.CikeIdb.loadAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.loadAttachmentFromDB(db, id);
 }
 async function deleteAttachmentFromDB(db, id) {
-  return window.CikeIdb ? window.CikeIdb.deleteAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.deleteAttachmentFromDB(db, id);
 }
 async function saveAvatarToDB(db, memoId, dataUrl) {
-  return window.CikeIdb ? window.CikeIdb.saveAvatarToDB(db, memoId, dataUrl) : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.saveAvatarToDB(db, memoId, dataUrl);
 }
 
 /* ---------- renderCache 读写（来自 CikeIdb 模块） ---------- */
 async function saveRenderCacheToDB(db, memoId, cache) {
-  return window.CikeIdb ? window.CikeIdb.saveRenderCacheToDB(db, memoId, cache) : undefined;
+  return window.CikeIdb.saveRenderCacheToDB(db, memoId, cache);
 }
 async function loadRenderCacheFromDB(db, memoId) {
-  return window.CikeIdb ? window.CikeIdb.loadRenderCacheFromDB(db, memoId) : null;
+  return window.CikeIdb.loadRenderCacheFromDB(db, memoId);
 }
 async function loadAvatarFromDB(db, memoId) {
-  return window.CikeIdb ? window.CikeIdb.loadAvatarFromDB(db, memoId) : Promise.reject(new Error('CikeIdb not loaded'));
+  return window.CikeIdb.loadAvatarFromDB(db, memoId);
 }
 function createThumbnail(dataUrl) {
-  return window.CikeIdb ? window.CikeIdb.createThumbnail(dataUrl) : Promise.resolve(null);
+  return window.CikeIdb.createThumbnail(dataUrl);
 }
 function dataURLtoBlob(dataURL) {
-  return window.CikeIdb ? window.CikeIdb.dataURLtoBlob(dataURL) : new Blob([]);
+  return window.CikeIdb.dataURLtoBlob(dataURL);
 }
 
 /* ---------- SwipeRow ---------- */
