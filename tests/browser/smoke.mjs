@@ -95,6 +95,43 @@ check('stage 失败被拦截且数据未动', !!restore.stageErr && restore.stag
 check('commit 失败整体回滚', !!restore.commitErr && restore.commitIntact, restore.commitErr || '');
 check('正常恢复生效', restore.finalAtt.includes('a9'), JSON.stringify(restore.finalAtt));
 
+// ---- 待办图标统一常量 / 附件导出导入往返 / 长文档全渲染 ----
+const extra = await page.evaluate(async () => {
+  const C = window.CikeIdb, db = await C.getDB();
+  const out = {};
+  const todoHtml = window.CikeEditor.renderDocToEditorHTML([{ id: 't1', type: 'todo', attrs: { checked: true }, children: [{ text: 'x' }] }], {});
+  out.todoIcon = todoHtml.includes(window.CikeTodoIcons.checked);
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  await C.saveAttachmentToDB(db, { id: 'att_cn_1', name: '中文 名字(1).png', type: 'image/png', url: png, thumb: null });
+  const zipData = { 'memos.json': fflate.strToU8('{"version":2,"memos":[]}') };
+  await C.packAttachmentsToZip(db, zipData, () => {});
+  out.hasIdKey = !!zipData['attachments/att_cn_1'];
+  zipData['manifest.json'] = fflate.strToU8(JSON.stringify({ version: 1, attachments: { att_cn_1: { name: '中文 名字(1).png', type: 'image/png' } } }));
+  await C.restoreFromZipAtomic(db, fflate.unzipSync(fflate.zipSync(zipData)), { memos: [{ id: 'm_cn', title: '往返', doc: [] }] }, {});
+  const rec = await C.loadAttachmentFromDB(db, 'att_cn_1');
+  out.roundTripOk = !!(rec && rec.name === '中文 名字(1).png' && rec.type === 'image/png' && rec.url);
+  const longDoc = [];
+  for (let i = 0; i < 60; i++) longDoc.push({ id: 'L' + i, type: 'paragraph', children: [{ text: '第' + i + '段' }] });
+  await C.saveMemosToDB(db, [{ id: 'm_long', title: '长文', doc: longDoc, updatedAt: Date.now() }]);
+  return out;
+});
+check('待办勾选图标来自统一常量', extra.todoIcon);
+check('附件导出只写 id', extra.hasIdKey, extra.hasIdKey ? '' : '未找到 attachments/att_cn_1');
+check('附件导出→导入往返保留 id/中文名/MIME', extra.roundTripOk);
+
+await page.reload({ waitUntil: 'load' });
+await page.waitForSelector('.list-item', { timeout: 30000 });
+await page.waitForTimeout(1500);
+const long = await page.evaluate(async () => {
+  const rows = [...document.querySelectorAll('.list-item')];
+  const t = rows.find(r => r.innerText.includes('长文')) || rows[0];
+  t.click();
+  await new Promise(r => setTimeout(r, 1500));
+  const body = document.querySelector('.editor-body');
+  return body ? { paras: body.querySelectorAll('p').length, hasLast: body.innerText.includes('第59段') } : { paras: 0, hasLast: false };
+});
+check('长文档全量渲染（虚拟滚动已移除）', long.paras >= 60 && long.hasLast, JSON.stringify(long));
+
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

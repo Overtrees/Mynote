@@ -14,6 +14,12 @@
     attach: 'M8.2 11.8l4.9-4.9a3 3 0 1 1 4.2 4.2l-6.5 6.5a5 5 0 1 1-7.1-7.1l7.1-7.1',
   };
 
+  // 待办勾选框（data-URI img 版，供 contentEditable 内使用；CSS 版见 Moments.html 的 .task-list-item 规则）
+  var TODO_ICONS = {
+    checked: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Ccircle cx='11' cy='11' r='11' fill='%23007AFF'/%3E%3Cpath d='M7 11l3 3 5-5' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E",
+    unchecked: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'%3E%3Ccircle cx='11' cy='11' r='9.5' fill='none' stroke='%23C7C7CC' stroke-width='1.8'/%3E%3C/svg%3E"
+  };
+
   // 常用尺寸的 SVG viewBox
   var SIZE = '0 0 24 24';
 
@@ -52,5 +58,6 @@
   // 新的 React 组件用法：w.SvgIcon('pin', { width: 17, height: 17, strokeWidth: 2.2 })
 
   w.SvgIcon = SvgIcon;
+  w.CikeTodoIcons = TODO_ICONS;
   w.SvgPaths = PATHS;
 })(window);

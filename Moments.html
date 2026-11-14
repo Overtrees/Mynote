@@ -2197,12 +2197,6 @@ window.getDB = getDB;
   var txOps = useRef([]);
   var txTimer = useRef(null);
   var heightMap = useRef({});
-  const [visibleRange, setVisibleRange] = useState([0, 51]);
-  var virtRef = useRef(null);
-  // VIRT_THRESHOLD 降到 20：避免首次创建文档时就启用虚拟滚动
-  // (新文档 doc.length=1 << 50，不会用虚拟滚动)；同时上限减小减少了
-  // heightMap 全默认 60px 时的累积高度误差。
-  const VIRT_THRESHOLD = 20;
   useEffect(() => {
     (async () => {
       try {
@@ -2534,9 +2528,11 @@ window.getDB = getDB;
       }
     };
     updateGradient();
-    window.addEventListener('scroll', updateGradient, { passive: true });
+    // 滚动期间每帧最多执行一次（getComputedStyle + 正则解析本身不便宜）
+    var onScrollThrottled = window.CikeDom && window.CikeDom.rafThrottle ? window.CikeDom.rafThrottle(updateGradient) : updateGradient;
+    window.addEventListener('scroll', onScrollThrottled, { passive: true });
     return function() {
-      window.removeEventListener('scroll', updateGradient);
+      window.removeEventListener('scroll', onScrollThrottled);
       var s = document.getElementById(styleId);
       if (s) s.remove();
     };
@@ -3801,8 +3797,8 @@ window.getDB = getDB;
     checkbox.dataset.checked = newChecked;
     // 替换 SVG
     checkbox.innerHTML = newChecked
-      ? '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'11\' fill=\'%23007AFF\'/%3E%3Cpath d=\'M7 11l3 3 5-5\' stroke=\'white\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E" width="18" height="18" alt="">'
-      : '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'9.5\' fill=\'none\' stroke=\'%23C7C7CC\' stroke-width=\'1.8\'/%3E%3C/svg%3E" width="18" height="18" alt="">';
+      ? ((window.CikeTodoIcons || {}).checked || '')
+      : ((window.CikeTodoIcons || {}).unchecked || '');
     var block = todoBlock.closest('[data-blockid]');
     if (block) {
       var id = block.dataset.blockid;
@@ -4285,59 +4281,6 @@ window.getDB = getDB;
   }, []);
 
   // 根据文字内容预估段落高度（避免未渲染段落默认 60px 导致滚动跳闪）
-  function estimateParaHeight(node) {
-    if (!node || node.type !== "paragraph") return 60;
-    const text = node.children && node.children[0] && node.children[0].text || '';
-    if (!text) return 28; // 空段落（含 \u200B 一行高度）
-    const estLines = Math.max(1, Math.ceil(text.length / 28));
-    return estLines * 28 + 4;
-  }
-  var calcVisibleRange = useCallback(() => {
-    const el = virtRef.current;
-    if (!el) return;
-    const scrollTop = window.scrollY || el.scrollTop;
-    const clientHeight = window.innerHeight;
-    const doc = docRef.current;
-    const total = doc.length;
-    if (total <= VIRT_THRESHOLD) {
-      setVisibleRange([0, total]);
-      return;
-    }
-    let cumulative = 0,
-      start = 0,
-      end = total;
-    for (let i = 0; i < total; i++) {
-      const h = heightMap.current[doc[i].id] || estimateParaHeight(doc[i]);
-      cumulative += h;
-      if (cumulative < scrollTop) start = i + 1;
-      if (cumulative < scrollTop + clientHeight + 200) end = i + 1;else break;
-    }
-    start = Math.max(0, start - 2);
-    end = Math.min(total, end + 2);
-    setVisibleRange([start, end]);
-  }, []);
-  useEffect(() => {
-    let scrollRaf = null;
-    const handler = () => {
-      if (!scrollRaf) {
-        scrollRaf = requestAnimationFrame(() => {
-          scrollRaf = null;
-          calcVisibleRange();
-        });
-      }
-    };
-    window.addEventListener("scroll", handler, {
-      passive: true
-    });
-    window.addEventListener("resize", handler);
-    calcVisibleRange();
-    return () => {
-      window.removeEventListener("scroll", handler);
-      window.removeEventListener("resize", handler);
-      if (scrollRaf) cancelAnimationFrame(scrollRaf);
-    };
-  }, [calcVisibleRange]);
-
   // 新建笔记时自动 focus editor body
   useEffect(() => {
     if (autoFocus) return;
@@ -4398,30 +4341,6 @@ window.getDB = getDB;
     setDragOverIndex(index);
   };
   const doc = docRef.current;
-  const useVirtual = doc.length > VIRT_THRESHOLD;
-  const [start, end] = visibleRange;
-  const visibleDoc = useVirtual ? doc.slice(start, end) : doc;
-  // 用 useMemo 缓存 totalHeight + offsetTop，依赖 renderKey 在每次区块高度变化后重算
-  // 避免渲染时 O(n) 遍历全 doc（长内容时旧实现每次 render 都全量累加）
-  const {
-    totalHeight,
-    offsetTop
-  } = useMemo(() => {
-    if (!useVirtual) return {
-      totalHeight: 'auto',
-      offsetTop: 0
-    };
-    const hm = heightMap.current;
-    const dv = docRef.current;
-    let th = 0;
-    for (let i = 0; i < dv.length; i++) th += hm[dv[i].id] || estimateParaHeight(dv[i]);
-    let ot = 0;
-    for (let i = 0; i < start && i < dv.length; i++) ot += hm[dv[i].id] || estimateParaHeight(dv[i]);
-    return {
-      totalHeight: th,
-      offsetTop: ot
-    };
-  }, [useVirtual, start]); // 只依赖 start，不依赖 renderKey：高度校正不立即触发 paddingTop 突变
   const charCount = doc.reduce((acc, n) => n.type === "paragraph" ? acc + (n.children[0] ? n.children[0].text : "").replace(/\n/g, "").length : acc, 0);
   return /*#__PURE__*/React.createElement("div", {
     style: {

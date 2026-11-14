@@ -50,8 +50,26 @@
     return document.activeElement === target || document.activeElement === root;
   }
 
+  // 滚动/高频事件节流：同一帧内的多次调用只执行一次（每个包装函数各自一个待执行槽）
+  function rafThrottle(fn) {
+    var pending = false;
+    var lastArgs = null;
+    return function () {
+      lastArgs = arguments;
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(function () {
+        pending = false;
+        var a = lastArgs;
+        lastArgs = null;
+        try { fn.apply(null, a || []); } catch (e) { if (typeof warnFn === 'function') warnFn('rafThrottle', e); }
+      });
+    };
+  }
+
   w.CikeDom = {
     escapeHTML: escapeHTML,
-    focusEditableWithCaret: focusEditableWithCaret
+    focusEditableWithCaret: focusEditableWithCaret,
+    rafThrottle: rafThrottle
   };
 })(window);

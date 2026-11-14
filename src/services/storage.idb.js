@@ -221,8 +221,8 @@
           var binStr = atob(parts[1]);
           var buf = new Uint8Array(binStr.length);
           for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
-          var safeName = (record.name || key).replace(/[/\\:*?"<>|]/g, '_');
-          zipData['attachments/' + key + '_' + safeName] = buf;
+          // 文件名只用 id：真实文件名与 MIME 记在 manifest.json，避免中文名/下划线 id 破坏解析
+          zipData['attachments/' + key] = buf;
         } catch (e) {
           if (typeof w.warn === 'function') w.warn('打包附件失败: ' + key, e);
         }
@@ -232,6 +232,7 @@
 
   async function restoreAttachmentsFromZip(unzipped, db) {
     var attPaths = Object.keys(unzipped).filter(function (k) { return k.startsWith('attachments/'); });
+    var man = parseBackupManifest(unzipped);
     var success = 0, fail = 0;
     for (var ai = 0; ai < attPaths.length; ai++) {
       var attPath = attPaths[ai];
@@ -239,16 +240,12 @@
       if (!bytes) continue;
       try {
         var fileName = attPath.replace('attachments/', '');
-        var firstUnderscore = fileName.indexOf('_');
-        var fileId, displayName;
-        if (firstUnderscore > 0) {
-          fileId = fileName.slice(0, firstUnderscore);
-          displayName = fileName.slice(firstUnderscore + 1);
-        } else {
-          fileId = fileName;
-          displayName = fileName;
-        }
-        var mime = guessMimeFromName(displayName);
+        var manMap = man.attachments || {};
+        var fileId = resolveAttachmentId(fileName, manMap);
+        var displayName = fileId === fileName ? fileName : fileName.slice(fileId.length + 1);
+        var manAtt = (man.attachments || {})[fileId];
+        if (manAtt && manAtt.name) displayName = manAtt.name;
+        var mime = (manAtt && manAtt.type) || guessMimeFromName(displayName);
         if (mime === 'application/octet-stream') { var bm = guessMimeFromBytes(bytes); if (bm) mime = bm; }
         var blob = new Blob([bytes], { type: mime });
         var dataUrl = await new Promise(function (res) {
@@ -297,6 +294,20 @@
     try { return new TextDecoder('utf-8').decode(bytes); } catch (_) { return ''; }
   }
 
+  // 从 zip 内文件名反解附件 id：新备份=完整 id；旧备份=id_name（id 自身可能含下划线）
+  function resolveAttachmentId(fileName, manMap) {
+    manMap = manMap || {};
+    if (manMap[fileName]) return fileName;
+    var best = null;
+    var keys = Object.keys(manMap);
+    for (var k = 0; k < keys.length; k++) {
+      if (fileName.indexOf(keys[k] + '_') === 0 && (!best || keys[k].length > best.length)) best = keys[k];
+    }
+    if (best) return best;
+    var us = fileName.indexOf('_');
+    return us > 0 ? fileName.slice(0, us) : fileName;
+  }
+
   function parseBackupManifest(unzipped) {
     var raw = unzipped && unzipped['manifest.json'];
     if (!raw) return { attachments: {} };
@@ -336,12 +347,14 @@
   }
 
   // 由 zip 内路径 + manifest 生成一条附件记录（与 attachments store 结构一致）
-  async function buildAttachmentRecord(relPath, bytes, manifestAtt) {
+  async function buildAttachmentRecord(relPath, bytes, manifestAtt, manifestAtts) {
     if (!bytes) throw new Error('附件内容为空');
     var fileName = relPath.replace('attachments/', '');
-    var us = fileName.indexOf('_');
-    var fileId = us > 0 ? fileName.slice(0, us) : fileName;
-    var displayName = us > 0 ? fileName.slice(us + 1) : fileName;
+    // 新备份的文件名就是完整 id（id 本身可能含下划线）；旧备份是 id_name → 由 resolveAttachmentId 兼容
+    var fileId = resolveAttachmentId(fileName, manifestAtts);
+    var displayName = fileId === fileName ? fileName : fileName.slice(fileId.length + 1);
+    // 旧备份把文件名塞在 id_name 里；新备份只写 id，真实名字在 manifest（优先）
+    if (manifestAtt && manifestAtt.name) displayName = manifestAtt.name;
     var mime = (manifestAtt && manifestAtt.type) || guessMimeFromName(displayName);
     if (!mime || mime === 'application/octet-stream') {
       var bm = guessMimeFromBytes(bytes);
@@ -364,8 +377,8 @@
       try {
         var fileName = relPath.replace('attachments/', '');
         var us = fileName.indexOf('_');
-        var fid = us > 0 ? fileName.slice(0, us) : fileName;
-        var rec = await buildAttachmentRecord(relPath, unzipped[relPath], (manifest.attachments || {})[fid]);
+        var fid = resolveAttachmentId(fileName, manifest.attachments || {});
+        var rec = await buildAttachmentRecord(relPath, unzipped[relPath], (manifest.attachments || {})[fid], manifest.attachments || {});
         await putOne(db, 'attachments_staging', rec);
         staged++;
       } catch (e) {

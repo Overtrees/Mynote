@@ -28,8 +28,8 @@
           checked = node.attrs && node.attrs.checked || false;
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
           var chk = checked
-            ? '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'11\' fill=\'%23007AFF\'/%3E%3Cpath d=\'M7 11l3 3 5-5\' stroke=\'white\' stroke-width=\'2.2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E" width="18" height="18" alt="">'
-            : '<img src="data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' viewBox=\'0 0 22 22\'%3E%3Ccircle cx=\'11\' cy=\'11\' r=\'9.5\' fill=\'none\' stroke=\'%23C7C7CC\' stroke-width=\'1.8\'/%3E%3C/svg%3E" width="18" height="18" alt="">';
+            ? ((w.CikeTodoIcons || {}).checked || '')
+            : ((w.CikeTodoIcons || {}).unchecked || '');
           return '<div data-blockid="' + node.id + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);border-radius:999px"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + chk + '</span><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
