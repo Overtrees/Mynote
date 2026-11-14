@@ -54,6 +54,14 @@ test('URL 提取：中文路径不再被截断（回归用例，原缺陷已修�
 });
 
 
+test('斜体斜杠命令生成的单星号 Markdown 可在重载时识别', () => {
+  const env = makeEnv();
+  load(env, 'src/editor/editor.md.js');
+  assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('*斜体文字*'), true);
+  assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('普通 *带星号但不成对'), false);
+  assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('**粗体文字**'), true);
+});
+
 test('Markdown 渲染在 DOMPurify 缺失时失败关闭', () => {
   const env = makeEnv();
   load(env, 'src/editor/editor.md.js');
