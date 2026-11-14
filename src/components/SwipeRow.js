@@ -10,25 +10,11 @@
     var isNewCard = memo && memo.id === (w.CikeConstants ? w.CikeConstants.NEW_CARD_ID : '__new_memo_card__');
     var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });
 
-    // Preview text calculation
-    var preview = '\u65E0\u66F4\u591A\u6587\u672C', attachCount = 0, tags = [];
-    if (memo.doc) {
-      var paras = [];
-      for (var ni = 0; ni < memo.doc.length; ni++) {
-        var n = memo.doc[ni];
-        if (n.type === 'paragraph' && n.children && n.children[0]) {
-          var t = (n.children[0].text || '').trim();
-          if (t) { paras.push(t); var mt = t.match(/#[\u4e00-\u9fa5\w-]+/g); if (mt) for (var ti = 0; ti < mt.length; ti++) { if (tags.indexOf(mt[ti]) === -1) tags.push(mt[ti]); } }
-        }
-        if (n.type === 'attachment') attachCount++;
-      }
-      if (paras.length > 0) {
-        var raw = paras.join(' ');
-        tags = tags.slice(0, 3);
-        var stripped = (typeof w.stripMarkdownForPreview === 'function' ? w.stripMarkdownForPreview(raw) : raw).replace(/#[\u4e00-\u9fa5\w-]+/g, '').trim().slice(0, 80);
-        preview = stripped || (tags.length > 0 ? tags[0].replace(/^#/, '') : '\u65E0\u66F4\u591A\u6587\u672C');
-      }
-    }
+    // Preview text calculation（统一由 CikePreview 计算，长度 80）
+    var summary = (w.CikePreview && w.CikePreview.summarizeMemoDoc ? w.CikePreview.summarizeMemoDoc(memo.doc, 80) : null);
+    var preview = summary ? summary.preview : '\u65E0\u66F4\u591A\u6587\u672C';
+    var attachCount = summary ? summary.attachCount : 0;
+    var tags = summary ? summary.tags : [];
 
     // Thumbnail loading (legacy: some memos may have thumb in doc, preload for cache)
     useEffect(function () {

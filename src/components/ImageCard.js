@@ -32,22 +32,10 @@
       return function(){ cancelled = true; };
     }, [memo.id, memo.doc, isNewCard]);
 
-    var preview = '\u65E0\u66F4\u591A\u6587\u672C', tags = [];
-    if (memo.doc) {
-      var paras = [];
-      for (var ni = 0; ni < memo.doc.length; ni++) {
-        var n = memo.doc[ni];
-        if (n.type === 'paragraph' && n.children && n.children[0] && n.children[0].text) {
-          var t = n.children[0].text.trim();
-          if (t) { paras.push(t); var mt = t.match(/#[\u4e00-\u9fa5\w-]+/g); if (mt) for (var ti=0; ti<mt.length; ti++) { if (tags.indexOf(mt[ti])===-1) tags.push(mt[ti]); } }
-        }
-      }
-      if (paras.length > 0) {
-        tags = tags.slice(0, 3);
-        var s = (typeof w.stripMarkdownForPreview === 'function' ? w.stripMarkdownForPreview(paras.join(' ')) : paras.join(' ')).replace(/#[\u4e00-\u9fa5\w-]+/g, '').trim().slice(0, 60);
-        preview = s || (tags.length > 0 ? tags[0].replace(/^#/, '') : '\u65E0\u66F4\u591A\u6587\u672C');
-      }
-    }
+    // 预览摘要由 CikePreview 统一计算，长度 60（与 SwipeRow 同一份逻辑）
+    var summary = (w.CikePreview && w.CikePreview.summarizeMemoDoc ? w.CikePreview.summarizeMemoDoc(memo.doc, 60) : null);
+    var preview = summary ? summary.preview : '\u65E0\u66F4\u591A\u6587\u672C';
+    var tags = summary ? summary.tags : [];
 
     // Swipe gesture (via shared hook)
     var sw = w.CikeHooks.useSwipeGesture({ isNewCard: isNewCard });

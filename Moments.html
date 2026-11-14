@@ -40,6 +40,7 @@
 <script src="./src/utils/id.js"></script>
 <script src="./src/utils/time.js"></script>
 <script src="./src/utils/dom.js"></script>
+<script src="./src/utils/preview.js"></script>
 
 <script src="./src/utils/svg.js"></script>
 
@@ -1083,18 +1084,6 @@ async function saveAttachmentToDB(db, obj) {
 }
 async function loadAttachmentFromDB(db, id) {
   return window.CikeIdb ? window.CikeIdb.loadAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
-}
-async function deleteAttachmentFromDB(db, id) {
-  return window.CikeIdb ? window.CikeIdb.deleteAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
-}
-function createThumbnail(dataUrl) {
-  return window.CikeIdb ? window.CikeIdb.createThumbnail(dataUrl) : Promise.resolve(null);
-}
-async function saveAvatarToDB(db, memoId, dataUrl) {
-  return window.CikeIdb ? window.CikeIdb.saveAvatarToDB(db, memoId, dataUrl) : Promise.reject(new Error('CikeIdb not loaded'));
-}
-function dataURLtoBlob(dataUrl) {
-  return window.CikeIdb ? window.CikeIdb.dataURLtoBlob(dataUrl) : null;
 }
 async function deleteAttachmentFromDB(db, id) {
   return window.CikeIdb ? window.CikeIdb.deleteAttachmentFromDB(db, id) : Promise.reject(new Error('CikeIdb not loaded'));
@@ -2254,6 +2243,18 @@ window.getDB = getDB;
 
   // contentEditable DOM 初始化：doc → innerHTML（仅首次加载）
   var domInited = useRef(false);
+  // 块级/原子块渲染后补一个可编辑空段落，保证光标有落点（集中一处，避免多份拷贝漂移）
+  function ensureTrailingParagraphBlock(blockEl) {
+    var nx = blockEl.nextElementSibling;
+    if (!nx || nx.contentEditable === 'false' || nx.tagName === 'HR' || nx.classList.contains('atomic')) {
+      var tp = document.createElement('p');
+      tp.dataset.blockid = genId();
+      tp.innerHTML = '<br>';
+      blockEl.after(tp);
+      return tp;
+    }
+    return null;
+  }
   useEffect(function () {
     var el = editorBodyRef.current;
     if (!el || domInited.current) return;
@@ -2379,13 +2380,7 @@ window.getDB = getDB;
       /* ---- 第三遍：补空段落 ---- */
       var bdAll2 = el.querySelectorAll('.md-preview.block');
       for (var bdi2 = 0; bdi2 < bdAll2.length; bdi2++) {
-        var nx3 = bdAll2[bdi2].nextElementSibling;
-        if (!nx3 || nx3.contentEditable === 'false' || nx3.tagName === 'HR' || nx3.classList.contains('atomic')) {
-          var tp3 = document.createElement('p');
-          tp3.dataset.blockid = genId();
-          tp3.innerHTML = '<br>';
-          bdAll2[bdi2].after(tp3);
-        }
+        ensureTrailingParagraphBlock(bdAll2[bdi2]);
       }
       /* ---- 第四遍：剩余单段落懒加载（批处理，每帧5组） ---- */
       if (grouped.length > 0) {
@@ -2412,13 +2407,7 @@ window.getDB = getDB;
               dv2.dataset.mdtext = txt2;
               dv2.innerHTML = html2;
               cp.replaceWith(dv2);
-              var nx2 = dv2.nextElementSibling;
-              if (!nx2 || nx2.contentEditable === 'false' || nx2.tagName === 'HR' || nx2.classList.contains('atomic')) {
-                var tp2 = document.createElement('p');
-                tp2.dataset.blockid = genId();
-                tp2.innerHTML = '<br>';
-                dv2.after(tp2);
-              }
+              ensureTrailingParagraphBlock(dv2);
             } else {
               for (var ni2 = 0; ni2 < tmp2.childNodes.length; ni2++) {
                 if (tmp2.childNodes[ni2].nodeType === 1 && (tmp2.childNodes[ni2].tagName === 'SPAN' || tmp2.childNodes[ni2].tagName === 'MARK' || tmp2.childNodes[ni2].tagName === 'DEL')) {
@@ -3977,14 +3966,7 @@ window.getDB = getDB;
       /* ---- 统一为所有块级渲染的组补空段落，并刷新 ps ---- */
       var blockDivs = el.querySelectorAll('.md-preview.block');
       for (var bdi = 0; bdi < blockDivs.length; bdi++) {
-        var bd = blockDivs[bdi];
-        var nx = bd.nextElementSibling;
-        if (!nx || nx.contentEditable === 'false' || nx.tagName === 'HR' || nx.classList.contains('atomic')) {
-          var tp = document.createElement('p');
-          tp.dataset.blockid = genId();
-          tp.innerHTML = '<br>';
-          bd.after(tp);
-        }
+        ensureTrailingParagraphBlock(blockDivs[bdi]);
       }
       ps = el.querySelectorAll('p');
       changed = true;
@@ -4117,13 +4099,7 @@ window.getDB = getDB;
           div.dataset.mdtext = text;
           div.innerHTML = html;
           p.replaceWith(div);
-          var next = div.nextElementSibling;
-          if (!next || next.contentEditable === 'false' || next.tagName === 'HR' || next.classList.contains('atomic')) {
-            var trailP = document.createElement('p');
-            trailP.dataset.blockid = genId();
-            trailP.innerHTML = '<br>';
-            div.after(trailP);
-          }
+          ensureTrailingParagraphBlock(div);
         } else {
           var nodes = temp.childNodes;
           for (var ni = 0; ni < nodes.length; ni++) {
@@ -4268,7 +4244,7 @@ window.getDB = getDB;
       const blocks = editorWrapperRef.current.querySelectorAll('[data-blockid]');
       blocks.forEach(b => {
         observer.observe(b);
-        if (b.dataset.type === 'paragraph' && b.contentEditable === 'true') {
+        if (io && b.dataset.type === 'paragraph' && b.contentEditable === 'true') {
           io.observe(b);
         }
       });
