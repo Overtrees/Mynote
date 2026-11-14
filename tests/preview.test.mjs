@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { makeEnv, loadScript } from './helpers/env.mjs';
 
-const ROOT = path.resolve(import.meta.dirname, '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 function withPreview() {
   const env = makeEnv();
   loadScript(env, path.join(ROOT, 'src/utils/dom.js'));

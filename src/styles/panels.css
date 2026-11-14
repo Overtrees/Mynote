@@ -1,0 +1,193 @@
+/* 备份管理页面卡片 */
+.backup-hero {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-30);
+    corner-shape: squircle;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+}
+@media (prefers-color-scheme: dark) {
+    .backup-hero {
+        background: var(--glass-bg);
+        border-color: var(--glass-border);
+    }
+}
+.backup-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.backup-hero-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+.backup-hero-desc {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+.backup-hero-badge,
+.backup-state {
+    padding: 7px 10px;
+    border-radius: var(--radius-999);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+}
+.backup-hero-badge.connected,
+.backup-state.connected {
+    background: rgba(52,199,89,0.14);
+    color: var(--color-success);
+}
+.backup-hero-badge.disconnected,
+.backup-state.disconnected {
+    background: rgba(127,127,127,0.12);
+    color: var(--text-secondary);
+}
+.backup-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.backup-stat {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-18);
+    padding: 12px;
+}
+.backup-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+.backup-stat-value {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.backup-section-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+    margin-top: 8px;
+}
+.backup-card {
+    background: var(--glass-bg);
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-28);
+    corner-shape: squircle;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-card);
+}
+.backup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 0.5px solid var(--border-color);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.backup-row.no-border {
+    border-bottom: none;
+}
+.backup-row-left {
+    min-width: 0;
+    flex: 1;
+}
+.backup-row-title {
+    font-size: 1rem;
+    font-weight: 650;
+    margin-bottom: 6px;
+}
+.backup-row-desc {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+.backup-row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.backup-row-arrow {
+    font-size: 1.125rem;
+    opacity: 0.45;
+    line-height: 1;
+}
+.backup-action-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    padding: 14px 18px 18px;
+    border-top: 0.5px solid var(--border-color);
+}
+.backup-action-bar .backup-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 10px;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+}
+.backup-btn {
+    background: var(--glass-bg);
+    color: var(--text-main);
+    border: 0.5px solid var(--glass-border);
+    border-radius: var(--radius-999);
+    height: 44px;
+    padding: 0 18px;
+    font-size: 0.875rem;
+    font-weight: 650;
+    cursor: pointer;
+    backdrop-filter: var(--glass-filter);
+    -webkit-backdrop-filter: var(--glass-filter);
+    box-shadow: var(--shadow-float);
+    margin-right: 0;
+    margin-bottom: 0;
+    font-family: inherit;
+}
+.backup-btn.primary {
+    background: rgba(0,122,255,0.86);
+    color: var(--color-white);
+    border-color: rgba(255,255,255,0.24);
+}
+.backup-btn.secondary {
+    background: var(--card-bg);
+    color: var(--text-main);
+}
+@media (prefers-color-scheme: dark) {
+    .backup-btn.secondary {
+        background: var(--glass-bg);
+    }
+}
+.backup-btn.danger {
+    background: rgba(255,69,58,0.14);
+    color: var(--color-danger);
+    border-color: rgba(255,69,58,0.18);
+}

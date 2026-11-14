@@ -30,7 +30,7 @@
           var chk = checked
             ? ((w.MynoteTodoIcons || {}).checked || '')
             : ((w.MynoteTodoIcons || {}).unchecked || '');
-          return '<div data-blockid="' + node.id + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);border-radius:999px"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + (chk ? '<img src="' + chk + '" alt="">' : '') + '</span><span>' + text + '</span></div>';
+          return '<div data-blockid="' + node.id + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);border-radius:var(--radius-999)"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + (chk ? '<img src="' + chk + '" alt="">' : '') + '</span><span>' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
         case 'musicCard':
@@ -39,7 +39,7 @@
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
           var imgFid = node.attrs && node.attrs.fileId;
           var imgSrc = imgFid && files && files[imgFid] && files[imgFid].url || '';
-          var imgHtml = imgSrc ? '<img src="' + escapeHTML(imgSrc) + '" style="width:100%;max-height:468px;object-fit:cover;display:block;">' : '<div style="height:160px;background:rgba(0,0,0,0.03);display:flex;align-items:center;justify-content:center;color:#c7c7cc;font-size:13px;">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
+          var imgHtml = imgSrc ? '<img src="' + escapeHTML(imgSrc) + '" style="width:100%;max-height:468px;object-fit:cover;display:block;">' : '<div style="height:160px;background:var(--fill-subtle);display:flex;align-items:center;justify-content:center;color:var(--color-placeholder);font-size:var(--font-13);">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
           return '<div class="img-text-card" data-blockid="' + node.id + '" data-type="imgTextCard" contenteditable="false"><div class="itc-img-wrap">' + imgHtml + '</div><div class="itc-text" contenteditable="true">' + text + '</div></div>';
         case 'imageTextRow':
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
@@ -50,16 +50,16 @@
         case 'gallery':
           var gItems = node.attrs && node.attrs.items || [];
           var gHtml = gItems.length > 0
-            ? '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;border-radius:12px;corner-shape:squircle;">' + gItems.map(function(s) {
+            ? '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;border-radius:var(--radius-12);corner-shape:squircle;">' + gItems.map(function(s) {
                 var u = s && s.fileId && files && files[s.fileId] && files[s.fileId].url || s && s.url || s;
-                return '<img src="' + escapeHTML(u) + '" style="width:100%;height:366px;object-fit:cover;border-radius:22px;corner-shape:squircle;">';
+                return '<img src="' + escapeHTML(u) + '" style="width:100%;height:366px;object-fit:cover;border-radius:var(--radius-22);corner-shape:squircle;">';
               }).join('') + '</div>'
-            : '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:6px 0 14px;"><div style="height:366px;background:rgba(0,0,0,0.03);border-radius:22px;corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#c7c7cc;"><span style="font-size:18px;opacity:0.4;">\uD83D\uDDBC</span><span style="font-size:11px;margin-top:4px;opacity:0.5;">\u70B9\u51FB\u6DFB\u52A0</span></div><div style="height:366px;background:rgba(0,0,0,0.02);border-radius:22px;corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#c7c7cc;"><span style="font-size:18px;opacity:0.3;">\uD83D\uDDBC</span><span style="font-size:11px;margin-top:4px;opacity:0.4;">\u591A\u5F20\u56FE\u7247</span></div></div>';
+            : '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:6px 0 14px;"><div style="height:366px;background:var(--fill-subtle);border-radius:var(--radius-22);corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.4;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.5;">\u70B9\u51FB\u6DFB\u52A0</span></div><div style="height:366px;background:var(--fill-subtle-2);border-radius:var(--radius-22);corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.3;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.4;">\u591A\u5F20\u56FE\u7247</span></div></div>';
           return '<div class="atomic" data-blockid="' + node.id + '" data-type="gallery" contenteditable="false">' + gHtml + '</div>';
         case 'image':
           var iFid = node.attrs && node.attrs.fileId;
           var iSrc = iFid && files && files[iFid] && files[iFid].url || '';
-          var iHtml = iSrc ? '<img src="' + escapeHTML(iSrc) + '" style="max-width:100%;max-height:668px;border-radius:22px;corner-shape:squircle;display:block;margin:8px auto;object-fit:contain;">' : '<div style="height:566px;border-radius:22px;corner-shape:squircle;background:var(--card-bg);border:0.5px solid var(--border-color);display:flex;align-items:center;justify-content:center;color:#c7c7cc;font-size:13px;margin:8px 0;">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
+          var iHtml = iSrc ? '<img src="' + escapeHTML(iSrc) + '" style="max-width:100%;max-height:668px;border-radius:var(--radius-22);corner-shape:squircle;display:block;margin:8px auto;object-fit:contain;">' : '<div style="height:566px;border-radius:var(--radius-22);corner-shape:squircle;background:var(--card-bg);border:0.5px solid var(--border-color);display:flex;align-items:center;justify-content:center;color:var(--color-placeholder);font-size:var(--font-13);margin:8px 0;">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
           return '<div class="atomic" data-blockid="' + node.id + '" data-type="image" contenteditable="false">' + iHtml + '</div>';
         case 'divider':
           return '<hr data-blockid="' + node.id + '">';
@@ -166,7 +166,7 @@
     if (node.type === 'attachment') {
       var f = files && files[node.fileId];
       if (f && f.type && f.type.startsWith('image/') && f.url) {
-        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><img src="' + f.url + '" alt="' + w.MynoteEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:32px;corner-shape:squircle;display:block"></div>';
+        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><img src="' + f.url + '" alt="' + w.MynoteEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:var(--radius-32);corner-shape:squircle;display:block"></div>';
       }
       return '<div contenteditable="false" class="atomic attachment" data-blockid="' + node.id + '" data-fileid="' + node.fileId + '"><div class="attachment-file"><span class="att-icon">\uD83D\uDCCE</span><span class="att-name">' + w.MynoteEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</span><span class="att-hint">\u70B9\u51FB\u6253\u5F00</span></div></div>';
     }
@@ -188,7 +188,7 @@
     if (node.type === 'musicCard') {
       var muUrl = node.url || '', muMeta = node.meta, muStatus = node.status || 'empty';
       if (muStatus === 'input') {
-        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
+        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
       }
       if (muUrl && muMeta && muMeta.title) {
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
@@ -203,7 +203,7 @@
       if (muStatus === 'loading' && muUrl) {
         return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" data-url="' + w.MynoteEditor.escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       }
-      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:999px;background:var(--glass-bg);backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);-webkit-backdrop-filter:blur(40px) saturate(2.5) brightness(1.15);border:0.5px solid var(--glass-border);font-size:14px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
+      return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(node.url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span></div>';
     }
     return '';
   }

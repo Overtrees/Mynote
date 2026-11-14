@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { makeEnv, loadScript } from './helpers/env.mjs';
 
-const ROOT = path.resolve(import.meta.dirname, '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const load = (env, rel) => loadScript(env, path.join(ROOT, rel));
 
 test('构建脚本清单：Moments.html 引用的本地脚本全部存在', () => {

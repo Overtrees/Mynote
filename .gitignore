@@ -1,3 +1,7 @@
 node_modules
 node_modules/
 .DS_Store
+
+# 浏览器工具生成的会话状态，可能含凭据
+.dumate-browser-auth-state/
+.dumate/

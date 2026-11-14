@@ -585,7 +585,7 @@ const BackupView = ({
     className: googleToken ? "backup-hero-badge connected" : "backup-hero-badge disconnected"
   }, googleToken ? '已连接' : '未连接')), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: "var(--font-13)",
       color: 'var(--text-secondary)',
       lineHeight: 1.5,
       display: 'flex',
@@ -623,11 +623,11 @@ const BackupView = ({
     height: "28",
     viewBox: "0 0 24 24",
     fill: "none",
-    stroke: "#007aff",
+    stroke: "var(--color-accent)",
     strokeWidth: 2,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    style: { filter: "drop-shadow(0 0 6px rgba(0,122,255,0.35))" }
+    style: { filter: "drop-shadow(0 0 6px var(--fill-accent-35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -661,11 +661,11 @@ const BackupView = ({
     height: "28",
     viewBox: "0 0 24 24",
     fill: "none",
-    stroke: "#007aff",
+    stroke: "var(--color-accent)",
     strokeWidth: 2,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    style: { filter: "drop-shadow(0 0 6px rgba(0,122,255,0.35))" }
+    style: { filter: "drop-shadow(0 0 6px var(--fill-accent-35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -772,7 +772,7 @@ const BackupView = ({
       padding: '2px 0'
     }
   }, history.slice(0, 6).map(function (entry, i) {
-    var dotColor = entry.status === 'success' ? '#34c759' : entry.status === 'fail' ? '#ff3b30' : '#007aff';
+    var dotColor = entry.status === 'success' ? 'var(--color-success)' : entry.status === 'fail' ? 'var(--color-danger-bright)' : 'var(--color-accent)';
     var typeLabel = entry.type === 'upload' ? '云端' : entry.type === 'export' ? '导出' : entry.type === 'restore' ? '恢复' : '连接';
     var ts = entry.timestamp ? (function(iso){
       var d = new Date(iso);
@@ -792,7 +792,7 @@ const BackupView = ({
       style: {
         width: 8,
         height: 8,
-        borderRadius: '50%',
+        borderRadius: "var(--radius-circle)",
         background: dotColor,
         flexShrink: 0
       }
@@ -803,7 +803,7 @@ const BackupView = ({
       }
     }, React.createElement('div', {
       style: {
-        fontSize: 14,
+        fontSize: "var(--font-14)",
         fontWeight: 600,
         display: 'flex',
         alignItems: 'center',
@@ -811,10 +811,10 @@ const BackupView = ({
       }
     }, React.createElement('span', null, entry.message), React.createElement('span', {
       style: {
-        fontSize: 9,
+        fontSize: "var(--font-9)",
         fontWeight: 700,
         padding: '1px 6px',
-        borderRadius: 999,
+        borderRadius: "var(--radius-999)",
         textTransform: 'uppercase',
         letterSpacing: '0.3px',
         background: 'var(--glass-bg)',
@@ -823,7 +823,7 @@ const BackupView = ({
       }
     }, typeLabel)), React.createElement('div', {
       style: {
-        fontSize: 12,
+        fontSize: "var(--font-12)",
         color: 'var(--text-secondary)',
         marginTop: 2,
         display: 'flex',
@@ -837,12 +837,7 @@ const BackupView = ({
     }, '·'), React.createElement('span', null, entry.detail)))));
   })))), showExportConfirm && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     onClick: () => setShowExportConfirm(false),
-    style: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 4000,
-      background: 'transparent'
-    }
+    style: w.MynoteInlineStyles.fixedOverlay
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'fixed',
@@ -861,25 +856,19 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      backdropFilter: "var(--glass-filter)",
+      WebkitBackdropFilter: "var(--glass-filter)",
       border: '0.5px solid var(--glass-border)',
-      borderRadius: 28,
+      borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: '0 -8px 24px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.25)',
+      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      fontSize: 18,
-      fontWeight: 700,
-      marginBottom: 12,
-      color: 'var(--text-main)'
-    }
+    style: w.MynoteInlineStyles.sheetTitle
   }, "\u786E\u8BA4\u5BFC\u51FA\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: "var(--font-13)",
       lineHeight: 1.45,
       color: 'var(--text-secondary)',
       textAlign: 'center',
@@ -911,12 +900,7 @@ const BackupView = ({
       setShowImportConfirm(false);
       setPendingImportFile(null);
     },
-    style: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 4000,
-      background: 'transparent'
-    }
+    style: w.MynoteInlineStyles.fixedOverlay
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'fixed',
@@ -935,25 +919,19 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      backdropFilter: "var(--glass-filter)",
+      WebkitBackdropFilter: "var(--glass-filter)",
       border: '0.5px solid var(--glass-border)',
-      borderRadius: 28,
+      borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: '0 -8px 24px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.25)',
+      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      fontSize: 18,
-      fontWeight: 700,
-      marginBottom: 12,
-      color: 'var(--text-main)'
-    }
+    style: w.MynoteInlineStyles.sheetTitle
   }, "\u786E\u8BA4\u6062\u590D\u5907\u4EFD"), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: "var(--font-13)",
       lineHeight: 1.45,
       color: 'var(--text-secondary)',
       textAlign: 'center',
@@ -982,12 +960,7 @@ const BackupView = ({
     }
   }, "\u53D6\u6D88")))), showRestoreSheet && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     onClick: () => setShowRestoreSheet(false),
-    style: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 4000,
-      background: 'transparent'
-    }
+    style: w.MynoteInlineStyles.fixedOverlay
   }), /*#__PURE__*/React.createElement("div", {
     style: {
       position: 'fixed',
@@ -1006,35 +979,29 @@ const BackupView = ({
       width: '100%',
       maxWidth: 600,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      backdropFilter: "var(--glass-filter)",
+      WebkitBackdropFilter: "var(--glass-filter)",
       border: '0.5px solid var(--glass-border)',
-      borderRadius: 28,
+      borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: '0 -8px 24px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.25)',
+      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      textAlign: 'center',
-      fontSize: 18,
-      fontWeight: 700,
-      marginBottom: 12,
-      color: 'var(--text-main)'
-    }
+    style: w.MynoteInlineStyles.sheetTitle
   }, "\u4ECE\u4E91\u7AEF\u6062\u590D"), /*#__PURE__*/React.createElement("div", {
     onClick: () => {
       setShowRestoreSheet(false);
       handleCloudRestore();
     },
     style: {
-      border: '0.5px solid rgba(255,69,58,0.2)',
-      borderRadius: 22,
+      border: '0.5px solid var(--fill-danger-20)',
+      borderRadius: "var(--radius-22)",
       padding: 14,
       marginBottom: 10,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      backdropFilter: "var(--glass-filter)",
+      WebkitBackdropFilter: "var(--glass-filter)",
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -1050,15 +1017,15 @@ const BackupView = ({
       display: 'flex',
       alignItems: 'center'
     }
-  }, w.SvgIcon('warning', { width:18, height:18, stroke:'#ff3b30', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
+  }, w.SvgIcon('warning', { width:18, height:18, stroke:'var(--color-danger-bright)', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 15,
+      fontSize: "var(--font-15)",
       fontWeight: 700,
-      color: '#ff3b30'
+      color: "var(--color-danger-bright)"
     }
   }, "\u8986\u76D6\u672C\u5730\u6062\u590D")), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: "var(--font-13)",
       lineHeight: 1.45,
       color: 'var(--text-secondary)',
       paddingLeft: 24
@@ -1069,13 +1036,13 @@ const BackupView = ({
       handleCloudMerge();
     },
     style: {
-      border: '0.5px solid rgba(0,122,255,0.25)',
-      borderRadius: 22,
+      border: '0.5px solid var(--fill-accent-25)',
+      borderRadius: "var(--radius-22)",
       padding: 14,
       marginBottom: 12,
       background: 'var(--glass-bg)',
-      backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-      WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+      backdropFilter: "var(--glass-filter)",
+      WebkitBackdropFilter: "var(--glass-filter)",
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -1091,15 +1058,15 @@ const BackupView = ({
       display: 'flex',
       alignItems: 'center'
     }
-  }, w.SvgIcon('merge', { width:18, height:18, stroke:'#007aff', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
+  }, w.SvgIcon('merge', { width:18, height:18, stroke:'var(--color-accent)', strokeWidth:2.2 })), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: 15,
+      fontSize: "var(--font-15)",
       fontWeight: 700,
-      color: '#007aff'
+      color: "var(--color-accent)"
     }
   }, "\u5408\u5E76\u4E91\u7AEF\u5230\u672C\u5730")), /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: 13,
+      fontSize: "var(--font-13)",
       lineHeight: 1.45,
       color: 'var(--text-secondary)',
       paddingLeft: 24
@@ -1115,7 +1082,7 @@ const BackupView = ({
   }, "\u53D6\u6D88"))))), statusMsg && function () {
     var t = statusType || 'info';
     var txt = statusMsg.replace(/^[✅❌]\s*/, '');
-    var borderColor = t === 'success' ? 'rgba(52,199,89,0.24)' : t === 'error' ? 'rgba(224,67,58,0.24)' : 'rgba(0,122,255,0.22)';
+    var borderColor = t === 'success' ? 'var(--fill-success-24)' : t === 'error' ? 'var(--fill-danger-24)' : 'var(--fill-accent-22)';
     var icon = t === 'success' ? '✅' : t === 'error' ? '❌' : '↑';
     return React.createElement('div', {
       style: {
@@ -1125,15 +1092,15 @@ const BackupView = ({
         bottom: 'calc(env(safe-area-inset-bottom) + 16px)',
         zIndex: 5000,
         background: 'var(--glass-bg)',
-        backdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
-        WebkitBackdropFilter: 'blur(40px) saturate(2.5) brightness(1.15)',
+        backdropFilter: "var(--glass-filter)",
+        WebkitBackdropFilter: "var(--glass-filter)",
         border: '0.5px solid var(--glass-border)',
-        borderRadius: 28,
+        borderRadius: "var(--radius-28)",
         padding: '14px 16px',
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        boxShadow: '0 4px 20px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.25)',
+        boxShadow: "var(--shadow-dialog)",
         overflow: 'hidden',
         opacity: 1,
         transform: 'translateY(0) scale(1)',
@@ -1143,15 +1110,15 @@ const BackupView = ({
     }, React.createElement('span', {
       style: {
         flexShrink: 0,
-        fontSize: 16
+        fontSize: "var(--font-16)"
       }
     }, t === 'info' ? React.createElement('span', {
       style: {
         width: 16,
         height: 16,
-        border: '2px solid rgba(0,122,255,0.2)',
-        borderTopColor: '#007aff',
-        borderRadius: '50%',
+        border: '2px solid var(--fill-accent-20)',
+        borderTopColor: "var(--color-accent)",
+        borderRadius: "var(--radius-circle)",
         display: 'inline-block',
         animation: 'toastSpin 0.7s linear infinite',
         verticalAlign: 'middle'
@@ -1160,7 +1127,7 @@ const BackupView = ({
       style: {
         flex: 1,
         minWidth: 0,
-        fontSize: 14,
+        fontSize: "var(--font-14)",
         fontWeight: 500,
         color: 'var(--text-main)',
         lineHeight: 1.35

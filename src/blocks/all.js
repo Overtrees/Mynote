@@ -49,10 +49,10 @@
       var text = (node.children && node.children[0] && node.children[0].text) || '';
       return R.createElement('blockquote', {
         key: node.id + '_' + ctx.renderKey, 'data-blockid': node.id, 'data-type': 'quote',
-        style: { margin:'0.6em 0', padding:'10px 14px 10px 16px', borderLeft:'3px solid rgba(0,122,255,0.35)',
-                 background:'var(--card-bg)', borderRadius:'999px', borderTop:'0.5px solid var(--border-color)',
+        style: { margin:'0.6em 0', padding:'10px 14px 10px 16px', borderLeft:'3px solid var(--fill-accent-35)',
+                 background:'var(--card-bg)', borderRadius:"var(--radius-999)", borderTop:'0.5px solid var(--border-color)',
                  borderRight:'0.5px solid var(--border-color)', borderBottom:'0.5px solid var(--border-color)',
-                 color:'var(--text-secondary)', fontSize:'14px', lineHeight:'1.6', boxShadow:'0 1px 3px rgba(0,0,0,0.03)' }
+                 color:'var(--text-secondary)', fontSize:"var(--font-14)", lineHeight:'1.6', boxShadow:"var(--shadow-card-soft)" }
       }, text || '\u200B');
     }
   });
@@ -65,7 +65,7 @@
       var checked = (node.attrs && node.attrs.checked) || false;
       return R.createElement('div', {
         key: node.id + '_' + ctx.renderKey, 'data-blockid': node.id, 'data-type': 'todo',
-        style: { display:'flex', alignItems:'center', gap:8, margin:'4px 0', padding:'4px 12px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)' }
+        style: { display:'flex', alignItems:'center', gap:8, margin:'4px 0', padding:'4px 12px', borderRadius:"var(--radius-999)", background:'var(--glass-bg)', backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)", border:'0.5px solid var(--glass-border)' }
       }, R.createElement('input', { type:'checkbox', checked:checked, readOnly:true,
         style:{ width:18, height:18, margin:0, cursor:'pointer' },
         onClick:function(e){ e.preventDefault(); ctx.updateBlock && ctx.updateBlock(node.id, { attrs: Object.assign({}, node.attrs||{}, { checked:!checked }) }); }
@@ -91,12 +91,12 @@
       var src = attrs.src || '';
       if (!src) {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'image',
-          style:{ borderRadius:14, overflow:'hidden', margin:'8px 36px', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', height:160, display:'flex', alignItems:'center', justifyContent:'center', color:'#c7c7cc', fontSize:13 }
+          style:{ borderRadius:"var(--radius-14)", overflow:'hidden', margin:'8px 36px', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', height:160, display:'flex', alignItems:'center', justifyContent:'center', color:"var(--color-placeholder)", fontSize:"var(--font-13)" }
         }, '\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247');
       }
       return R.createElement('img', { key:node.id, 'data-blockid':node.id, 'data-type':'image',
         src:(typeof w.proxyImg === 'function' ? w.proxyImg(src) : src) || src, alt:attrs.alt||'',
-        style:{ maxWidth:'100%', borderRadius:10, margin:'8px 0', display:'block' },
+        style:{ maxWidth:'100%', borderRadius:"var(--radius-10)", margin:'8px 0', display:'block' },
         onError:function(e){ e.target.style.display='none'; }
       });
     }
@@ -109,22 +109,22 @@
       var items = (node.attrs && node.attrs.items) || [];
       if (items.length === 0) {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'gallery',
-          style:{ borderRadius:14, overflow:'hidden', margin:'8px 36px', background:'var(--card-bg)', border:'0.5px solid var(--border-color)' }
+          style:{ borderRadius:"var(--radius-14)", overflow:'hidden', margin:'8px 36px', background:'var(--card-bg)', border:'0.5px solid var(--border-color)' }
         }, R.createElement('div', { style:{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6, padding:'6px 0 14px' } },
-          R.createElement('div', { style:{ height:366, background:'rgba(0,0,0,0.03)', borderRadius:22, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', color:'#c7c7cc' } },
-            R.createElement('span', { style:{ fontSize:18, opacity:0.4 } }, '\uD83D\uDDBC'),
-            R.createElement('span', { style:{ fontSize:11, marginTop:4, opacity:0.5 } }, '\u70B9\u51FB\u6DFB\u52A0')),
-          R.createElement('div', { style:{ height:366, background:'rgba(0,0,0,0.02)', borderRadius:22, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', color:'#c7c7cc' } },
-            R.createElement('span', { style:{ fontSize:18, opacity:0.3 } }, '\uD83D\uDDBC'),
-            R.createElement('span', { style:{ fontSize:11, marginTop:4, opacity:0.4 } }, '\u591A\u5F20\u56FE\u7247'))));
+          R.createElement('div', { style:{ height:366, background:"var(--fill-subtle)", borderRadius:"var(--radius-22)", display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', color:"var(--color-placeholder)" } },
+            R.createElement('span', { style:{ fontSize:"var(--font-18)", opacity:0.4 } }, '\uD83D\uDDBC'),
+            R.createElement('span', { style:{ fontSize:"var(--font-11)", marginTop:4, opacity:0.5 } }, '\u70B9\u51FB\u6DFB\u52A0')),
+          R.createElement('div', { style:{ height:366, background:"var(--fill-subtle-2)", borderRadius:"var(--radius-22)", display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', color:"var(--color-placeholder)" } },
+            R.createElement('span', { style:{ fontSize:"var(--font-18)", opacity:0.3 } }, '\uD83D\uDDBC'),
+            R.createElement('span', { style:{ fontSize:"var(--font-11)", marginTop:4, opacity:0.4 } }, '\u591A\u5F20\u56FE\u7247'))));
       }
       return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'gallery',
-        style:{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:4, margin:'8px 0', borderRadius:12, overflow:'hidden' }
+        style:{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:4, margin:'8px 0', borderRadius:"var(--radius-12)", overflow:'hidden' }
       }, items.map(function (item, i) {
         var fi = item && item.fileId;
         var src = (fi && ctx && ctx.files && ctx.files[fi] && ctx.files[fi].url) || (item && item.url) || item;
         return R.createElement('img', { key: fi || item?.id || i, src:(typeof w.proxyImg === 'function' ? w.proxyImg(src) : src) || src,
-          style:{ width:'100%', height:366, objectFit:'cover', borderRadius:22 },
+          style:{ width:'100%', height:366, objectFit:'cover', borderRadius:"var(--radius-22)" },
           onError:function(e){ e.target.style.display='none'; }
         });
       }));
@@ -137,11 +137,11 @@
     render: function (node, ctx) {
       var text = (node.children && node.children[0] && node.children[0].text) || '';
       return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'imgTextCard',
-        style:{ borderRadius:16, overflow:'hidden', margin:'8px 0', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', boxShadow:'0 2px 8px rgba(0,0,0,0.03)' }
-      }, R.createElement('div', { style:{ width:'100%', height:160, background:'rgba(0,0,0,0.03)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, color:'#c7c7cc' } },
+        style:{ borderRadius:"var(--radius-16)", overflow:'hidden', margin:'8px 0', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', boxShadow:"var(--shadow-float-soft)" }
+      }, R.createElement('div', { style:{ width:'100%', height:160, background:"var(--fill-subtle)", display:'flex', alignItems:'center', justifyContent:'center', fontSize:"var(--font-13)", color:"var(--color-placeholder)" } },
         '\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247'),
         R.createElement('div', { contentEditable:true, suppressContentEditableWarning:true,
-          style:{ padding:'12px 14px', fontSize:14, lineHeight:1.6, color:'var(--text-main)', minHeight:44, outline:'none' }
+          style:{ padding:'12px 14px', fontSize:"var(--font-14)", lineHeight:1.6, color:'var(--text-main)', minHeight:44, outline:'none' }
         }, text || '\u70B9\u51FB\u8F93\u5165\u6587\u5B57'));
     }
   });
@@ -152,10 +152,10 @@
     render: function (node, ctx) {
       var text = (node.children && node.children[0] && node.children[0].text) || '';
       return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'imageTextRow',
-        style:{ display:'flex', gap:10, borderRadius:16, overflow:'hidden', margin:'8px 0', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', minHeight:100 }
-      }, R.createElement('div', { style:{ flex:'0 0 50%', minWidth:0, background:'rgba(0,0,0,0.03)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24, opacity:0.3 } },
+        style:{ display:'flex', gap:10, borderRadius:"var(--radius-16)", overflow:'hidden', margin:'8px 0', background:'var(--card-bg)', border:'0.5px solid var(--border-color)', minHeight:100 }
+      }, R.createElement('div', { style:{ flex:'0 0 50%', minWidth:0, background:"var(--fill-subtle)", display:'flex', alignItems:'center', justifyContent:'center', fontSize:"var(--font-24)", opacity:0.3 } },
         '\uD83D\uDCF7'), R.createElement('div', { contentEditable:true, suppressContentEditableWarning:true,
-          style:{ flex:1, padding:'10px 12px 10px 0', fontSize:14, lineHeight:1.6, color:'var(--text-main)', display:'flex', alignItems:'center', outline:'none' }
+          style:{ flex:1, padding:'10px 12px 10px 0', fontSize:"var(--font-14)", lineHeight:1.6, color:'var(--text-main)', display:'flex', alignItems:'center', outline:'none' }
         }, text || '\u70B9\u51FB\u8F93\u5165\u8BF4\u660E\u6587\u5B57'));
     }
   });
@@ -169,7 +169,7 @@
       var status = node.status || 'empty';
       if (status === 'input') {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'musicCard', 'data-music-url':'pending', contentEditable:true,
-          style:{ padding:'12px 18px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', fontSize:14, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10, outline:'none' }
+          style:{ padding:'12px 18px', borderRadius:"var(--radius-999)", background:'var(--glass-bg)', backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)", border:'0.5px solid var(--glass-border)', fontSize:"var(--font-14)", color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10, outline:'none' }
         }, R.createElement('span', null, '\uD83C\uDFB5'), R.createElement('span', null, url || '\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5\u5230\u8FD9\u91CC...'));
       }
       if (status === 'loading' && url) {
@@ -181,7 +181,7 @@
       }
       if (!meta || !meta.title) {
         return R.createElement('div', { key:node.id, 'data-blockid':node.id, 'data-type':'musicCard',
-          style:{ padding:'12px 16px', borderRadius:999, background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', border:'0.5px solid var(--glass-border)', fontSize:14, color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10 }
+          style:{ padding:'12px 16px', borderRadius:"var(--radius-999)", background:'var(--glass-bg)', backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)", border:'0.5px solid var(--glass-border)', fontSize:"var(--font-14)", color:'var(--text-secondary)', display:'flex', alignItems:'center', gap:10 }
         }, R.createElement('span', null, '\uD83C\uDFB5'), R.createElement('span', null, url || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5'));
       }
       var coverUrl = (typeof w.proxyImg === 'function' ? w.proxyImg(meta.cover) : meta.cover) || meta.cover;

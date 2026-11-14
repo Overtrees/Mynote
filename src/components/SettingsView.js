@@ -43,13 +43,13 @@
                 sizeOptions.map(function(opt) {
                   var sel = fontSize === opt.key;
                   return R.createElement('button', { key:opt.key, onClick:function(){applyFontSize(opt.key);},
-                    style:{ height:32, minWidth:40, padding:'0 12px', borderRadius:16,
-                      border:sel ? '0.5px solid rgba(0,122,255,0.35)' : '0.5px solid var(--glass-border)',
-                      background:sel ? 'rgba(0,122,255,0.1)' : 'var(--glass-bg)',
-                      color:sel ? '#007aff' : 'var(--text-main)',
+                    style:{ height:32, minWidth:40, padding:'0 12px', borderRadius:"var(--radius-16)",
+                      border:sel ? '0.5px solid var(--fill-accent-35)' : '0.5px solid var(--glass-border)',
+                      background:sel ? 'var(--fill-accent-10)' : 'var(--glass-bg)',
+                      color:sel ? 'var(--color-accent)' : 'var(--text-main)',
                       fontSize:opt.fs, fontWeight:sel ? 700 : 500,
                       fontFamily:'inherit', cursor:'pointer',
-                      backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)',
+                      backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)",
                       transition:'all 0.18s ease', lineHeight:1 }
                   }, opt.label);
                 })))),
@@ -67,12 +67,12 @@
           R.createElement('div', { className:'backup-card' },
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u7248\u672C'),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, (w.MynoteConstants && w.MynoteConstants.APP_VERSION) || '2.1.0')),
+              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, (w.MynoteConstants && w.MynoteConstants.APP_VERSION) || '2.2.0')),
             R.createElement('div', { style:{ height:'0.5px', background:'var(--border-color)', marginLeft:16, marginRight:16 } }),
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u8054\u7CFB\u6211\u4EEC'),
               R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.85rem' } }, 'overcanopies@gmail.com'))),
-          R.createElement('div', { style:{ fontStyle:'italic', fontSize:12, color:'var(--text-secondary)', textAlign:'center', marginTop:12, marginBottom:4, opacity:0.8 } },
+          R.createElement('div', { style:{ fontStyle:'italic', fontSize:"var(--font-12)", color:'var(--text-secondary)', textAlign:'center', marginTop:12, marginBottom:4, opacity:0.8 } },
             '\u6B64\u523B\uFF0C\u503C\u5F97\u88AB\u8BB0\u4F4F\u3002'))));
   }
 

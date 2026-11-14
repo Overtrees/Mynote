@@ -1,0 +1,150 @@
+:root {
+  /* 基础色板 */
+  --primary-bg: #f2f2f7;
+  --text-main: #1a1a1a;
+  --text-secondary: #8e8e93;
+  --card-bg: #ffffff;
+  --btn-bg: rgba(240, 240, 242, 0.7);
+  --border-color: rgba(0, 0, 0, 0.05);
+  --code-bg: #f4f4f5;
+
+  /* 玻璃拟态 */
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-blur: 40px;
+  --glass-saturate: 2.5;
+  --glass-brightness: 1.15;
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --glass-inner-border: inset 0 0 0 0.5px var(--glass-border);
+
+  /* 语义色 */
+  --color-accent: #007aff;
+  --color-accent-strong: #0a84ff;
+  --color-danger: #E0433A;
+  --color-danger-bright: #ff3b30;
+  --color-danger-dark: #ff453a;
+  --color-danger-light: #ff6b6b;
+  --color-warning: #ff9500;
+  --color-success: #34c759;
+  --color-purple: #af52de;
+  --color-placeholder: #c7c7cc;
+  --color-placeholder-strong: #c0c0c6;
+  --color-icon-muted: #8A9BB0;
+  --color-white: #fff;
+  --color-black: #000;
+
+  /* 半透明填充 */
+  --fill-hover: rgba(127, 127, 127, 0.06);
+  --fill-hover-strong: rgba(127, 127, 127, 0.10);
+  --fill-subtle: rgba(0, 0, 0, 0.03);
+  --fill-subtle-2: rgba(0, 0, 0, 0.02);
+  --fill-accent-08: rgba(0, 122, 255, 0.08);
+  --fill-accent-10: rgba(0, 122, 255, 0.10);
+  --fill-accent-16: rgba(0, 122, 255, 0.16);
+  --fill-accent-18: rgba(0, 122, 255, 0.18);
+  --fill-accent-20: rgba(0, 122, 255, 0.20);
+  --fill-accent-22: rgba(0, 122, 255, 0.22);
+  --fill-accent-25: rgba(0, 122, 255, 0.25);
+  --fill-accent-35: rgba(0, 122, 255, 0.35);
+  --fill-success-12: rgba(52, 199, 89, 0.12);
+  --fill-success-24: rgba(52, 199, 89, 0.24);
+  --fill-warning-12: rgba(255, 149, 0, 0.12);
+  --fill-highlight: rgba(255, 204, 0, 0.25);
+  --fill-info: rgba(90, 200, 250, 0.15);
+  --color-tip: #e88b00;
+  --color-white-06: rgba(255, 255, 255, 0.06);
+  --color-white-12: rgba(255, 255, 255, 0.12);
+  --color-white-25: rgba(255, 255, 255, 0.25);
+  --color-black-08: rgba(0, 0, 0, 0.08);
+  --color-black-12: rgba(0, 0, 0, 0.12);
+  --color-black-18: rgba(0, 0, 0, 0.18);
+  --color-black-30: rgba(0, 0, 0, 0.30);
+  --fill-danger-20: rgba(255, 69, 58, 0.20);
+  --fill-danger-24: rgba(224, 67, 58, 0.24);
+  --fill-danger-35: rgba(255, 59, 48, 0.35);
+  --surface-overlay: rgba(30, 30, 34, 0.92);
+  --color-editor-bg: #fafafa;
+  --color-panel-muted: #eee;
+  --color-stack-text: #666;
+
+  /* 字体与字号 */
+  --font-family-base: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif;
+  --font-family-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-9: 9px;
+  --font-10: 10px;
+  --font-11: 11px;
+  --font-12: 12px;
+  --font-13: 13px;
+  --font-14: 14px;
+  --font-15: 15px;
+  --font-16: 16px;
+  --font-18: 18px;
+  --font-19: 19px;
+  --font-20: 20px;
+  --font-24: 24px;
+  --font-72: 72px;
+
+  /* 圆角 */
+  --radius-2: 2px;
+  --radius-3: 3px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-17: 17px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-22: 22px;
+  --radius-23: 23px;
+  --radius-28: 28px;
+  --radius-30: 30px;
+  --radius-32: 32px;
+  --radius-33: 33px;
+  --radius-999: 999px;
+  --radius-circle: 50%;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-card-soft: 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.04), var(--glass-highlight);
+  --shadow-float-soft: 0 2px 8px rgba(0, 0, 0, 0.03);
+  --shadow-float-strong: 0 2px 8px rgba(0, 0, 0, 0.06), var(--glass-highlight);
+  --shadow-dialog: 0 4px 20px rgba(0, 0, 0, 0.10), var(--glass-highlight);
+  --shadow-overlay: 0 4px 24px rgba(0, 0, 0, 0.30);
+  --shadow-danger: 0 2px 10px rgba(255, 59, 48, 0.35);
+  --shadow-modal: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, 0.10), var(--glass-highlight);
+  --shadow-sheet-strong: 0 2px 20px rgba(0, 0, 0, 0.12), var(--glass-highlight);
+  --shadow-popover: 0 10px 28px rgba(0, 0, 0, 0.14), var(--glass-highlight);
+
+  /* 尺寸与安全区 */
+  --safe-bottom: env(safe-area-inset-bottom);
+  --page-padding-x: 20px;
+
+  /* 启动页专用 */
+  --launch-bg: #ffffff;
+  --launch-border: rgba(0, 0, 0, 0.08);
+  --launch-filter: blur(8px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-bg: #000000;
+    --text-main: #ffffff;
+    --text-secondary: #98989d;
+    --card-bg: #1c1c1e;
+    --btn-bg: rgba(44, 44, 46, 0.7);
+    --border-color: rgba(255, 255, 255, 0.1);
+    --code-bg: #2c2c2e;
+    --glass-bg: rgba(20, 20, 24, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --fill-subtle: rgba(255, 255, 255, 0.04);
+    --fill-subtle-2: rgba(255, 255, 255, 0.03);
+    --launch-bg: #000000;
+    --launch-border: rgba(255, 255, 255, 0.1);
+  }
+}

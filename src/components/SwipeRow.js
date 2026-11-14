@@ -19,13 +19,13 @@
 
     return R.createElement('div', { className:'swipe-wrapper', ref:sw.wrapperRef },
       !isNewCard && R.createElement('div', { className:'swipe-actions' },
-        R.createElement('button', { ref:sw.btn1Ref, className:'swipe-action-btn', style:{ background:'#ff9500', transform:'translateX(60px)', opacity:0 },
+        R.createElement('button', { ref:sw.btn1Ref, className:'swipe-action-btn', style:{ background:"var(--color-warning)", transform:'translateX(60px)', opacity:0 },
           onClick:function(e){e.stopPropagation();sw.snapClose();onPin(memo.id);}
-        }, typeof w.SvgIcon === 'function' ? w.SvgIcon('pinMulti', {width:17,height:17,strokeWidth:2.2,stroke:'#fff'}) : null,
+        }, typeof w.SvgIcon === 'function' ? w.SvgIcon('pinMulti', {width:17,height:17,strokeWidth:2.2,stroke:'var(--color-white)'}) : null,
         memo.pinned ? '\u53D6\u6D88' : '\u7F6E\u9876'),
-        R.createElement('button', { ref:sw.btn2Ref, className:'swipe-action-btn', style:{ background:'#E0433A', transform:'translateX(30px)', opacity:0 },
+        R.createElement('button', { ref:sw.btn2Ref, className:'swipe-action-btn', style:{ background:"var(--color-danger)", transform:'translateX(30px)', opacity:0 },
           onClick:function(e){e.stopPropagation();sw.snapClose();onDelete(memo.id);}
-        }, typeof w.SvgIcon === 'function' ? w.SvgIcon('delMulti', {width:17,height:17,strokeWidth:2.2,stroke:'#fff'}) : null,
+        }, typeof w.SvgIcon === 'function' ? w.SvgIcon('delMulti', {width:17,height:17,strokeWidth:2.2,stroke:'var(--color-white)'}) : null,
         '\u5220\u9664')),
       R.createElement('div', { ref:sw.rowRef, className:'list-item',
         onPointerDown:function(){if(isNewCard)onOpen(memo);},
@@ -36,15 +36,15 @@
             !isNewCard && memo.pinned && R.createElement('span', { className:'pin-dot' }),
             R.createElement('span', { className:'item-title-text' }, isNewCard ? '\u65B0\u5EFA\u7B14\u8BB0' : (memo.title || '\u65E0\u6807\u9898')),
             !isNewCard && tags.length > 0 && R.createElement('div', { style:{ display:'flex', gap:4, flexWrap:'wrap', overflow:'hidden', justifyContent:'flex-end', flex:1, minWidth:0 } },
-              tags.map(function(t){return R.createElement('span', { key:t, style:{fontSize:10, color:'#007aff', background:'var(--glass-bg)', backdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', WebkitBackdropFilter:'blur(40px) saturate(2.5) brightness(1.15)', padding:'0 5px', borderRadius:999, lineHeight:'18px', whiteSpace:'nowrap', border:'0.5px solid var(--glass-border)'} }, t);}))),
-          R.createElement('div', { className:'item-meta', style:{ display:'flex', alignItems:'center', gap:6 } },
+              tags.map(function(t){return R.createElement('span', { key:t, style:{fontSize:"var(--font-10)", color:"var(--color-accent)", background:'var(--glass-bg)', backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)", padding:'0 5px', borderRadius:"var(--radius-999)", lineHeight:'18px', whiteSpace:'nowrap', border:'0.5px solid var(--glass-border)'} }, t);}))),
+          R.createElement('div', { className:'item-meta', style:w.MynoteInlineStyles.centerRow6 },
             R.createElement('span', { style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } },
               (isNewCard ? '\u73B0\u5728' : (typeof w.timeAgo === 'function' ? w.timeAgo(memo.updatedAt) : memo.updatedAt)),
               '\u00A0\u00A0', isNewCard ? '\u70B9\u51FB\u8BB0\u5F55\u4F60\u7684\u77AC\u95F4' : preview),
             expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
         isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:4, flexShrink:0, paddingLeft:12 } },
-          R.createElement('span', { style:{ fontSize:16, fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
-          R.createElement('span', { style:{ fontSize:12, color:'var(--text-secondary)', lineHeight:1.2 } }, (weather.city || '') + (weather.condition ? ' ' + weather.condition : '')))));
+          R.createElement('span', { style:{ fontSize:"var(--font-16)", fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
+          R.createElement('span', { style:{ fontSize:"var(--font-12)", color:'var(--text-secondary)', lineHeight:1.2 } }, (weather.city || '') + (weather.condition ? ' ' + weather.condition : '')))));
   }
 
   w.SwipeRow = SwipeRow;

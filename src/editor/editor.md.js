@@ -5,22 +5,22 @@
   function preprocessExtendedMarkdown(text) {
     if (!text || typeof text !== 'string') return text;
     return text
-      .replace(/~~([^~]+)~~/g, '<del style="background:rgba(127,127,127,0.06);padding:0 2px;">$1</del>')
-      .replace(/==([^=]+)==/g, '<span style="display:inline-flex;align-items:center;background:rgba(255,204,0,0.25);color:var(--text-main);padding:0 10px;border-radius:999px;line-height:1.8;font-weight:600;font-size:0.8em;">$1</span>')
-      .replace(/!!([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(90,200,250,0.15);color:#007aff;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> $1</span></span>')
-      .replace(/\?\?([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(255,149,0,0.12);color:#e88b00;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> $1</span></span>')
-      .replace(/@@([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:rgba(52,199,89,0.12);color:#34c759;padding:0 10px;border-radius:999px;font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> $1</span></span>')
-      .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:#007aff;background:rgba(0,122,255,0.08);padding:0 10px;border-radius:999px;font-size:0.8em;font-weight:600;line-height:1.8;">#$2</span>')
+      .replace(/~~([^~]+)~~/g, '<del style="background:var(--fill-hover);padding:0 2px;">$1</del>')
+      .replace(/==([^=]+)==/g, '<span style="display:inline-flex;align-items:center;background:var(--fill-highlight);color:var(--text-main);padding:0 10px;border-radius:var(--radius-999);line-height:1.8;font-weight:600;font-size:0.8em;">$1</span>')
+      .replace(/!!([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-info);color:var(--color-accent);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> $1</span></span>')
+      .replace(/\?\?([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-warning-12);color:var(--color-tip);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> $1</span></span>')
+      .replace(/@@([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-success-12);color:var(--color-success);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> $1</span></span>')
+      .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:var(--color-accent);background:var(--fill-accent-08);padding:0 10px;border-radius:var(--radius-999);font-size:0.8em;font-weight:600;line-height:1.8;">#$2</span>')
       /* ---- callout > [!NOTE] / [!WARNING] / [!TIP] ---- */
       .replace(/^>\s*\[!(\w+)\]\s*([\s\S]*?)(?=\n\s*\n|\n>\s*\[|\n*$(?!\n))/gm, function(m, type, body) {
         var t = type.toLowerCase();
         var cls = 'callout callout-' + t;
         var icons = {
-          note:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#007aff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-          warning:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff9500" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-          tip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34c759" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-          important:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#af52de" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
-          caution:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+          note:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+          warning:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-warning)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+          tip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+          important:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-purple)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+          caution:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger-dark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
         };
         var titles = { note:'笔记', warning:'注意', tip:'提示', important:'重要', caution:'小心' };
         var icon = icons[t] || '\u2139\uFE0F';
@@ -37,14 +37,14 @@
       .replace(/->(.+?)<-/g, '<div style="text-align:center;margin:0.6em 0;">$1</div>')
       /* ---- 彩色标签 $color:文字$ / $文字$ ---- */
       .replace(/\$(\w+):([^$]+)\$/g, function(m, color, text) {
-        var colors = { red:'#ff453a', blue:'#007aff', green:'#34c759', orange:'#ff9500', purple:'#af52de', gray:'#8e8e93' };
-        var c = colors[color.toLowerCase()] || '#007aff';
-        return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + c + '18;color:' + c + ';padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;line-height:1.8;">' + text.trim() + '</span>';
+        var colors = (window.MynoteTokens && window.MynoteTokens.palette.tagColors) || {};
+        var c = colors[color.toLowerCase()] || colors.blue;
+        return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + c + '18;color:' + c + ';padding:0 10px;border-radius:var(--radius-999);font-size:var(--font-12);font-weight:600;line-height:1.8;">' + text.trim() + '</span>';
       })
-      .replace(/\$([^$]{1,30})\$/g, '<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(0,122,255,0.1);color:#007aff;padding:0 10px;border-radius:999px;font-size:12px;font-weight:600;line-height:1.8;">$1</span>')
+      .replace(/\$([^$]{1,30})\$/g, '<span style="display:inline-flex;align-items:center;gap:3px;background:var(--fill-accent-10);color:var(--color-accent);padding:0 10px;border-radius:var(--radius-999);font-size:var(--font-12);font-weight:600;line-height:1.8;">$1</span>')
       /* ---- 装饰分割线 ---emoji--- ---- */
       .replace(/^---(.+?)---$/gm, function(m, icon) {
-        return '<hr style="border:none;margin:1.2em 0;"><div style="text-align:center;margin:-1.4em 0 1.2em;font-size:12px;color:#c7c7cc;letter-spacing:4px;position:relative;z-index:1;background:var(--card-bg,#fff);width:fit-content;padding:0 12px;margin-left:auto;margin-right:auto;">' + icon + '</div>';
+        return '<hr style="border:none;margin:1.2em 0;"><div style="text-align:center;margin:-1.4em 0 1.2em;font-size:var(--font-12);color:var(--color-placeholder);letter-spacing:4px;position:relative;z-index:1;background:var(--card-bg,var(--color-white));width:fit-content;padding:0 12px;margin-left:auto;margin-right:auto;">' + icon + '</div>';
       });
   }
 

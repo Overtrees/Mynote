@@ -118,4 +118,12 @@
 - 运行时异常捕获模块（ErrorBoundary + 浮动调试面板）
 - 依赖本地化，无运行时 CDN
 
+### 代码结构
+
+- `Moments.html`：只保留页面骨架、样式与脚本引用
+- `src/app/`：运行时桥接、Editor、列表、天气、启动等应用模块
+- `src/styles/`：全局设计令牌、基础样式、编辑器/卡片/面板样式
+- `src/editor/`、`src/components/`、`src/services/`：可复用编辑器、组件与存储能力
+- `tools/verify.mjs`：校验本地资源、版本串、跨模块声明与 CSS 变量完整性
+
 
