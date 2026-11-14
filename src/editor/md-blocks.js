@@ -67,6 +67,56 @@
     return dv;
   }
 
+
+  /* 单段落渲染：
+   *  - 结果首元素是块级标签 → 换成块级预览 div（guards 为真时按失焦路径的规则跳过残缺语法）
+   *  - 否则按内联处理：把 SPAN/MARK/DEL 设为不可编辑，并把 markdown 源码存进 mdtext
+   * 返回 'block' | 'inline' | 'skip'，需要补空段落时通过 opts.ensureTrailing(div) 回调。 */
+  var BLOCK_TAGS = { DIV: 1, HR: 1, BLOCKQUOTE: 1, TABLE: 1, PRE: 1, UL: 1, OL: 1 };
+
+  function renderSingleParagraph(p, text, opts) {
+    opts = opts || {};
+    var html = renderMarkdownHtml(text);
+    var temp = document.createElement('div');
+    temp.innerHTML = html;
+    var first = temp.firstElementChild;
+    var tag = first && first.tagName;
+    if (tag && BLOCK_TAGS[tag]) {
+      if (opts.guards) {
+        if (tag === 'BLOCKQUOTE') {
+          var textAfter = text.replace(/^>\s*/, '');
+          if (!textAfter || textAfter.length < 2) return 'skip';
+        }
+        if (tag === 'BLOCKQUOTE' || tag === 'DIV') {
+          if (/^>\s*\[!/.test(text) && !/^>\s*\[!\w+\]/.test(text)) return 'skip';
+        }
+        if (tag === 'PRE' && (!text.replace(/```/g, '').trim() || text.trim() === '```')) return 'skip';
+      }
+      var div = makePreviewBlock(p.dataset.blockid, text, html);
+      p.replaceWith(div);
+      if (typeof opts.ensureTrailing === 'function') opts.ensureTrailing(div);
+      return 'block';
+    }
+    var nodes = temp.childNodes;
+    for (var ni = 0; ni < nodes.length; ni++) {
+      if (nodes[ni].nodeType === 1 && (nodes[ni].tagName === 'SPAN' || nodes[ni].tagName === 'MARK' || nodes[ni].tagName === 'DEL')) {
+        nodes[ni].contentEditable = 'false';
+      }
+    }
+    p.dataset.mdtext = text;
+    // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
+    if (temp.children.length === 1 && temp.children[0].tagName === 'P') {
+      p.innerHTML = temp.children[0].innerHTML;
+    } else {
+      p.innerHTML = temp.innerHTML;
+    }
+    return 'inline';
+  }
+
+  function renderMarkdownHtml(text) {
+    return w.renderMarkdownHtml(text);
+  }
+
   w.CikeMdBlocks = {
     isFenceLine: isFenceLine,
     isListLine: isListLine,
@@ -74,6 +124,7 @@
     collectListGroup: collectListGroup,
     range: range,
     makePreviewBlock: makePreviewBlock,
+    renderSingleParagraph: renderSingleParagraph,
     replaceGroupWithPreview: replaceGroupWithPreview
   };
 })(window);

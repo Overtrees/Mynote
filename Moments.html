@@ -2356,35 +2356,8 @@ window.getDB = getDB;
             if (!cp || !cp.parentNode) continue;
             var txt2 = (cp.textContent || '').trim();
             if (!txt2 || !looksLikeCiaoMarkdown(txt2)) continue;
-            var html2 = renderMarkdownHtml(txt2);
-            var tmp2 = document.createElement('div');
-            tmp2.innerHTML = html2;
-            var fc2 = tmp2.firstElementChild;
-            var tag2 = fc2 && fc2.tagName;
-            var isBlock2 = tag2 === 'DIV' || tag2 === 'HR' || tag2 === 'BLOCKQUOTE' || tag2 === 'TABLE' || tag2 === 'PRE' || tag2 === 'UL' || tag2 === 'OL';
-            if (isBlock2) {
-              var dv2 = document.createElement('div');
-              dv2.contentEditable = 'false';
-              dv2.className = 'md-preview block markdown-render';
-              dv2.dataset.blockid = cp.dataset.blockid;
-              dv2.dataset.mdtext = txt2;
-              dv2.innerHTML = html2;
-              cp.replaceWith(dv2);
-              ensureTrailingParagraphBlock(dv2);
-            } else {
-              for (var ni2 = 0; ni2 < tmp2.childNodes.length; ni2++) {
-                if (tmp2.childNodes[ni2].nodeType === 1 && (tmp2.childNodes[ni2].tagName === 'SPAN' || tmp2.childNodes[ni2].tagName === 'MARK' || tmp2.childNodes[ni2].tagName === 'DEL')) {
-                  tmp2.childNodes[ni2].contentEditable = 'false';
-                }
-              }
-              cp.dataset.mdtext = txt2;
-              // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
-              if (tmp2.children.length === 1 && tmp2.children[0].tagName === 'P') {
-                cp.innerHTML = tmp2.children[0].innerHTML;
-              } else {
-                cp.innerHTML = tmp2.innerHTML;
-              }
-            }
+            // 块级/内联判定与渲染统一走 CikeMdBlocks（与失焦路径同一实现，不完整语法保护仅在失焦路径启用）
+            CikeMdBlocks.renderSingleParagraph(cp, txt2, { ensureTrailing: ensureTrailingParagraphBlock });
           }
           if (idx2 < grouped.length) setTimeout(pb, 16);
         })();
@@ -4007,49 +3980,10 @@ window.getDB = getDB;
         if (!text || !looksLikeCiaoMarkdown(text)) continue;
         var id = p.dataset.blockid;
         if (!id) continue;
-        var html = renderMarkdownHtml(text);
-        var temp = document.createElement('div');
-        temp.innerHTML = html;
-        var isBlock = false;
-        var firstChild = temp.firstElementChild;
-        if (firstChild) {
-          var tag = firstChild.tagName;
-          isBlock = tag === 'DIV' || tag === 'HR' || tag === 'BLOCKQUOTE' || tag === 'TABLE' || tag === 'PRE' || tag === 'UL' || tag === 'OL';
-        }
-        if (isBlock) {
-          /* 不完整语法保护：块级渲染无实质变化 → 跳过，保持纯文本可编辑 */
-          var skipBlock = false;
-          if (tag === 'BLOCKQUOTE') {
-            var textAfter = text.replace(/^>\s*/, '');
-            if (!textAfter || textAfter.length < 2) skipBlock = true;
-          }
-          if (tag === 'BLOCKQUOTE' || tag === 'DIV') {
-            if (/^>\s*\[!/.test(text) && !/^>\s*\[!\w+\]/.test(text)) skipBlock = true;
-          }
-          if (tag === 'PRE' && (!text.replace(/```/g, '').trim() || text.trim() === '```')) skipBlock = true;
-          if (skipBlock) continue;
-          var div = document.createElement('div');
-          div.contentEditable = 'false';
-          div.className = 'md-preview block markdown-render';
-          div.dataset.blockid = id;
-          div.dataset.mdtext = text;
-          div.innerHTML = html;
-          p.replaceWith(div);
-          ensureTrailingParagraphBlock(div);
-        } else {
-          var nodes = temp.childNodes;
-          for (var ni = 0; ni < nodes.length; ni++) {
-            if (nodes[ni].nodeType === 1 && (nodes[ni].tagName === 'SPAN' || nodes[ni].tagName === 'MARK' || nodes[ni].tagName === 'DEL')) {
-              nodes[ni].contentEditable = 'false';
-            }
-          }
-          p.dataset.mdtext = text;
-          // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
-          if (temp.children.length === 1 && temp.children[0].tagName === 'P') {
-            p.innerHTML = temp.children[0].innerHTML;
-          } else {
-            p.innerHTML = temp.innerHTML;
-          }
+        var res = CikeMdBlocks.renderSingleParagraph(p, text, { guards: true, ensureTrailing: ensureTrailingParagraphBlock });
+        if (res === 'skip') continue;
+        if (res === 'inline') {
+          // 内联渲染后把光标放回末尾，避免失焦后选区丢失
           var range = document.createRange();
           range.selectNodeContents(p);
           range.collapse(false);
