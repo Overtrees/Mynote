@@ -3736,9 +3736,10 @@ window.getDB = getDB;
     var newChecked = !checked;
     checkbox.dataset.checked = newChecked;
     // 替换 SVG
-    checkbox.innerHTML = newChecked
+    var iconSrc = newChecked
       ? ((window.MynoteTodoIcons || {}).checked || '')
       : ((window.MynoteTodoIcons || {}).unchecked || '');
+    checkbox.innerHTML = iconSrc ? '<img src="' + iconSrc + '" alt="">' : '';
     var block = todoBlock.closest('[data-blockid]');
     if (block) {
       var id = block.dataset.blockid;
@@ -5248,6 +5249,24 @@ function MemoList() {
       if (found.length > 0) { setEditingMemoId(found[0].id); console.log('[此刻] auto-open', found[0].id); }
     }
   }
+  /* 历史数据修复：早期待办图标曾以内联 data:URI 文本落进正文，读入时清除 */
+  var ICON_TEXT_RE = /data:image\/svg\+xml[\s\S]*?%3C\/svg%3E|data:image\/svg\+xml[^\s]*/g;
+  function cleanDocIconText(doc) {
+    var changed = false;
+    if (!Array.isArray(doc)) return changed;
+    for (var bi = 0; bi < doc.length; bi++) {
+      var blk = doc[bi];
+      if (!blk || !Array.isArray(blk.children)) continue;
+      for (var ci = 0; ci < blk.children.length; ci++) {
+        var ch = blk.children[ci];
+        if (!ch || typeof ch.text !== 'string' || ch.text.indexOf('data:image/svg+xml') === -1) continue;
+        var cleaned = ch.text.replace(ICON_TEXT_RE, '').replace(/\s+/g, ' ').trim();
+        if (cleaned !== ch.text) { ch.text = cleaned; changed = true; }
+      }
+    }
+    return changed;
+  }
+
   function normalizeMemo(m) {
     if (!m.doc && m.content !== undefined) {
       return Object.assign({}, m, {
@@ -5261,6 +5280,7 @@ function MemoList() {
       createdAt: m.createdAt || m.updatedAt || new Date().toISOString()
     });
     if (!m.createdAt) m.createdAt = m.updatedAt || new Date().toISOString();
+    cleanDocIconText(m.doc);
     return m;
   }
   function runAttachmentMigration(db, memos) {
