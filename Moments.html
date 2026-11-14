@@ -925,12 +925,12 @@
 
 <script>
     // ===== Markdown 工具函数（来自 CikeMd 模块） =====
-    window.preprocessExtendedMarkdown = function(text){ return window.CikeMd ? window.CikeMd.preprocessExtendedMarkdown(text) : text; };
-    window.looksLikeMarkdown = function(text){ return window.CikeMd ? window.CikeMd.looksLikeMarkdown(text) : false; };
-    window.looksLikeCiaoMarkdown = function(text){ return window.CikeMd ? window.CikeMd.looksLikeCiaoMarkdown(text) : false; };
-    window.stripMarkdownForPreview = function(text){ return window.CikeMd ? window.CikeMd.stripMarkdownForPreview(text) : text; };
-    window.renderMarkdownHtml = function(text){ return window.CikeMd ? window.CikeMd.renderMarkdownHtml(text) : text; };
-    window.shouldConvertPureUrlToCard = function(text){ return window.CikeMd ? window.CikeMd.shouldConvertPureUrlToCard(text) : false; };
+    window.preprocessExtendedMarkdown = window.CikeMd.preprocessExtendedMarkdown;
+    window.looksLikeMarkdown = window.CikeMd.looksLikeMarkdown;
+    window.looksLikeCiaoMarkdown = window.CikeMd.looksLikeCiaoMarkdown;
+    window.stripMarkdownForPreview = window.CikeMd.stripMarkdownForPreview;
+    window.renderMarkdownHtml = window.CikeMd.renderMarkdownHtml;
+    window.shouldConvertPureUrlToCard = window.CikeMd.shouldConvertPureUrlToCard;
     if (window.marked) {
         marked.setOptions({ breaks: true, gfm: true });
         var _origParse = marked.parse.bind(marked);
@@ -957,7 +957,7 @@ const {
 const {
   flushSync
 } = ReactDOM;
-const genId = () => (window.CikeId && window.CikeId.genId ? window.CikeId.genId() : Math.random().toString(36).slice(2, 10));
+const genId = () => window.CikeId.genId();
 function focusEditableWithCaret(target, offset = 0) {
   return window.CikeDom && window.CikeDom.focusEditableWithCaret
     ? window.CikeDom.focusEditableWithCaret(target, offset, typeof warn === 'function' ? warn : null)
@@ -967,23 +967,17 @@ function focusEditableWithCaret(target, offset = 0) {
 window.getDB = getDB;
 
 /* ---------- Worker API ---------- */
-const API_BASE = window.CikeConstants ? window.CikeConstants.API_BASE : 'https://mynote.overtrees.workers.dev';
-const URL_REGEX = window.CikeConstants ? window.CikeConstants.URL_REGEX : /^https?:\/\/(www\.)?[-\u4e00-\u9fa5a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-\u4e00-\u9fa5a-zA-Z0-9()@:%_+.~#?&\/=]*)$/i;
-const URL_INLINE_REGEX = window.CikeConstants ? window.CikeConstants.URL_INLINE_REGEX : /https?:\/\/[-\u4e00-\u9fa5a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-\u4e00-\u9fa5a-zA-Z0-9()@:%_+.~#?&\/=]*/i;
+const API_BASE = window.CikeConstants.API_BASE; // 常量唯一源：src/constants.js
+const URL_REGEX = window.CikeConstants.URL_REGEX; // 常量唯一源
+const URL_INLINE_REGEX = window.CikeConstants.URL_INLINE_REGEX; // 常量唯一源
 function isUrl(str) {
-  return window.CikeConstants && window.CikeConstants.isUrl
-    ? window.CikeConstants.isUrl(str)
-    : URL_REGEX.test(String(str || '').trim());
+  return window.CikeConstants.isUrl(str);
 }
 function extractUrlFromText(str) {
-  return window.CikeConstants && window.CikeConstants.extractUrlFromText
-    ? window.CikeConstants.extractUrlFromText(str)
-    : (String(str || '').match(URL_INLINE_REGEX) || [null])[0];
+  return window.CikeConstants.extractUrlFromText(str);
 }
 function getTypeIcon(type) {
-  return window.CikeConstants && window.CikeConstants.getTypeIcon
-    ? window.CikeConstants.getTypeIcon(type)
-    : (type === 'music' ? '🎵' : type === 'video' ? '🎬' : '🔗');
+  return window.CikeConstants.getTypeIcon(type);
 }
 async function fetchLinkMeta(url) {
   const controller = new AbortController();
@@ -1015,17 +1009,17 @@ function proxyImg(url) {
 
 // 检测 iOS 系统 24 小时制开关（优先来自 CikeTime 模块）
 function is24hFormat() {
-  return window.CikeTime && window.CikeTime.is24hFormat ? window.CikeTime.is24hFormat() : false;
+  return window.CikeTime.is24hFormat();
 }
 function timeAgo(iso) {
-  return window.CikeTime && window.CikeTime.timeAgo ? window.CikeTime.timeAgo(iso) : (iso ? new Date(iso).toLocaleString() : '现在');
+  return window.CikeTime.timeAgo(iso);
 }
-const NEW_CARD_ID = window.CikeConstants ? window.CikeConstants.NEW_CARD_ID : "__new_memo_card__";
+const NEW_CARD_ID = window.CikeConstants.NEW_CARD_ID;
 
 /* ---------- Google Drive 配置 ---------- */
-const GOOGLE_CLIENT_ID = (window.CikeConstants && window.CikeConstants.GOOGLE_CLIENT_ID) || '993589743002-6o74a8e7d5jck2g55rag7me7q60ogehr.apps.googleusercontent.com';
-const GOOGLE_API_KEY = window.CikeConstants ? window.CikeConstants.GOOGLE_API_KEY : 'YOUR_API_KEY';
-const BACKUP_FILE_NAME = window.CikeConstants ? window.CikeConstants.BACKUP_FILE_NAME : 'memories_backup.zip';
+const GOOGLE_CLIENT_ID = window.CikeConstants.GOOGLE_CLIENT_ID;
+const GOOGLE_API_KEY = window.CikeConstants.GOOGLE_API_KEY;
+const BACKUP_FILE_NAME = window.CikeConstants.BACKUP_FILE_NAME;
 
 /* ---------- DB 单例（来自 CikeIdb 模块） ---------- */
 var _dbInstance = null;
@@ -1139,10 +1133,12 @@ function renderAtomicHTML(node, files) {
   return '';
 }
 function renderDocToEditorHTML(doc, files) {
-  return window.CikeEditor ? window.CikeEditor.renderDocToEditorHTML(doc, files) : doc.map(function(n){return '<p>'+((n.children&&n.children[0]&&n.children[0].text)||'')+'</p>';}).join('\n');
+  // 实现只在 src/editor/editor.render.js，这里不再保留第二份
+  return window.CikeEditor.renderDocToEditorHTML(doc, files);
 }
+
 function parseEditorDOM(containerEl) {
-  return window.CikeEditor ? window.CikeEditor.parseEditorDOM(containerEl) : [];
+  return window.CikeEditor.parseEditorDOM(containerEl);
 }
 function Editor({
   memo,
