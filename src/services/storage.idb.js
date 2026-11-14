@@ -5,7 +5,7 @@
 
   function openDB() {
     return new Promise(function (resolve, reject) {
-      var request = indexedDB.open('MemosDB', 7);
+      var request = indexedDB.open('MemosDB', 8);
       request.onupgradeneeded = function (e) {
         var db = e.target.result;
         // 创建缺失的 store，不删除已有数据
@@ -24,8 +24,17 @@
         if (!db.objectStoreNames.contains('memos')) {
           db.createObjectStore('memos', { keyPath: 'id' });
         }
+        // v8：恢复流程的暂存区。写入这里不碰线上数据，切换时用单事务一次性提权。
+        if (!db.objectStoreNames.contains('attachments_staging')) {
+          db.createObjectStore('attachments_staging', { keyPath: 'id' });
+        }
       };
-      request.onsuccess = function (e) { resolve(e.target.result); };
+      request.onsuccess = function (e) {
+        var db = e.target.result;
+        // 其它标签页请求升级时主动让位，避免升级被旧连接阻塞
+        db.onversionchange = function () { try { db.close(); } catch (_) {} _dbInstance = null; };
+        resolve(db);
+      };
       request.onerror = function (e) { reject(e.target.error); };
     });
   }
@@ -198,22 +207,26 @@
       req.onsuccess = function () { res(req.result); };
       req.onerror = function () { rej(req.error); };
     });
-    for (var i = 0; i < allKeys.length; i++) {
-      if (onProgress) onProgress(i, allKeys.length);
-      try {
-        var record = await loadAttachmentFromDB(db, allKeys[i]);
-        if (record && record.url) {
+    // 分批并发：串行读 base64 再解码在大备份上非常慢，4 路并发约快 2-3 倍
+    var CONCURRENCY = 4;
+    for (var i = 0; i < allKeys.length; i += CONCURRENCY) {
+      if (onProgress) onProgress(Math.min(i + CONCURRENCY, allKeys.length), allKeys.length);
+      var batch = allKeys.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async function (key) {
+        try {
+          var record = await loadAttachmentFromDB(db, key);
+          if (!record || !record.url) return;
           var parts = record.url.split(',');
-          if (parts.length < 2) continue;
+          if (parts.length < 2) return;
           var binStr = atob(parts[1]);
           var buf = new Uint8Array(binStr.length);
           for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
-          var safeName = (record.name || allKeys[i]).replace(/[/\\:*?"<>|]/g, '_');
-          zipData['attachments/' + allKeys[i] + '_' + safeName] = buf;
+          var safeName = (record.name || key).replace(/[/\\:*?"<>|]/g, '_');
+          zipData['attachments/' + key + '_' + safeName] = buf;
+        } catch (e) {
+          if (typeof w.warn === 'function') w.warn('打包附件失败: ' + key, e);
         }
-      } catch (e) {
-        if (typeof w.warn === 'function') w.warn('打包附件失败: ' + allKeys[i], e);
-      }
+      }));
     }
   }
 
@@ -274,6 +287,159 @@
     }
   }
 
+
+  // ===== 恢复流程：暂存 → 单事务切换（v8） =====
+  // 设计约束：IndexedDB 事务内不能 await 非 IDB 的 Promise（FileReader / Image onload），
+  // 否则事务会因微任务队列耗尽而提前结束。所以所有解码/缩略图都在事务外算完，写进 staging，
+  // 最后用一个跨 store 的事务原子地完成「清空 → 提权 → 写文档 → 写头像」。
+
+  function strFromU8Safe(bytes) {
+    try { return new TextDecoder('utf-8').decode(bytes); } catch (_) { return ''; }
+  }
+
+  function parseBackupManifest(unzipped) {
+    var raw = unzipped && unzipped['manifest.json'];
+    if (!raw) return { attachments: {} };
+    try {
+      var j = JSON.parse(strFromU8Safe(raw));
+      return { attachments: (j && j.attachments) || {} };
+    } catch (_) { return { attachments: {} }; }
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(function (res, rej) {
+      var reader = new FileReader();
+      reader.onload = function () { res(reader.result); };
+      reader.onerror = function () { rej(reader.error || new Error('读取附件失败')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function clearStore(db, storeName) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).clear();
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+      tx.onabort = function () { reject(tx.error || new Error('清空失败')); };
+    });
+  }
+
+  function putOne(db, storeName, record) {
+    return new Promise(function (resolve, reject) {
+      var tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(record);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { reject(tx.error); };
+      tx.onabort = function () { reject(tx.error || new Error('写入失败')); };
+    });
+  }
+
+  // 由 zip 内路径 + manifest 生成一条附件记录（与 attachments store 结构一致）
+  async function buildAttachmentRecord(relPath, bytes, manifestAtt) {
+    if (!bytes) throw new Error('附件内容为空');
+    var fileName = relPath.replace('attachments/', '');
+    var us = fileName.indexOf('_');
+    var fileId = us > 0 ? fileName.slice(0, us) : fileName;
+    var displayName = us > 0 ? fileName.slice(us + 1) : fileName;
+    var mime = (manifestAtt && manifestAtt.type) || guessMimeFromName(displayName);
+    if (!mime || mime === 'application/octet-stream') {
+      var bm = guessMimeFromBytes(bytes);
+      if (bm) mime = bm;
+    }
+    var blob = new Blob([bytes], { type: mime });
+    var dataUrl = await blobToDataUrl(blob);
+    var thumb = await createThumbnail(dataUrl).catch(function () { return null; });
+    return { id: fileId, name: displayName, type: mime, url: dataUrl, thumb: thumb };
+  }
+
+  async function stageRestoreFromZip(db, unzipped, onProgress) {
+    await clearStore(db, 'attachments_staging');
+    var manifest = parseBackupManifest(unzipped);
+    var paths = Object.keys(unzipped || {}).filter(function (k) { return k.indexOf('attachments/') === 0; });
+    var staged = 0, failed = 0, failures = [];
+    for (var i = 0; i < paths.length; i++) {
+      if (onProgress) onProgress(i, paths.length);
+      var relPath = paths[i];
+      try {
+        var fileName = relPath.replace('attachments/', '');
+        var us = fileName.indexOf('_');
+        var fid = us > 0 ? fileName.slice(0, us) : fileName;
+        var rec = await buildAttachmentRecord(relPath, unzipped[relPath], (manifest.attachments || {})[fid]);
+        await putOne(db, 'attachments_staging', rec);
+        staged++;
+      } catch (e) {
+        failed++;
+        failures.push({ path: relPath, error: (e && e.message) || String(e) });
+      }
+    }
+    return { staged: staged, failed: failed, failures: failures, total: paths.length };
+  }
+
+  function commitStagedRestore(db, opts) {
+    opts = opts || {};
+    return new Promise(function (resolve, reject) {
+      var names = ['attachments', 'attachments_staging', 'memos'];
+      if (opts.avatars) names.push('avatars');
+      var tx;
+      try { tx = db.transaction(names, 'readwrite'); }
+      catch (e) { reject(e); return; }
+      tx.onerror = function () { reject(tx.error); };
+      tx.onabort = function () { reject(tx.error || new Error('恢复事务被中止，已回滚')); };
+      tx.oncomplete = function () { resolve({ memos: (opts.memos || []).length }); };
+
+      try {
+        var att = tx.objectStore('attachments');
+        var staging = tx.objectStore('attachments_staging');
+        att.clear();
+        staging.openCursor().onsuccess = function (e) {
+          var cur = e.target.result;
+          if (!cur) return;
+          att.put(cur.value);
+          staging.delete(cur.primaryKey);
+          cur.continue();
+        };
+        var ms = tx.objectStore('memos');
+        ms.clear();
+        for (var i = 0; i < (opts.memos || []).length; i++) ms.put(opts.memos[i]);
+        if (opts.avatars) {
+          var av = tx.objectStore('avatars');
+          Object.keys(opts.avatars).forEach(function (k) { av.put({ id: k, dataUrl: opts.avatars[k] }); });
+        }
+      } catch (queueErr) {
+        // 队列中途抛错（如脏数据缺 keyPath）时事务不会自动回滚，必须显式 abort
+        try { tx.abort(); } catch (_) {}
+        reject(queueErr);
+      }
+    });
+  }
+
+  async function restoreFromZipAtomic(db, unzipped, backup, opts) {
+    opts = opts || {};
+    backup = backup || {};
+    // 配额预检：staging 期间附件会临时存两份
+    var need = 0;
+    Object.keys(unzipped || {}).forEach(function (k) {
+      if (k.indexOf('attachments/') === 0) need += (unzipped[k] && unzipped[k].length) || 0;
+    });
+    try {
+      if (navigator.storage && navigator.storage.estimate) {
+        var est = await navigator.storage.estimate();
+        var free = (est.quota || 0) - (est.usage || 0);
+        if (est.quota && free < need * 2.2) throw new Error('设备剩余空间不足，请清理后重试');
+      }
+    } catch (quotaErr) {
+      if (quotaErr && /空间不足/.test(quotaErr.message)) throw quotaErr;
+    }
+    var st = await stageRestoreFromZip(db, unzipped, opts.onProgress);
+    if (st.failed > 0 && !opts.allowPartial) {
+      await clearStore(db, 'attachments_staging');
+      throw new Error('有 ' + st.failed + ' 个附件无法解析，已取消恢复，本机数据未改动');
+    }
+    await commitStagedRestore(db, { memos: backup.memos || [], avatars: backup.avatars || null });
+    return { staged: st.staged, failed: st.failed, failures: st.failures };
+  }
+
   w.CikeIdb = {
     getDB: getDB,
     openDB: openDB,
@@ -292,6 +458,10 @@
     restoreAttachmentsFromZip: restoreAttachmentsFromZip,
     restoreAvatars: restoreAvatars,
     saveMemosToDB: saveMemosToDB,
-    loadMemosFromDB: loadMemosFromDB
+    loadMemosFromDB: loadMemosFromDB,
+    clearStore: clearStore,
+    stageRestoreFromZip: stageRestoreFromZip,
+    commitStagedRestore: commitStagedRestore,
+    restoreFromZipAtomic: restoreFromZipAtomic
   };
 })(window);

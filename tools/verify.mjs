@@ -58,6 +58,16 @@ const iImg = order.indexOf('components/ImageCard.js');
 if (iPreview === -1) problems.push('Moments.html 未引入 src/utils/preview.js');
 else if (iPreview > iSwipe || iPreview > iImg) problems.push('preview.js 必须在 SwipeRow/ImageCard 之前引入');
 
+// ---- 5. 版本号单一来源 ----
+const pkg = JSON.parse(read('package.json'));
+const constSrc = read('src/constants.js');
+const vMatch = constSrc.match(/APP_VERSION:\s*'([^']+)'/);
+if (!vMatch) problems.push('src/constants.js 缺少 APP_VERSION');
+else if (vMatch[1] !== pkg.version) problems.push(`版本不一致: package.json ${pkg.version} vs constants.js ${vMatch[1]}`);
+const qv = [...moments.matchAll(/\?v=([A-Za-z0-9._-]+)/g)].map(x => x[1]);
+const qvBad = [...new Set(qv)].filter(v => v !== pkg.version);
+if (qvBad.length) problems.push(`脚本缓存串版本不一致: ${qvBad.join(', ')}（应为 ${pkg.version}）`);
+
 console.log(`检查脚本: ${srcFiles.length} 个 src 模块，${pages.length} 个页面`);
 for (const n of notes) console.log('  note: ' + n);
 if (problems.length === 0) {

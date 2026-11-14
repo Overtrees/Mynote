@@ -217,18 +217,16 @@ const BackupView = ({
       if (!backup.memos || !Array.isArray(backup.memos)) throw new Error('无效的备份文件，未找到备忘录数据');
       const db = await w.CikeIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
-      const oldMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(e => console.warn('[恢复] 删除旧附件失败', e));
-      const {
-        success,
-        fail
-      } = await restoreAttachmentsFromZip(unzipped, db);
-      if (fail > 0) showStatus(`附件恢复完成：成功 ${success}，跳过 ${fail}`);
-      await restoreAvatars(backup.avatars, db);
+      // 两阶段原子恢复：附件先写入暂存区（此阶段完全不碰线上数据），
+      // 全部校验通过后再用【单个跨 store 事务】把附件/文档/头像一起切换。
+      // 中途失败或崩溃时线上数据保持原样，不再出现「文档已换、附件已删」的半损状态。
+      showStatus('正在校验并暂存备份内容...');
+      const atomicResult = await w.CikeIdb.restoreFromZipAtomic(db, unzipped, backup, {
+        onProgress: (i, total) => showStatus(`正在校验附件 ${i + 1}/${total}...`)
+      });
+      if (atomicResult.failed > 0) showStatus(`附件恢复完成：成功 ${atomicResult.staged}，跳过 ${atomicResult.failed}`);
       localStorage.setItem('memos_app_v2', newMemosStr);
-      await (window.CikeIdb ? window.CikeIdb.saveMemosToDB(db, backup.memos) : null);
-      // 从 manifest 修正 MIME type
-      try { var manRaw2 = unzipped['manifest.json']; if (manRaw2) { var man2 = JSON.parse(fflate.strFromU8(manRaw2)); var atts2 = man2.attachments || {}; for (var fid2 in atts2) { try { var rec2 = await loadAttachmentFromDB(db, fid2); if (rec2 && atts2[fid2].type) rec2.type = atts2[fid2].type; await saveAttachmentToDB(db, rec2); } catch(_) {} } } } catch(_) {}
+
       showStatus('✅ 恢复成功！正在刷新页面...');
       addHistoryEntry('restore', 'success', '从本地文件恢复', file.name);
       setTimeout(() => window.location.href = location.href, 800);
@@ -354,7 +352,7 @@ const BackupView = ({
       const blob = new Blob([zipped], {
         type: 'application/zip'
       });
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
+      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`(name='${BACKUP_FILE_NAME}' or name='memories_backup.json')`)}&trashed=false&spaces=appDataFolder&fields=files(id)`, {
         headers: {
           Authorization: `Bearer ${googleToken}`
         }
@@ -406,7 +404,7 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在下载云端备份...');
     try {
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
+      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`(name='${BACKUP_FILE_NAME}' or name='memories_backup.json')`)}&trashed=false&spaces=appDataFolder&fields=files(id)`, {
         headers: {
           Authorization: `Bearer ${googleToken}`
         }
@@ -493,7 +491,7 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在从云端下载...');
     try {
-      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${BACKUP_FILE_NAME}' and trashed=false&spaces=appDataFolder&fields=files(id)`, {
+      const listResp = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`(name='${BACKUP_FILE_NAME}' or name='memories_backup.json')`)}&trashed=false&spaces=appDataFolder&fields=files(id)`, {
         headers: {
           Authorization: `Bearer ${googleToken}`
         }
@@ -514,19 +512,17 @@ const BackupView = ({
       if (!backup.memos) throw new Error('无效的备份文件');
       const db = await w.CikeIdb.getDB();
       const newMemosStr = JSON.stringify(backup.memos);
-      const oldMemos = JSON.parse(localStorage.getItem('memos_app_v2') || '[]');
-      for (const m of oldMemos) if (m.doc) for (const n of m.doc) if (n.type === 'attachment') await deleteAttachmentFromDB(db, n.fileId).catch(e => console.warn('[恢复] 删除旧附件失败', e));
-      const {
-        success,
-        fail
-      } = await restoreAttachmentsFromZip(unzipped, db);
-      if (fail > 0) showStatus(`附件恢复完成：成功 ${success}，跳过 ${fail}`);
-      const backupAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null;
-      await restoreAvatars(backupAvatars || backup.avatars, db);
+      // 与本地导入同一套两阶段原子恢复（见 restoreFromZipAtomic）
+      showStatus('正在校验并暂存云端备份...');
+      const atomicRes = await w.CikeIdb.restoreFromZipAtomic(db, unzipped, {
+        memos: backup.memos,
+        avatars: (unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : null) || backup.avatars
+      }, {
+        onProgress: (i, total) => showStatus(`正在校验附件 ${i + 1}/${total}...`)
+      });
+      if (atomicRes.failed > 0) showStatus(`附件恢复完成：成功 ${atomicRes.staged}，跳过 ${atomicRes.failed}`);
       localStorage.setItem('memos_app_v2', newMemosStr);
-      if (window.CikeIdb) { try { var _db4 = await window.CikeIdb.getDB(); await window.CikeIdb.saveMemosToDB(_db4, backup.memos); } catch(_){} }
-      // 从 manifest 修正 MIME type
-      try { var manRaw3 = unzipped['manifest.json']; if (manRaw3) { var man3 = JSON.parse(fflate.strFromU8(manRaw3)); var atts3 = man3.attachments || {}; for (var fid3 in atts3) { try { var rec3 = await loadAttachmentFromDB(db, fid3); if (rec3 && atts3[fid3].type) rec3.type = atts3[fid3].type; await saveAttachmentToDB(db, rec3); } catch(_) {} } } } catch(_) {}
+
       showStatus('✅ 云端恢复成功！正在刷新页面...');
       addHistoryEntry('restore', 'success', '从云端恢复', (backup.memos || []).length + ' 条笔记');
       setTimeout(() => window.location.href = location.href, 2000);

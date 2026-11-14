@@ -67,7 +67,7 @@
           R.createElement('div', { className:'backup-card' },
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u7248\u672C'),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, '2.0.2')),
+              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, (w.CikeConstants && w.CikeConstants.APP_VERSION) || '2.1.0')),
             R.createElement('div', { style:{ height:'0.5px', background:'var(--border-color)', marginLeft:16, marginRight:16 } }),
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u8054\u7CFB\u6211\u4EEC'),

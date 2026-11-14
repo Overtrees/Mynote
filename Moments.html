@@ -44,35 +44,35 @@
 
 <script src="./src/utils/svg.js"></script>
 
-<script src="./src/services/storage.idb.js?v=2"></script>
+<script src="./src/services/storage.idb.js?v=2.1.0"></script>
 
 
 <script src="./src/services/storage.local.js"></script>
 
 <script src="./src/editor/editor.md.js"></script>
 
-<script src="./src/editor/editor.render.js?v=4"></script>
+<script src="./src/editor/editor.render.js?v=2.1.0"></script>
 
 <script src="./src/components/LinkCard.js"></script>
 
-<script src="./src/hooks/useSwipeGesture.js?v=2"></script>
+<script src="./src/hooks/useSwipeGesture.js?v=2.1.0"></script>
 
 <script src="./src/components/BgSheet.js"></script>
 
 <script src="./src/components/LazyImage.js"></script>
 
-<script src="./src/components/SettingsView.js?v=2"></script>
+<script src="./src/components/SettingsView.js?v=2.1.0"></script>
 
-<script src="./src/components/SwipeRow.js?v=5"></script>
+<script src="./src/components/SwipeRow.js?v=2.1.0"></script>
 
-<script src="./src/components/ImageCard.js?v=3"></script>
+<script src="./src/components/ImageCard.js?v=2.1.0"></script>
 
-<script src="./src/components/BackupView.js?v=20260618"></script>
+<script src="./src/components/BackupView.js?v=2.1.0"></script>
 
 <script src="./src/blocks/registry.js"></script>
 <script src="./src/blocks/all.js"></script>
 
-<script src="./src/error-boundary.js?v=2"></script>
+<script src="./src/error-boundary.js?v=2.1.0"></script>
 
 <style>
     :root {
@@ -1022,9 +1022,9 @@ function timeAgo(iso) {
 const NEW_CARD_ID = window.CikeConstants ? window.CikeConstants.NEW_CARD_ID : "__new_memo_card__";
 
 /* ---------- Google Drive 配置 ---------- */
-const GOOGLE_CLIENT_ID = window.CikeConstants ? window.CikeConstants.GOOGLE_CLIENT_ID : '369692322774-se6hvcg8lvlacbgl8hf3u4d3tme7aeht.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = (window.CikeConstants && window.CikeConstants.GOOGLE_CLIENT_ID) || '993589743002-6o74a8e7d5jck2g55rag7me7q60ogehr.apps.googleusercontent.com';
 const GOOGLE_API_KEY = window.CikeConstants ? window.CikeConstants.GOOGLE_API_KEY : 'YOUR_API_KEY';
-const BACKUP_FILE_NAME = window.CikeConstants ? window.CikeConstants.BACKUP_FILE_NAME : 'memories_backup.json';
+const BACKUP_FILE_NAME = window.CikeConstants ? window.CikeConstants.BACKUP_FILE_NAME : 'memories_backup.zip';
 
 /* ---------- DB 单例（来自 CikeIdb 模块） ---------- */
 var _dbInstance = null;
@@ -1183,6 +1183,9 @@ window.getDB = getDB;
   var docRef = useRef(initialDoc);
   const [renderKey, setRenderKey] = useState(0);
   const [files, setFiles] = useState({});
+  // 供 useCallback 闭包读取最新附件表（避免把 files 塞进依赖导致整页重建）
+  const filesRef = useRef({});
+  useEffect(() => { filesRef.current = files; }, [files]);
 
   // 初始加载时自动渲染含 MD 语法的段落，并恢复草稿
   useEffect(() => {
@@ -1977,7 +1980,6 @@ window.getDB = getDB;
           checked: false
         }
       } : {}),
-      ...(type === 'divider' ? {} : {}),
       ...(type === 'musicCard' ? {
         url: '',
         meta: null,
@@ -2389,7 +2391,7 @@ window.getDB = getDB;
         (function pb() {
           var end2 = Math.min(idx2 + batchSize, grouped.length);
           for (; idx2 < end2; idx2++) {
-            var cp = uncached[idx2];
+            var cp = grouped[idx2];
             if (!cp || !cp.parentNode) continue;
             var txt2 = (cp.textContent || '').trim();
             if (!txt2 || !looksLikeCiaoMarkdown(txt2)) continue;
@@ -2510,8 +2512,8 @@ window.getDB = getDB;
       var scrollY = window.scrollY || window.pageYOffset || 0;
       var alpha = scrollY <= 0 ? 0 : scrollY >= 30 ? 1 : scrollY / 30;
       var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      var bgColor = window.getComputedStyle(document.body).backgroundColor || (isDark ? '0,0,0' : '255,255,255');
-      var c = bgColor.replace('rgba(', '').replace('rgb(', '').replace(')', '').replace(/ /g, '').split(',');
+      var bgComputed = window.getComputedStyle(document.body).backgroundColor || (isDark ? '0,0,0' : '255,255,255');
+      var c = bgComputed.replace('rgba(', '').replace('rgb(', '').replace(')', '').replace(/ /g, '').split(',');
       c = c.slice(0, 3).join(',');
       var bgStyle = document.getElementById(styleId);
       if (alpha <= 0.01) {
@@ -2690,6 +2692,8 @@ window.getDB = getDB;
   }, []);
   // ===== 全量快照撤销/重做 =====
   var lastSnapshotRef = useRef(null);
+  var lastPushAtRef = useRef(0);
+  // 统一历史入口：所有撤销点都由此写入，条目形如 { snapshot: 撤销后应恢复的内容 }
   var recordUndoPoint = useCallback(function() {
     // 深拷贝当前 doc，确保后续 push/修改不受影响
     var snapshot = JSON.parse(JSON.stringify(docRef.current));
@@ -2697,46 +2701,66 @@ window.getDB = getDB;
     if (!prev) { lastSnapshotRef.current = snapshot; return; }
     // 序列化比较，避免引用相等但内容已变的情况
     if (JSON.stringify(prev) === JSON.stringify(snapshot)) return;
-    history.current.past.push({ snapshot: prev, inverse: null });
-    if (history.current.past.length > 100) history.current.past.shift();
-    history.current.future = [];
+    var h = history.current;
+    var now = Date.now();
+    var top = h.past[h.past.length - 1];
+    // 连续输入（600ms 内）合并成一步：保留更早的 before，撤销一次回到输入前
+    if (top && top.snapshot && now - lastPushAtRef.current < 600) {
+      top.snapshot = prev;
+    } else {
+      h.past.push({ snapshot: prev });
+      if (h.past.length > 100) h.past.shift();
+    }
+    lastPushAtRef.current = now;
     lastSnapshotRef.current = snapshot;
+    h.future = [];
   }, []);
   var undo = useCallback(() => {
     var h = history.current, last = h.past[h.past.length - 1];
-    if (last && last.snapshot) {
-      h.past.pop();
+    if (!last) return;
+    h.past.pop();
+    // 撤销前先把「当前状态」深拷贝一份，redo 才能准确回到这里
+    var current = JSON.parse(JSON.stringify(docRef.current));
+    if (last.snapshot) {
       var restoreTo = JSON.parse(JSON.stringify(last.snapshot));
-      lastSnapshotRef.current = docRef.current;
       docRef.current = restoreTo; setEditorDocRef(restoreTo);
+      lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
       var el = editorBodyRef.current;
-      if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, files);
+      if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, filesRef.current);
       setRenderKey(function(p){return p+1;});
+      h.future.push({ snapshot: current });
+      lastPushAtRef.current = 0;
       triggerAutoSave();
-      h.future.push({ inverse: null, snapshot: last.inverse || null });
       return;
     }
-    var p2 = h.past.pop();
-    if (!p2) return;
-    applyPatch(p2.inverse); h.future.push(p2); triggerAutoSave();
+    applyPatch(last.inverse);
+    lastSnapshotRef.current = JSON.parse(JSON.stringify(docRef.current));
+    h.future.push({ patch: last.patch, inverse: last.inverse });
+    lastPushAtRef.current = 0;
+    triggerAutoSave();
   }, [applyPatch, triggerAutoSave]);
   var redo = useCallback(() => {
     var h = history.current, nxt = h.future[h.future.length - 1];
-    if (nxt && nxt.snapshot) {
-      h.future.pop();
+    if (!nxt) return;
+    h.future.pop();
+    var current = JSON.parse(JSON.stringify(docRef.current));
+    if (nxt.snapshot) {
       var restoreTo = JSON.parse(JSON.stringify(nxt.snapshot));
-      lastSnapshotRef.current = docRef.current;
       docRef.current = restoreTo; setEditorDocRef(restoreTo);
+      lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
       var el = editorBodyRef.current;
-      if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, files);
+      if (el) el.innerHTML = renderDocToEditorHTML(restoreTo, filesRef.current);
       setRenderKey(function(p){return p+1;});
+      h.past.push({ snapshot: current });
+      lastPushAtRef.current = 0;
       triggerAutoSave();
-      h.past.push({ snapshot: restoreTo, inverse: null });
       return;
     }
-    var n2 = h.future.pop();
-    if (!n2) return;
-    applyPatch(n2.patch); h.past.push(n2); triggerAutoSave();
+    applyPatch(nxt.patch);
+    lastSnapshotRef.current = JSON.parse(JSON.stringify(docRef.current));
+    h.past.push({ patch: nxt.patch, inverse: nxt.inverse });
+    lastPushAtRef.current = 0;
+    triggerAutoSave();
   }, [applyPatch, triggerAutoSave]);
   useEffect(() => {
     const handler = e => {
@@ -3236,10 +3260,9 @@ window.getDB = getDB;
       docRef.current = parseEditorDOM(el);
       // 文本变化时记录撤销点（比较序列化差异避免引用相等误判）
       if (JSON.stringify(prevDoc) !== JSON.stringify(docRef.current)) {
-        lastSnapshotRef.current = docRef.current;
-        history.current.past.push({ snapshot: prevDoc, inverse: null });
-        if (history.current.past.length > 100) history.current.past.shift();
-        history.current.future = [];
+        // 走统一历史入口：深拷贝 + 600ms 输入合并，避免逐字符把 100 条上限打满
+        lastSnapshotRef.current = prevDoc;
+        recordUndoPoint();
       }
       /* ---- 智能前缀触发 ---- */
       /* 斜杠菜单打开时跳过，避免与 / 命令冲突 */
@@ -3326,7 +3349,7 @@ window.getDB = getDB;
         if (changed) {
           recordUndoPoint();
           setEditorDocRef(doc);
-          el.innerHTML = renderDocToEditorHTML(doc, {});
+          el.innerHTML = renderDocToEditorHTML(doc, filesRef.current);
         }
       }
       updateSlashStateFromSelection();
@@ -3966,10 +3989,9 @@ window.getDB = getDB;
       /* ---- 统一为所有块级渲染的组补空段落，并刷新 ps ---- */
       var blockDivs = el.querySelectorAll('.md-preview.block');
       for (var bdi = 0; bdi < blockDivs.length; bdi++) {
-        ensureTrailingParagraphBlock(blockDivs[bdi]);
+        if (ensureTrailingParagraphBlock(blockDivs[bdi])) changed = true;
       }
       ps = el.querySelectorAll('p');
-      changed = true;
 
       /* ---- 处理待输入的音乐链接 ---- */
       var muPs = el.querySelectorAll('[data-music-url="pending"]');
@@ -5653,7 +5675,7 @@ function MemoList() {
     try {
       const safe = memos.map(m => ({
         ...m,
-        doc: m.doc ? m.doc.map(function(n) { return n; }) : m.doc
+        doc: m.doc
       }));
       localStorage.setItem("memos_app_v2", JSON.stringify(safe));
       // 同步到 IndexedDB
@@ -5728,11 +5750,31 @@ function MemoList() {
       updatedAt: new Date().toISOString()
     }) : m));
   };
+  // 收集一条笔记引用到的全部附件 fileId（attachment / image / gallery / imgTextCard / imageTextRow）
+  const collectMemoFileIds = (memo) => {
+    const ids = [];
+    const push = fid => { if (fid && ids.indexOf(fid) === -1) ids.push(fid); };
+    const doc = (memo && memo.doc) || [];
+    for (let i = 0; i < doc.length; i++) {
+      const n = doc[i];
+      if (!n) continue;
+      if (n.type === 'attachment') { push(n.fileId); continue; }
+      const a = n.attrs || {};
+      push(a.fileId);
+      if (Array.isArray(a.items)) {
+        for (let j = 0; j < a.items.length; j++) {
+          const it = a.items[j];
+          if (it && typeof it === 'object') push(it.fileId);
+        }
+      }
+    }
+    return ids;
+  };
   const deleteMemo = async id => {
     if (id === NEW_CARD_ID) return;
     const target = memos.find(m => m.id === id);
     if (target && target.doc) {
-      const fileIds = target.doc.filter(n => n.type === "attachment").map(n => n.fileId);
+      const fileIds = collectMemoFileIds(target);
       if (fileIds.length > 0) {
         try {
           const db = await getDB();
@@ -5753,7 +5795,7 @@ function MemoList() {
       try {
         const safe = next.map(m => ({
           ...m,
-          doc: m.doc ? m.doc.map(function(n) { return n; }) : m.doc
+          doc: m.doc
         }));
         localStorage.setItem("memos_app_v2", JSON.stringify(safe));
         if (!saveMountedRef.current) return;

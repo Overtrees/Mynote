@@ -41,11 +41,14 @@ test('id / time / dom / constants 基础行为', () => {
   assert.ok(typeof w.CikeTime.timeAgo(new Date().toISOString()) === 'string');
 });
 
-test('已知缺陷快照：URL_INLINE_REGEX 中文区间写错，含中文链接被截断', () => {
+test('URL 提取：中文路径不再被截断（回归用例，原缺陷已修复）', () => {
   const env = makeEnv();
   load(env, 'src/constants.js');
   const w = env.win;
-  // 现状：字符类里 \u9fa5 少了区间起点，导致第一个汉字处截断。
-  // 修复该正则属于可见行为变更，本次重构不动它，只把现状固定为快照。
-  assert.equal(w.CikeConstants.extractUrlFromText('看这个 https://zh.wikipedia.org/wiki/中文条目 很好'), 'https://zh.wikipedia.org/wiki/');
+  assert.equal(w.CikeConstants.extractUrlFromText('看这个 https://zh.wikipedia.org/wiki/中文条目 很好'), 'https://zh.wikipedia.org/wiki/中文条目');
+  // 多个链接只取第一个；纯 ASCII 链接行为不变
+  assert.equal(w.CikeConstants.extractUrlFromText('见 https://example.com/a?b=1 和 https://b.cn/x'), 'https://example.com/a?b=1');
+  assert.equal(w.CikeConstants.extractUrlFromText('没有链接'), null);
+  assert.equal(w.CikeConstants.isUrl('https://zh.wikipedia.org/wiki/中文条目'), true);
 });
+

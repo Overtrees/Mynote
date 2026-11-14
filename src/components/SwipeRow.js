@@ -16,19 +16,6 @@
     var attachCount = summary ? summary.attachCount : 0;
     var tags = summary ? summary.tags : [];
 
-    // Thumbnail loading (legacy: some memos may have thumb in doc, preload for cache)
-    useEffect(function () {
-      if (isNewCard) return;
-      var docAtt = memo.doc && memo.doc.find(function(n){return n.type === 'attachment';});
-      if (!docAtt || docAtt.thumb) return;
-      (async function() {
-        try {
-          var db = await (w.CikeIdb ? w.CikeIdb.getDB() : null);
-          if (!db) return;
-          var stored = await (w.CikeIdb ? w.CikeIdb.loadAttachmentFromDB(db, docAtt.fileId).catch(function(){return null;}) : null);
-        } catch(e) {}
-      })();
-    }, [memo.id]);
 
     return R.createElement('div', { className:'swipe-wrapper', ref:sw.wrapperRef },
       !isNewCard && R.createElement('div', { className:'swipe-actions' },
