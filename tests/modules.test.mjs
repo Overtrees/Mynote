@@ -53,3 +53,153 @@ test('URL 提取：中文路径不再被截断（回归用例，原缺陷已修�
   assert.equal(w.MynoteConstants.isUrl('https://zh.wikipedia.org/wiki/中文条目'), true);
 });
 
+
+test('Markdown 渲染在 DOMPurify 缺失时失败关闭', () => {
+  const env = makeEnv();
+  load(env, 'src/editor/editor.md.js');
+  const html = env.win.MynoteMd.renderMarkdownHtml('<img src=x onerror=alert(1)>');
+  assert.ok(!/<img\b/i.test(html), '不得返回可执行的原始标签');
+  assert.match(html, /&lt;img/);
+  assert.match(html, /onerror=alert/);
+});
+
+test('文档渲染在 DOMPurify 缺失时转义不可信属性', () => {
+  const env = makeEnv();
+  load(env, 'src/constants.js');
+  load(env, 'src/editor/editor.render.js');
+  const html = env.win.MynoteEditor.renderDocToEditorHTML([{ id: 'x" onmouseover="alert(1)', type: 'paragraph', children: [{ text: 'safe' }] }], {});
+  assert.ok(!/<p\s+data-blockid="x" onmouseover/i.test(html));
+  assert.match(html, /&lt;p/);
+});
+
+test('ZIP 预检拒绝超大声明与危险路径', () => {
+  const env = makeEnv();
+  env.win.TextDecoder = TextDecoder;
+  load(env, 'src/services/storage.idb.js');
+  assert.throws(() => env.win.MynoteIdb.validateZipInput(new Uint8Array(10)), /安全限制|目录损坏/);
+  const b = new Uint8Array(22);
+  // 合法 EOCD 结构，声明一个目录项但没有目录内容，必须拒绝而非解压。
+  const dv = new DataView(b.buffer);
+  dv.setUint32(0, 0x06054b50, true);
+  dv.setUint16(10, 1, true);
+  assert.throws(() => env.win.MynoteIdb.validateZipInput(b), /目录项损坏|长度/);
+});
+
+test('ZIP 预检校验本地文件头与中央目录一致', () => {
+  const env = makeEnv();
+  env.win.TextDecoder = TextDecoder;
+  load(env, 'vendor/fflate.min.js');
+  load(env, 'src/services/storage.idb.js');
+  const bytes = env.win.fflate.zipSync({ 'memos.json': env.win.fflate.strToU8('{"memos":[]}') });
+  assert.ok(env.win.MynoteIdb.validateZipInput(bytes).entries === 1);
+  const corrupt = bytes.slice();
+  // Local file-name byte and central-directory name disagree.
+  corrupt[30] ^= 1;
+  assert.throws(() => env.win.MynoteIdb.validateZipInput(corrupt), /本地头与目录不一致/);
+});
+
+
+test('导入备份递归校验拒绝注入 ID 与危险协议', () => {
+  const env = makeEnv();
+  env.win.TextDecoder = TextDecoder;
+  load(env, 'src/services/storage.idb.js');
+  const validate = env.win.MynoteIdb.validateBackupData;
+  assert.equal(validate({ memos: [{ id: 'm_1', title: 'ok', doc: [{ id: 'b1', type: 'paragraph', children: [{ text: '安全' }] }] }] }), true);
+  assert.throws(() => validate({ memos: [{ id: 'm1', doc: [{ id: 'x" onerror=1', type: 'paragraph' }] }] }), /正文块 ID/);
+  assert.throws(() => validate({ memos: [{ id: 'm1', doc: [{ id: 'b1', type: 'link-card', url: 'javascript:alert(1)' }] }] }), /不安全的链接/);
+});
+
+test('备份校验兼容旧版并覆盖当前所有 block 类型与恶意字段', () => {
+  const env = makeEnv();
+  load(env, 'src/services/storage.idb.js');
+  const validate = env.win.MynoteIdb.validateBackupData;
+  const blocks = [
+    { id: 'p', type: 'paragraph', children: [{ text: '正文' }] },
+    { id: 'h', type: 'heading', attrs: { level: 2 }, children: [{ text: '标题' }] },
+    { id: 'q', type: 'quote', children: [{ text: '引用' }] },
+    { id: 't', type: 'todo', attrs: { checked: true }, children: [{ text: '待办' }] },
+    { id: 'd', type: 'divider' },
+    { id: 'i', type: 'image', attrs: { src: 'https://example.test/a.png', alt: '图', fileId: 'att_1' } },
+    { id: 'g', type: 'gallery', attrs: { items: [{ fileId: 'att_1', alt: '图' }, 'https://example.test/b.png'] } },
+    { id: 'itc', type: 'imgTextCard', attrs: { fileId: 'att_1' }, children: [{ text: '图文卡' }] },
+    { id: 'itr', type: 'imageTextRow', attrs: { fileId: 'att_1' }, children: [{ text: '图文行' }] },
+    { id: 'm', type: 'musicCard', url: 'https://music.example.test/track', status: 'ready', meta: { title: '歌', cover: 'https://example.test/cover.jpg' } },
+    { id: 'e', type: 'embedCard', url: 'https://example.test/embed', status: 'loading', meta: null },
+    { id: 'a', type: 'attachment', fileId: 'att_1', image: false, status: 'done' },
+    { id: 'l', type: 'link-card', url: 'https://example.test', status: 'error', meta: null }
+  ];
+  assert.equal(validate({ memos: [{ id: 'm1', doc: blocks }] }), true, '无版本旧备份与全部当前类型应可导入');
+  assert.equal(validate({ version: 1, memos: [{ id: 'm1', doc: [{ id: 'legacy', type: 'historic-widget', payload: { text: '保留旧数据' } }] }] }), true);
+  assert.equal(validate({ version: 2, memos: [{ id: 'm1', doc: [] }] }), true);
+  assert.throws(() => validate({ version: 3, memos: [] }), /备份版本/);
+  const bad = doc => validate({ version: 2, memos: [{ id: 'm1', doc }] });
+  assert.throws(() => bad([{ id: 'b', type: 'heading', attrs: { level: 9 } }]), /标题级别/);
+  assert.throws(() => bad([{ id: 'b', type: 'todo', attrs: { checked: 'yes' } }]), /待办状态/);
+  assert.throws(() => bad([{ id: 'b', type: 'gallery', attrs: { items: ['javascript:alert(1)'] } }]), /画廊图片项目/);
+  assert.throws(() => bad([{ id: 'b', type: 'paragraph', children: [{ text: { html: '<img>' } }] }]), /正文块文本/);
+  assert.throws(() => bad([{ id: 'b', type: 'link-card', url: 'javascript:alert(1)' }]), /不安全的链接/);
+  assert.throws(() => bad([{ id: 'b', type: 'musicCard', url: 'https://example.test', status: 'mystery' }]), /卡片状态/);
+  assert.throws(() => bad([{ id: 'b', type: 'embedCard', url: 'https://example.test', meta: [] }]), /卡片元数据/);
+  assert.throws(() => bad([{ id: 'same', type: 'paragraph' }, { id: 'same', type: 'quote' }]), /重复正文块 ID/);
+});
+
+test('Drive 列表错误路径区分授权、HTTP 错误与损坏响应', async () => {
+  const env = makeEnv();
+  env.win.BACKUP_FILE_NAME = 'memories_backup.zip';
+  load(env, 'src/components/BackupView.js');
+  const api = env.win.MynoteBackupUtils;
+  for (const status of [401, 403]) {
+    env.win.fetch = async () => ({ status, ok: false, json: async () => ({ error: 'denied' }) });
+    const result = await api.listMynoteBackups('test-token', r => api.classifyDriveResponse(r.status) !== null);
+    assert.equal(result.interrupted, true);
+    assert.deepEqual(Array.from(result.files), []);
+  }
+  env.win.fetch = async () => ({ status: 500, ok: false, json: async () => ({}) });
+  await assert.rejects(api.listMynoteBackups('test-token', () => false), /HTTP 500/);
+  env.win.fetch = async () => ({ status: 200, ok: true, json: async () => { throw new Error('invalid JSON'); } });
+  await assert.rejects(api.listMynoteBackups('test-token', () => false), /invalid JSON/);
+});
+
+test('无生产构建脚本，危险 Drive 清理页保持无脚本且应用入口不引用', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal(pkg.description.includes('无构建步骤'), true);
+  assert.equal(Object.hasOwn(pkg.scripts || {}, 'build'), false);
+  const entry = ['Moments.html', 'index.html'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
+  assert.doesNotMatch(entry, /clear_drive|dev\/clear_drive/i);
+  for (const f of ['clear_drive.html', 'dev/clear_drive.html']) {
+    const html = fs.readFileSync(path.join(ROOT, f), 'utf8');
+    assert.doesNotMatch(html, /<script\b|googleapis\.com\/drive|drive\.appdata|appDataFolder|oauth2|\.delete\s*\(/i, f + ' 不得包含可执行清理能力');
+  }
+});
+
+test('搜索递归覆盖嵌套正文且不作不完整拼音误匹配', () => {
+  const env = makeEnv();
+  load(env, 'src/app/memo-list.js');
+  const search = env.win.MynoteSearch.matchesMemoSearch;
+  const memo = { id: 'm1', title: '随记', doc: [{ type: 'gallery', attrs: { items: [{ alt: '深层关键词' }] }, children: [{ text: '中文内容' }] }] };
+  assert.equal(search(memo, '深层关键词'), true);
+  assert.equal(search(memo, '中文内容'), true);
+  assert.equal(search(memo, 'zhongwen'), false);
+});
+
+test('Drive 备份候选优先 ZIP 并选最新版本', () => {
+  const env = makeEnv();
+  load(env, 'src/components/BackupView.js');
+  const select = env.win.MynoteBackupUtils.selectMynoteBackup;
+  assert.equal(select([
+    { id: 'old', name: 'memories_backup.zip', modifiedTime: '2026-01-01' },
+    { id: 'newjson', name: 'memories_backup.json', modifiedTime: '2026-12-01' },
+    { id: 'newzip', name: 'memories_backup.zip', modifiedTime: '2026-10-01' }
+  ]).id, 'newzip');
+  assert.equal(select([{ id: '', name: 'memories_backup.zip' }]), null);
+});
+
+
+test('Drive 401 与 403 分类分离，权限错误不代表 token 过期', () => {
+  const env = makeEnv();
+  load(env, 'src/components/BackupView.js');
+  const classify = env.win.MynoteBackupUtils.classifyDriveResponse;
+  assert.equal(classify(401), 'expired');
+  assert.equal(classify(403), 'forbidden');
+  assert.equal(classify(500), null);
+});

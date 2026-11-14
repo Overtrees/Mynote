@@ -57,6 +57,18 @@ for (const page of pages) {
   if (qvBad.length) problems.push(`${page} 缓存串版本不一致: ${qvBad.join(', ')}（应为 ${pkgVersion}）`);
 }
 
+// 仓库没有生产构建步骤，GitHub Pages 等静态发布会暴露根目录文件。
+// 因此危险的开发用 Drive 清理入口必须是纯静态说明页，且不得被应用入口链接。
+const cleanupEntry = read('clear_drive.html');
+const cleanupDev = read('dev/clear_drive.html');
+const appEntry = pages.map(read).join('\n');
+if (/clear_drive|dev\/clear_drive/i.test(appEntry)) problems.push('应用入口不得引用 Drive 清理页');
+for (const [file, html] of [['clear_drive.html', cleanupEntry], ['dev/clear_drive.html', cleanupDev]]) {
+  if (/<script\b|googleapis\.com\/drive|drive\.appdata|appDataFolder|oauth2|\.delete\s*\(/i.test(html)) {
+    problems.push(`${file}: 开发清理页必须保持无可执行 Drive 清理代码`);
+  }
+}
+
 const srcFiles = walk('src', '.js');
 for (const f of srcFiles) {
   try { new vm.Script(read(f), { filename: f }); }

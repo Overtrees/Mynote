@@ -119,6 +119,89 @@ check('待办勾选图标来自统一常量', extra.todoIcon);
 check('附件导出只写 id', extra.hasIdKey, extra.hasIdKey ? '' : '未找到 attachments/att_cn_1');
 check('附件导出→导入往返保留 id/中文名/MIME', extra.roundTripOk);
 
+// ---- 流式后台解压与实际输出上限 ----
+const zipSafety = await page.evaluate(async () => {
+  const src = { 'memos.json': fflate.strToU8('{"version":2,"memos":[]}'), 'attachments/small.txt': fflate.strToU8('A'.repeat(4096)) };
+  const zipped = await window.MynoteBackupUtils.compressZip(src, 3);
+  const decoded = await window.MynoteBackupUtils.checkedZip(zipped, { maxExpanded: 8192, maxFile: 8192 });
+  let limited = false;
+  try { await window.MynoteBackupUtils.checkedZip(zipped, { maxExpanded: 512, maxFile: 8192 }); }
+  catch (e) { limited = /实际解压总量|实际解压限制/.test(e.message); }
+  return { packed: zipped && zipped.length > 0, ok: decoded['attachments/small.txt'] && decoded['attachments/small.txt'].length === 4096, limited };
+});
+check('ZIP 后台压缩与流式解压完成', !!zipSafety.packed && !!zipSafety.ok);
+check('ZIP 实际解压量超限时拒绝', zipSafety.limited);
+
+// ---- 合并基于最新本地快照且按事务队列提交 ----
+const mergeSafety = await page.evaluate(async () => {
+  const C = window.MynoteIdb, db = await C.getDB();
+  const prior = await C.loadMemosFromDB(db);
+  await C.saveMemosToDB(db, (prior || []).concat([{ id: 'local_latest', title: '本地最新', doc: [] }]));
+  const merged = await C.commitMergedData(db, [{ id: 'cloud_only', title: '云端', doc: [] }], [], {});
+  const rows = await C.loadMemosFromDB(db);
+  return { returned: merged.map(m => m.id).sort(), stored: rows.map(m => m.id).sort(), hasLong: rows.some(m => m.id === 'm_long') };
+});
+check('云端合并保留事务时刻最新的本地笔记', mergeSafety.stored.includes('cloud_only') && mergeSafety.stored.includes('local_latest') && JSON.stringify(mergeSafety.returned) === JSON.stringify(mergeSafety.stored) && mergeSafety.hasLong);
+
+const attachmentSafety = await page.evaluate(async () => {
+  const C = window.MynoteIdb, db = await C.getDB();
+  await C.saveAttachmentToDB(db, { id: 'shared_ref', name: 'x.txt', type: 'text/plain', url: 'data:text/plain;base64,eA==', thumb: null });
+  await C.saveMemosToDB(db, [
+    { id: 'ref_a', title: 'A', doc: [{ type: 'attachment', fileId: 'shared_ref' }] },
+    { id: 'ref_b', title: 'B', doc: [{ type: 'attachment', fileId: 'shared_ref' }] }
+  ]);
+  await C.deleteUnreferencedAttachments(db, ['shared_ref']);
+  const kept = await C.loadAttachmentFromDB(db, 'shared_ref');
+  await C.saveMemosToDB(db, [{ id: 'ref_b', title: 'B', doc: [] }]);
+  const deleted = await C.deleteUnreferencedAttachments(db, ['shared_ref']);
+  const gone = await C.loadAttachmentFromDB(db, 'shared_ref');
+  return { sharedKept: !!kept, orphanDeleted: deleted.includes('shared_ref') && !gone };
+});
+check('附件仍被其他笔记引用时不删除', attachmentSafety.sharedKept);
+check('无引用附件在提交后可安全回收', attachmentSafety.orphanDeleted);
+
+const writeOrder = await page.evaluate(async () => {
+  const C = window.MynoteIdb, db = await C.getDB();
+  const a = C.saveMemosToDB(db, [{ id: 'queued_old', title: '旧快照', doc: [] }]);
+  const b = C.saveMemosToDB(db, [{ id: 'queued_new', title: '新快照', doc: [] }]);
+  await Promise.all([a, b]);
+  return (await C.loadMemosFromDB(db)).map(m => m.id);
+});
+check('并发全量保存按调用顺序串行提交', writeOrder.length === 1 && writeOrder[0] === 'queued_new', JSON.stringify(writeOrder));
+
+
+const crossTab = await page.evaluate(async () => {
+  const C = window.MynoteIdb, db = await C.getDB();
+  const base = (await C.loadMemosFromDB(db)).filter(m => m.id !== 'cross_a' && m.id !== 'cross_b');
+  const seed = base.concat([
+    { id: 'cross_a', title: 'A0', doc: [] },
+    { id: 'cross_b', title: 'B0', doc: [] }
+  ]);
+  await C.saveMemosToDB(db, seed);
+  const first = await C.loadMemosFromDB(db);
+  const frame = document.createElement('iframe');
+  frame.style.display = 'none';
+  document.body.appendChild(frame);
+  const script = frame.contentDocument.createElement('script');
+  script.textContent = await (await fetch('/src/services/storage.idb.js')).text();
+  frame.contentDocument.body.appendChild(script);
+  const C2 = frame.contentWindow.MynoteIdb, db2 = await C2.getDB();
+  const second = await C2.loadMemosFromDB(db2);
+  const one = first.map(m => m.id === 'cross_a' ? { ...m, title: 'A1' } : m);
+  const two = second.map(m => m.id === 'cross_b' ? { ...m, title: 'B1' } : m);
+  await Promise.all([C.saveMemosToDB(db, one), C2.saveMemosToDB(db2, two)]);
+  const final = await C.loadMemosFromDB(db);
+  frame.remove();
+  return { a: final.find(m => m.id === 'cross_a')?.title, b: final.find(m => m.id === 'cross_b')?.title };
+});
+check('跨标签页并发编辑不同笔记不会互相覆盖', crossTab.a === 'A1' && crossTab.b === 'B1', JSON.stringify(crossTab));
+
+await page.evaluate(async () => {
+  const longDoc = [];
+  for (let i = 0; i < 60; i++) longDoc.push({ id: 'L' + i, type: 'paragraph', children: [{ text: '第' + i + '段' }] });
+  await window.MynoteIdb.saveMemosToDB(await window.MynoteIdb.getDB(), [{ id: 'm_long', title: '长文', doc: longDoc, updatedAt: Date.now() }]);
+});
+
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('.list-item', { timeout: 30000 });
 await page.waitForTimeout(1500);

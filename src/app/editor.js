@@ -2593,7 +2593,7 @@ function Editor({
       if (file.url && file.url.startsWith('blob:')) URL.revokeObjectURL(file.url);
       if (file.thumb && file.thumb.startsWith('blob:')) URL.revokeObjectURL(file.thumb);
     }
-    if (dbRef.current) await deleteAttachmentFromDB(dbRef.current, fileId).catch(() => {});
+    // Physical deletion is deferred until the updated memo is committed and shared references are checked.
     var domEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + nodeId + '"]');
     if (domEl) domEl.remove();
     const doc = docRef.current;

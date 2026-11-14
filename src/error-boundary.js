@@ -63,12 +63,13 @@
     }
     EB.prototype = Object.create(Component.prototype);
     EB.prototype.constructor = EB;
+    EB.getDerivedStateFromError = function (error) { return { hasError: true, error: error }; };
     EB.prototype.componentDidCatch = function (error, info) {
       this.setState({ hasError: true, error: error, info: info });
       addError('REACT', error && error.message || 'Component crash', '', 0, 0, error);
     };
     EB.prototype.render = function () {
-      if (this.state.hasError) return this.props.children || null;
+      if (this.state.hasError) return R.createElement('div', { role: 'alert', className: 'error-boundary-fallback', style: { padding: '24px', margin: '16px', borderRadius: '16px', background: 'var(--surface-overlay)', color: 'var(--text-main)' } }, R.createElement('h2', null, '页面遇到问题'), R.createElement('p', null, '笔记数据仍保存在本机。可以刷新页面重新打开。'), R.createElement('button', { type: 'button', onClick: function () { w.location.reload(); } }, '刷新页面'));
       return this.props.children;
     };
     return EB;

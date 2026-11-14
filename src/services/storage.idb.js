@@ -2,6 +2,9 @@
   'use strict';
 
   var _dbInstance = null;
+  var _memoWriteQueue = Promise.resolve();
+  // A per-tab baseline lets saves apply only this tab's changes, preserving unrelated commits from other tabs.
+  var _memoBaseline = null;
 
   function openDB() {
     return new Promise(function (resolve, reject) {
@@ -40,25 +43,69 @@
   }
 
   // ===== Memos 主存储（IndexedDB，替代 localStorage） =====
-  function saveMemosToDB(db, memos) {
-    if (!db || !memos) return Promise.resolve();
-    var tx = db.transaction('memos', 'readwrite');
-    var store = tx.objectStore('memos');
-    store.clear();
-    for (var mi = 0; mi < memos.length; mi++) store.put(memos[mi]);
-    return new Promise(function (resolve, reject) {
-      tx.oncomplete = resolve;
-      tx.onerror = function () { reject(tx.error); };
+  function memoSnapshotMap(memos) {
+    var map = Object.create(null);
+    (memos || []).forEach(function (memo) {
+      if (memo && typeof memo.id === 'string') map[memo.id] = JSON.stringify(memo);
     });
+    return map;
+  }
+
+  function saveMemosToDB(db, memos) {
+    if (!db || !Array.isArray(memos)) return Promise.resolve();
+    var snapshot = memos.map(function (m) { return m; });
+    var incomingMap = memoSnapshotMap(snapshot);
+    var write = _memoWriteQueue.catch(function () {}).then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx;
+        try { tx = db.transaction('memos', 'readwrite'); }
+        catch (error) { reject(error); return; }
+        var store = tx.objectStore('memos');
+        var req = store.getAll();
+        req.onerror = function () { try { tx.abort(); } catch (_) {} };
+        req.onsuccess = function () {
+          try {
+            var current = req.result || [];
+            // First save without a loaded baseline retains legacy full-replacement semantics.
+            // Normal app saves have a baseline from loadMemosFromDB and merge only local deltas.
+            if (!_memoBaseline) {
+              store.clear();
+              snapshot.forEach(function (memo) { store.put(memo); });
+            } else {
+              Object.keys(_memoBaseline).forEach(function (id) {
+                if (!Object.prototype.hasOwnProperty.call(incomingMap, id)) store.delete(id);
+              });
+              snapshot.forEach(function (memo) {
+                if (!memo || typeof memo.id !== 'string') throw new Error('笔记缺少有效 ID');
+                var serialized = incomingMap[memo.id];
+                if (!Object.prototype.hasOwnProperty.call(_memoBaseline, memo.id) || _memoBaseline[memo.id] !== serialized) store.put(memo);
+              });
+            }
+          } catch (error) { try { tx.abort(); } catch (_) {} reject(error); }
+        };
+        tx.oncomplete = function () { _memoBaseline = incomingMap; resolve(); };
+        tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error || new Error('笔记保存事务中止')); };
+      });
+    });
+    _memoWriteQueue = write;
+    return write;
   }
 
   function loadMemosFromDB(db) {
     if (!db) return Promise.resolve(null);
-    var tx = db.transaction('memos', 'readonly');
-    var req = tx.objectStore('memos').getAll();
-    return new Promise(function (resolve, reject) {
-      req.onsuccess = function () { resolve(req.result); };
-      req.onerror = function () { reject(req.error); };
+    return _memoWriteQueue.catch(function () {}).then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx;
+        try { tx = db.transaction('memos', 'readonly'); }
+        catch (error) { reject(error); return; }
+        var req = tx.objectStore('memos').getAll();
+        req.onsuccess = function () {
+          _memoBaseline = memoSnapshotMap(req.result || []);
+          resolve(req.result);
+        };
+        req.onerror = function () { reject(req.error); };
+      });
     });
   }
 
@@ -295,7 +342,7 @@
   }
 
   // 从 zip 内文件名反解附件 id：新备份=完整 id；旧备份=id_name（id 自身可能含下划线）
-  function resolveAttachmentId(fileName, manMap) {
+  function resolveAttachmentId(fileName, manMap, expectedIds) {
     manMap = manMap || {};
     if (manMap[fileName]) return fileName;
     var best = null;
@@ -304,6 +351,11 @@
       if (fileName.indexOf(keys[k] + '_') === 0 && (!best || keys[k].length > best.length)) best = keys[k];
     }
     if (best) return best;
+    var expected = null;
+    (expectedIds || []).forEach(function (id) {
+      if ((fileName === id || fileName.indexOf(id + '_') === 0) && (!expected || id.length > expected.length)) expected = id;
+    });
+    if (expected) return expected;
     var us = fileName.indexOf('_');
     return us > 0 ? fileName.slice(0, us) : fileName;
   }
@@ -347,11 +399,11 @@
   }
 
   // 由 zip 内路径 + manifest 生成一条附件记录（与 attachments store 结构一致）
-  async function buildAttachmentRecord(relPath, bytes, manifestAtt, manifestAtts) {
+  async function buildAttachmentRecord(relPath, bytes, manifestAtt, manifestAtts, expectedIds) {
     if (!bytes) throw new Error('附件内容为空');
     var fileName = relPath.replace('attachments/', '');
     // 新备份的文件名就是完整 id（id 本身可能含下划线）；旧备份是 id_name → 由 resolveAttachmentId 兼容
-    var fileId = resolveAttachmentId(fileName, manifestAtts);
+    var fileId = resolveAttachmentId(fileName, manifestAtts, expectedIds);
     var displayName = fileId === fileName ? fileName : fileName.slice(fileId.length + 1);
     // 旧备份把文件名塞在 id_name 里；新备份只写 id，真实名字在 manifest（优先）
     if (manifestAtt && manifestAtt.name) displayName = manifestAtt.name;
@@ -366,7 +418,7 @@
     return { id: fileId, name: displayName, type: mime, url: dataUrl, thumb: thumb };
   }
 
-  async function stageRestoreFromZip(db, unzipped, onProgress) {
+  async function stageRestoreFromZip(db, unzipped, onProgress, expectedIds) {
     await clearStore(db, 'attachments_staging');
     var manifest = parseBackupManifest(unzipped);
     var paths = Object.keys(unzipped || {}).filter(function (k) { return k.indexOf('attachments/') === 0; });
@@ -377,8 +429,8 @@
       try {
         var fileName = relPath.replace('attachments/', '');
         var us = fileName.indexOf('_');
-        var fid = resolveAttachmentId(fileName, manifest.attachments || {});
-        var rec = await buildAttachmentRecord(relPath, unzipped[relPath], (manifest.attachments || {})[fid], manifest.attachments || {});
+        var fid = resolveAttachmentId(fileName, manifest.attachments || {}, expectedIds);
+        var rec = await buildAttachmentRecord(relPath, unzipped[relPath], (manifest.attachments || {})[fid], manifest.attachments || {}, expectedIds);
         await putOne(db, 'attachments_staging', rec);
         staged++;
       } catch (e) {
@@ -391,7 +443,8 @@
 
   function commitStagedRestore(db, opts) {
     opts = opts || {};
-    return new Promise(function (resolve, reject) {
+    var write = _memoWriteQueue.catch(function () {}).then(function () {
+      return new Promise(function (resolve, reject) {
       var names = ['attachments', 'attachments_staging', 'memos'];
       if (opts.avatars) names.push('avatars');
       var tx;
@@ -424,12 +477,300 @@
         try { tx.abort(); } catch (_) {}
         reject(queueErr);
       }
+      });
     });
+    _memoWriteQueue = write;
+    return write;
+  }
+
+
+  // Validate ZIP directory and local headers before bounded streaming decompression.
+  function validateZipInput(bytes, limits) {
+    limits = limits || {};
+    var maxCompressed = limits.maxCompressed || 50 * 1024 * 1024;
+    var maxExpanded = limits.maxExpanded || 200 * 1024 * 1024;
+    var maxFile = limits.maxFile || 50 * 1024 * 1024;
+    var maxEntries = limits.maxEntries || 3000;
+    if (!bytes || bytes.length < 22 || bytes.length > maxCompressed) throw new Error('ZIP 大小超出安全限制');
+    var view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    var start = Math.max(0, bytes.length - 65557), eocd = -1;
+    for (var i = bytes.length - 22; i >= start; i--) if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) throw new Error('ZIP 目录损坏或格式不受支持');
+    var count = view.getUint16(eocd + 10, true), cdSize = view.getUint32(eocd + 12, true), cdOffset = view.getUint32(eocd + 16, true);
+    if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) throw new Error('暂不支持 ZIP64 备份');
+    if (count > maxEntries || cdOffset + cdSize > eocd || cdOffset + cdSize > bytes.length) throw new Error('ZIP 文件数量或目录异常');
+    if (view.getUint16(eocd + 4, true) !== 0 || view.getUint16(eocd + 6, true) !== 0 ||
+        view.getUint16(eocd + 8, true) !== count || view.getUint16(eocd + 20, true) !== bytes.length - eocd - 22) throw new Error('ZIP 多磁盘或 EOCD 长度异常');
+    if (eocd + 22 + view.getUint16(eocd + 20, true) !== bytes.length) throw new Error('ZIP 尾部数据不受支持');
+    var cursor = cdOffset, total = 0, decoder = new TextDecoder('utf-8'), names = Object.create(null), ranges = [];
+    for (var n = 0; n < count; n++) {
+      if (cursor + 46 > bytes.length || view.getUint32(cursor, true) !== 0x02014b50) throw new Error('ZIP 目录项损坏');
+      var flags = view.getUint16(cursor + 8, true), method = view.getUint16(cursor + 10, true);
+      var crc = view.getUint32(cursor + 16, true), packed = view.getUint32(cursor + 20, true), expanded = view.getUint32(cursor + 24, true);
+      var nameLen = view.getUint16(cursor + 28, true), extraLen = view.getUint16(cursor + 30, true), commentLen = view.getUint16(cursor + 32, true), localOffset = view.getUint32(cursor + 42, true);
+      var nameEnd = cursor + 46 + nameLen;
+      if (nameEnd + extraLen + commentLen > bytes.length || packed === 0xffffffff || expanded === 0xffffffff || localOffset === 0xffffffff) throw new Error('ZIP64 或目录长度异常');
+      if ((flags & 1) || (method !== 0 && method !== 8)) throw new Error('ZIP 加密或压缩格式不受支持');
+      var name = decoder.decode(bytes.subarray(cursor + 46, nameEnd));
+      if (!name || name.indexOf('\0') >= 0 || name.charAt(0) === '/' || name.indexOf('\\') >= 0 || name.split('/').some(function (part) { return part === '..' || part === '__proto__' || part === 'prototype' || part === 'constructor'; })) throw new Error('ZIP 包含不安全路径');
+      if (names[name]) throw new Error('ZIP 包含重复文件路径');
+      names[name] = true;
+      if (expanded > maxFile) throw new Error('ZIP 单个文件超过安全限制');
+      total += expanded;
+      if (total > maxExpanded) throw new Error('ZIP 解压后总大小超过安全限制');
+      if (localOffset + 30 > cdOffset || view.getUint32(localOffset, true) !== 0x04034b50) throw new Error('ZIP 本地文件头损坏');
+      var localFlags = view.getUint16(localOffset + 6, true), localMethod = view.getUint16(localOffset + 8, true);
+      var localCrc = view.getUint32(localOffset + 14, true), localPacked = view.getUint32(localOffset + 18, true), localExpanded = view.getUint32(localOffset + 22, true);
+      var localNameLen = view.getUint16(localOffset + 26, true), localExtraLen = view.getUint16(localOffset + 28, true);
+      var dataStart = localOffset + 30 + localNameLen + localExtraLen;
+      var localName = decoder.decode(bytes.subarray(localOffset + 30, localOffset + 30 + localNameLen));
+      if (localName !== name || localFlags !== flags || localMethod !== method || dataStart + packed > cdOffset) throw new Error('ZIP 本地头与目录不一致');
+      // Bit 3 permits zero sizes in the local header; if populated, they must match the central directory.
+      if (!(flags & 8) && (localCrc !== crc || localPacked !== packed || localExpanded !== expanded)) throw new Error('ZIP 本地长度与目录不一致');
+      if ((flags & 8) && ((localPacked && localPacked !== packed) || (localExpanded && localExpanded !== expanded) || (localCrc && localCrc !== crc))) throw new Error('ZIP 数据描述符长度不一致');
+      ranges.push([localOffset, dataStart + packed]);
+      cursor = nameEnd + extraLen + commentLen;
+    }
+    if (cursor !== cdOffset + cdSize) throw new Error('ZIP 目录长度不匹配');
+    ranges.sort(function (a, b) { return a[0] - b[0]; });
+    for (var ri = 1; ri < ranges.length; ri++) if (ranges[ri][0] < ranges[ri - 1][1]) throw new Error('ZIP 文件数据区域重叠');
+    return { entries: count, expandedBytes: total };
+  }
+
+  function validateBackupData(backup, limits) {
+    limits = limits || {};
+    var maxMemos = limits.maxMemos || 20000, maxNodes = limits.maxNodes || 200000, maxDepth = limits.maxDepth || 40;
+    var maxString = limits.maxString || 2 * 1024 * 1024, maxTotalText = limits.maxTotalText || 30 * 1024 * 1024;
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup) || !Array.isArray(backup.memos)) throw new Error('无效的备份结构');
+    // v1/v2 are supported; missing version is the pre-versioned legacy format.
+    if (backup.version != null && (!Number.isInteger(backup.version) || backup.version < 1 || backup.version > 2)) throw new Error('不支持的备份版本');
+    if (backup.memos.length > maxMemos) throw new Error('备份笔记数量超过安全限制');
+    var nodes = 0, textBytes = 0;
+    function safeUrl(value, key) {
+      if (typeof value !== 'string' || !value) return;
+      var trimmed = value.trim();
+      if (/^(src|cover|image|url|href|musicUrl)$/i.test(key)) {
+        if (/^https?:\/\//i.test(trimmed)) return;
+        if (/^data:image\/(png|jpeg|gif|webp|bmp|avif);base64,[a-z0-9+/=]+$/i.test(trimmed)) return;
+        throw new Error('备份包含不安全的链接地址');
+      }
+    }
+    function walk(value, depth, key) {
+      if (++nodes > maxNodes || depth > maxDepth) throw new Error('备份结构过深或项目过多');
+      if (typeof value === 'string') {
+        textBytes += value.length * 2;
+        if (value.length > maxString || textBytes > maxTotalText) throw new Error('备份文本超过安全限制');
+        safeUrl(value, key || '');
+        return;
+      }
+      if (value === null || typeof value === 'boolean' || typeof value === 'number') return;
+      if (typeof value !== 'object') throw new Error('备份包含不支持的数据类型');
+      if (Array.isArray(value)) {
+        if (value.length > 50000) throw new Error('备份数组过大');
+        value.forEach(function (v) { walk(v, depth + 1, ''); });
+        return;
+      }
+      var keys = Object.keys(value);
+      if (keys.length > 256) throw new Error('备份对象字段过多');
+      keys.forEach(function (k) {
+        if (k === '__proto__' || k === 'prototype' || k === 'constructor') throw new Error('备份包含不安全字段');
+        walk(value[k], depth + 1, k);
+      });
+    }
+    var currentBlockTypes = { paragraph: true, heading: true, quote: true, todo: true, divider: true, image: true, gallery: true, imgTextCard: true, imageTextRow: true, musicCard: true, embedCard: true, attachment: true, 'link-card': true };
+    function validId(value, max, allowEmpty) { return typeof value === 'string' && (allowEmpty && value === '' || new RegExp('^[A-Za-z0-9_-]{1,' + max + '}$').test(value)); }
+    function requireString(value, label) { if (value != null && typeof value !== 'string') throw new Error(label + '格式无效'); }
+    function validateNode(node, nesting) {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) throw new Error('正文块格式无效');
+      if (nesting > maxDepth) throw new Error('正文块嵌套过深');
+      if (node.id != null && !validId(node.id, 128, false)) throw new Error('正文块 ID 无效');
+      if (node.fileId != null && !validId(node.fileId, 256, false)) throw new Error('附件 ID 无效');
+      if (node.type != null && (typeof node.type !== 'string' || node.type.length > 80)) throw new Error('正文块类型无效');
+      var type = node.type || 'paragraph';
+      // Unknown historical block types remain importable: renderer safely degrades them to text.
+      if (!currentBlockTypes[type]) return;
+      if (node.attrs != null && (!node.attrs || typeof node.attrs !== 'object' || Array.isArray(node.attrs))) throw new Error('正文块属性格式无效');
+      var attrs = node.attrs || {};
+      if (node.children != null) {
+        if (!Array.isArray(node.children) || node.children.length > 5000) throw new Error('正文块子项格式无效');
+        node.children.forEach(function (child) {
+          if (!child || typeof child !== 'object' || Array.isArray(child)) throw new Error('正文块文本子项无效');
+          requireString(child.text, '正文块文本');
+          if (child.children != null) {
+            if (!Array.isArray(child.children) || child.children.length > 5000) throw new Error('嵌套正文块子项格式无效');
+            child.children.forEach(function (nested) { if (nested && typeof nested === 'object' && nested.type) validateNode(nested, nesting + 1); });
+          }
+        });
+      }
+      if (type === 'heading' && attrs.level != null && (!Number.isInteger(attrs.level) || attrs.level < 1 || attrs.level > 6)) throw new Error('标题级别无效');
+      if (type === 'todo' && attrs.checked != null && typeof attrs.checked !== 'boolean') throw new Error('待办状态格式无效');
+      if (type === 'image' || type === 'imgTextCard' || type === 'imageTextRow') {
+        if (attrs.fileId != null && !validId(attrs.fileId, 256, true)) throw new Error('图片附件 ID 无效');
+        if (type === 'image') requireString(attrs.src, '图片地址');
+        if (type === 'image') requireString(attrs.alt, '图片替代文本');
+      }
+      if (type === 'gallery' && attrs.items != null) {
+        if (!Array.isArray(attrs.items) || attrs.items.length > 5000) throw new Error('画廊项目格式无效');
+        attrs.items.forEach(function (item) {
+          if (typeof item === 'string') {
+            if (!validId(item, 256, false) && !/^https?:\/\//i.test(item) && !/^data:image\/(png|jpeg|gif|webp|bmp|avif);base64,[a-z0-9+/=]+$/i.test(item)) throw new Error('画廊图片项目无效');
+          } else if (item && typeof item === 'object' && !Array.isArray(item)) {
+            if (item.fileId != null && !validId(item.fileId, 256, false)) throw new Error('画廊附件 ID 无效');
+            requireString(item.url, '画廊图片地址'); requireString(item.alt, '画廊替代文本');
+          } else throw new Error('画廊项目格式无效');
+        });
+      }
+      if (type === 'musicCard' || type === 'link-card' || type === 'embedCard') {
+        requireString(node.url, '卡片链接');
+        if (node.status != null && !['empty', 'input', 'loading', 'ready', 'error', 'done'].includes(node.status)) throw new Error('卡片状态无效');
+        if (node.meta != null && (!node.meta || typeof node.meta !== 'object' || Array.isArray(node.meta))) throw new Error('卡片元数据格式无效');
+        if (node.meta) ['title', 'subtitle', 'source', 'description', 'siteName', 'favicon'].forEach(function (key) { requireString(node.meta[key], '卡片元数据'); });
+      }
+      if (type === 'attachment' && node.image != null && typeof node.image !== 'boolean') throw new Error('附件类型标记无效');
+    }
+    var memoIds = Object.create(null);
+    backup.memos.forEach(function (memo) {
+      if (!memo || typeof memo !== 'object' || Array.isArray(memo)) throw new Error('备份中有无效笔记');
+      if (typeof memo.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(memo.id)) throw new Error('备份笔记缺少有效 ID');
+      if (memoIds[memo.id]) throw new Error('备份包含重复笔记 ID');
+      memoIds[memo.id] = true;
+      if (memo.title != null && typeof memo.title !== 'string') throw new Error('笔记标题格式无效');
+      if (memo.doc != null && !Array.isArray(memo.doc)) throw new Error('笔记正文格式无效');
+      if (memo.doc && memo.doc.length > 20000) throw new Error('单篇笔记内容过多');
+      if (memo.doc) {
+        var blockIds = Object.create(null);
+        memo.doc.forEach(function (block) {
+          validateNode(block, 0);
+          if (block.id && blockIds[block.id]) throw new Error('笔记包含重复正文块 ID');
+          if (block.id) blockIds[block.id] = true;
+        });
+      }
+    });
+    if (backup.avatars != null) {
+      if (!backup.avatars || typeof backup.avatars !== 'object' || Array.isArray(backup.avatars)) throw new Error('头像备份格式无效');
+      Object.keys(backup.avatars).forEach(function (id) {
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id) || typeof backup.avatars[id] !== 'string' || !/^data:image\/(png|jpeg|gif|webp|bmp|avif);base64,[a-z0-9+/=]+$/i.test(backup.avatars[id])) throw new Error('头像数据格式无效');
+      });
+    }
+    walk(backup, 0, '');
+    return true;
+  }
+
+  function validateZipPayload(zipData, limits) {
+    limits = limits || {};
+    var maxExpanded = limits.maxExpanded || 200 * 1024 * 1024;
+    var maxEntries = limits.maxEntries || 3000;
+    var maxFile = limits.maxFile || 50 * 1024 * 1024;
+    var keys = Object.keys(zipData || {}), total = 0;
+    if (keys.length > maxEntries) throw new Error('备份文件数量超过安全限制');
+    for (var i = 0; i < keys.length; i++) {
+      var value = zipData[keys[i]];
+      var size = value && value.byteLength != null ? value.byteLength : value && value.length || 0;
+      if (size > maxFile) throw new Error('单个备份文件超过安全限制');
+      total += size;
+      if (total > maxExpanded) throw new Error('备份总大小超过安全限制');
+    }
+    return { entries: keys.length, expandedBytes: total };
+  }
+
+  function deleteUnreferencedAttachments(db, candidateIds) {
+    var ids = Array.from(new Set(candidateIds || []));
+    var write = _memoWriteQueue.catch(function () {}).then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx;
+        try { tx = db.transaction(['memos', 'attachments'], 'readwrite'); }
+        catch (e) { reject(e); return; }
+        var deleted = [];
+        tx.oncomplete = function () { resolve(deleted); };
+        tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error || new Error('附件清理事务中止')); };
+        var req = tx.objectStore('memos').getAll();
+        req.onerror = function () { try { tx.abort(); } catch (_) {} };
+        req.onsuccess = function () {
+          try {
+            var referenced = Object.create(null);
+            function visit(value) {
+              if (!value || typeof value !== 'object') return;
+              if (Array.isArray(value)) { value.forEach(visit); return; }
+              if (typeof value.fileId === 'string') referenced[value.fileId] = true;
+              Object.keys(value).forEach(function (key) { if (key !== 'fileId') visit(value[key]); });
+            }
+            (req.result || []).forEach(visit);
+            var store = tx.objectStore('attachments');
+            ids.forEach(function (id) { if (!referenced[id]) { store.delete(id); deleted.push(id); } });
+          } catch (error) { try { tx.abort(); } catch (_) {} reject(error); }
+        };
+      });
+    });
+    _memoWriteQueue = write;
+    return write;
+  }
+
+  function commitMergedData(db, cloudMemos, attachments, avatars) {
+    // Derive the merge inside one readwrite transaction so the source snapshot and commit are atomic.
+    var write = _memoWriteQueue.catch(function () {}).then(function () {
+      return new Promise(function (resolve, reject) {
+        var tx;
+        try { tx = db.transaction(['memos', 'attachments', 'avatars'], 'readwrite'); }
+        catch (e) { reject(e); return; }
+        var merged = null;
+        tx.oncomplete = function () { resolve(merged); };
+        tx.onerror = function () { reject(tx.error); };
+        tx.onabort = function () { reject(tx.error || new Error('合并事务中止，数据未更改')); };
+        try {
+          var memoStore = tx.objectStore('memos');
+          var request = memoStore.getAll();
+          request.onerror = function () { try { tx.abort(); } catch (_) {} };
+          request.onsuccess = function () {
+            try {
+              var localMemos = request.result || [];
+              var cloudIds = Object.create(null);
+              (cloudMemos || []).forEach(function (m) { cloudIds[m.id] = true; });
+              var localById = Object.create(null);
+              localMemos.forEach(function (m) { localById[m.id] = m; });
+              var preferred = (cloudMemos || []).map(function (cloud) {
+                var local = localById[cloud.id];
+                if (!local || !Array.isArray(local.doc) || !Array.isArray(cloud.doc)) return cloud;
+                var doc = cloud.doc.map(function (node, i) {
+                  if (node && node.type === 'attachment' && !node.image && local.doc[i] && local.doc[i].image) return Object.assign({}, node, { image: local.doc[i].image });
+                  return node;
+                });
+                return Object.assign({}, cloud, { doc: doc });
+              });
+              merged = preferred.concat(localMemos.filter(function (m) { return !cloudIds[m.id]; }));
+              memoStore.clear();
+              merged.forEach(function (memo) { memoStore.put(memo); });
+              (attachments || []).forEach(function (record) {
+                var store = tx.objectStore('attachments');
+                var get = store.get(record.id);
+                get.onsuccess = function () { if (!get.result) store.put(record); };
+              });
+              Object.keys(avatars || {}).forEach(function (id) { tx.objectStore('avatars').put({ id: id, dataUrl: avatars[id] }); });
+            } catch (err) { try { tx.abort(); } catch (_) {} reject(err); }
+          };
+        } catch (error) { try { tx.abort(); } catch (_) {} reject(error); }
+      });
+    });
+    _memoWriteQueue = write;
+    return write;
+  }
+
+  function collectAttachmentIds(value) {
+    var ids = Object.create(null);
+    function visit(item) {
+      if (!item || typeof item !== 'object') return;
+      if (Array.isArray(item)) { item.forEach(visit); return; }
+      if (typeof item.fileId === 'string' && item.fileId) ids[item.fileId] = true;
+      Object.keys(item).forEach(function (key) { if (key !== 'fileId') visit(item[key]); });
+    }
+    visit(value);
+    return Object.keys(ids);
   }
 
   async function restoreFromZipAtomic(db, unzipped, backup, opts) {
     opts = opts || {};
     backup = backup || {};
+    validateBackupData(backup);
     // 配额预检：staging 期间附件会临时存两份
     var need = 0;
     Object.keys(unzipped || {}).forEach(function (k) {
@@ -444,7 +785,7 @@
     } catch (quotaErr) {
       if (quotaErr && /空间不足/.test(quotaErr.message)) throw quotaErr;
     }
-    var st = await stageRestoreFromZip(db, unzipped, opts.onProgress);
+    var st = await stageRestoreFromZip(db, unzipped, opts.onProgress, collectAttachmentIds(backup.memos || []));
     if (st.failed > 0 && !opts.allowPartial) {
       await clearStore(db, 'attachments_staging');
       throw new Error('有 ' + st.failed + ' 个附件无法解析，已取消恢复，本机数据未改动');
@@ -468,6 +809,15 @@
     createThumbnail: createThumbnail,
     dataURLtoBlob: dataURLtoBlob,
     packAttachmentsToZip: packAttachmentsToZip,
+    validateZipInput: validateZipInput,
+    validateZipPayload: validateZipPayload,
+    validateBackupData: validateBackupData,
+    parseBackupManifest: parseBackupManifest,
+    resolveAttachmentId: resolveAttachmentId,
+    collectAttachmentIds: collectAttachmentIds,
+    buildAttachmentRecord: buildAttachmentRecord,
+    commitMergedData: commitMergedData,
+    deleteUnreferencedAttachments: deleteUnreferencedAttachments,
     restoreAttachmentsFromZip: restoreAttachmentsFromZip,
     restoreAvatars: restoreAvatars,
     saveMemosToDB: saveMemosToDB,

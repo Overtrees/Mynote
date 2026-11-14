@@ -18,18 +18,8 @@ var WeatherCache = {
   }
 };
 async function refreshGoogleAvatar() {
-  var token = localStorage.getItem("google_token");
-  if (!token) return;
-  try {
-    var res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { Authorization: "Bearer " + token }, signal: AbortSignal.timeout(4000) });
-    if (res.ok) {
-      var data = await res.json();
-      if (data.picture) localStorage.setItem("google_avatar", data.picture);
-    } else if (res.status === 401) {
-      localStorage.removeItem("google_token");
-      localStorage.removeItem("google_avatar");
-    }
-  } catch(e) {}
+  // OAuth access tokens are intentionally memory-only; never refresh from localStorage.
+  return;
 }
 
 async function fetchWeather() {

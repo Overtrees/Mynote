@@ -90,7 +90,8 @@
       if (!raw.trim()) return '';
       var processed = preprocessExtendedMarkdown(raw);
       var html = window.marked ? marked.parse(processed) : processed.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
-      return window.DOMPurify ? DOMPurify.sanitize(html, { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type'] }) : html;
+      if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') return window.DOMPurify.sanitize(html, { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type'] });
+      return '<p>' + String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'; // fail closed
     } catch(e) {
       console.warn('[此刻] renderMarkdownHtml error', e);
       var safe = String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');

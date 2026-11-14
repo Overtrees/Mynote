@@ -7,16 +7,27 @@ var BackupView = window.BackupView;
 var BgSheet = window.BgSheet;
 // 支持 ?open=id URL 参数自动打开笔记（用于截图/分享）
 
-/* ---------- 拼音模糊搜索 ---------- */
-var PY = {"标":"b","题":"t","装":"z","修":"x","踩":"c","坑":"k","清":"q","单":"d","好":"h","用":"y","网":"w","站":"z","最":"z","近":"j","听":"t","歌":"g","的":"d","了":"l","是":"s","我":"w","不":"b","人":"r","他":"t","有":"y","这":"z","大":"d","小":"x","上":"s"};
-function toPy(s) {
-  var r = [];
-  for (var i = 0; i < s.length; i++) {
-    var c = s[i];
-    if (PY[c]) r.push(PY[c]);
-    else if (c >= "a" && c <= "z") r.push(c);
-  }
-  return r.join("");
+/* ---------- 本地全文匹配（不宣称不完整的拼音模糊匹配） ---------- */
+function memoSearchText(value, out) {
+  out = out || [];
+  if (typeof value === 'string') { out.push(value); return out; }
+  if (!value || typeof value !== 'object') return out;
+  if (Array.isArray(value)) { value.forEach(function (item) { memoSearchText(item, out); }); return out; }
+  Object.keys(value).forEach(function (key) {
+    if (/^(id|fileId|dataUrl|url|blob|thumb|imageData)$/i.test(key)) {
+      if (/^(url)$/i.test(key) && typeof value[key] === 'string' && !/^data:/i.test(value[key])) out.push(value[key]);
+      return;
+    }
+    if (typeof value[key] === 'string' && /^(text|title|subtitle|source|name|label|alt|description|content)$/i.test(key)) out.push(value[key]);
+    else if (value[key] && typeof value[key] === 'object') memoSearchText(value[key], out);
+  });
+  return out;
+}
+function matchesMemoSearch(memo, query) {
+  var q = String(query || '').toLowerCase();
+  var fields = [memo && memo.title].concat(memoSearchText(memo && memo.doc));
+  var text = fields.filter(Boolean).join(' ').toLowerCase();
+  return text.indexOf(q) >= 0;
 }
 
 /* ---------- 城市名英转中 ---------- */
@@ -381,24 +392,31 @@ function MemoList() {
   };
   const deleteMemo = async id => {
     if (id === NEW_CARD_ID) return;
-    const target = memos.find(m => m.id === id);
-    if (target && target.doc) {
-      const fileIds = collectMemoFileIds(target);
-      if (fileIds.length > 0) {
-        try {
-          const db = await getDB();
-          await Promise.allSettled(fileIds.map(fid => deleteAttachmentFromDB(db, fid)));
-        } catch(e) { console.warn('[此刻] delete attachments', e); }
-      }
-    }
-    setMemos(ms => ms.filter(m => m.id !== id));
+    const before = memosRef.current || memos;
+    const target = before.find(m => m.id === id);
+    const next = before.filter(m => m.id !== id);
+    // Persist the memo removal first; never remove a shared file while any memo references it.
+    memosRef.current = next;
+    setMemos(next);
     if (editingMemo && editingMemo.id === id) closeEditor();
+    try {
+      const db = await getDB();
+      await window.MynoteIdb.saveMemosToDB(db, next);
+      if (!target) return;
+      await window.MynoteIdb.deleteUnreferencedAttachments(db, collectMemoFileIds(target));
+    } catch(e) {
+      console.warn('[此刻] delete memo persistence', e);
+      if (memosRef.current === next) { memosRef.current = before; setMemos(before); }
+    }
   };
   const saveMemo = useCallback((id, changes) => {
+    const before = memosRef.current || [];
+    const previousMemo = before.find(m => m.id === id);
     const next = changes && changes._delete
-      ? memosRef.current.filter(m => m.id !== id)
-      : memosRef.current.map(m => m.id === id ? Object.assign({}, m, changes) : m);
+      ? before.filter(m => m.id !== id)
+      : before.map(m => m.id === id ? Object.assign({}, m, changes) : m);
     skipSaveCountRef.current += 1;
+    memosRef.current = next;
     setMemos(next);
     return (async function() {
       try {
@@ -406,13 +424,24 @@ function MemoList() {
           ...m,
           doc: m.doc
         }));
-        localStorage.setItem("memos_app_v2", JSON.stringify(safe));
-        if (!saveMountedRef.current) return;
-        var db = await window.MynoteIdb.getDB();
-        if (!saveMountedRef.current) return;
-        if (db) await window.MynoteIdb.saveMemosToDB(db, safe);
+        if (saveMountedRef.current) {
+          var db = await window.MynoteIdb.getDB();
+          if (saveMountedRef.current && db) {
+            await window.MynoteIdb.saveMemosToDB(db, safe);
+            // Reclaim removed files only after the memo commit and only when no remaining note references them.
+            if (previousMemo && previousMemo.doc) {
+              const nextMemo = next.find(m => m.id === id);
+              const stillInEdited = new Set(nextMemo ? collectMemoFileIds(nextMemo) : []);
+              const removed = collectMemoFileIds(previousMemo).filter(fid => !stillInEdited.has(fid));
+              await window.MynoteIdb.deleteUnreferencedAttachments(db, removed);
+            }
+          }
+        }
+        // IDB is the source of truth. A full/disabled localStorage must not block its commit.
+        try { localStorage.setItem("memos_app_v2", JSON.stringify(safe)); }
+        catch (cacheError) { console.warn('[此刻] memo cache write failed', cacheError); }
       } catch (e) { console.warn('[此刻] memo save flush', e); }
-      skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1);
+      finally { skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1); }
     })();
   }, []);
   const newCardDoc = useMemo(() => [{
@@ -428,15 +457,7 @@ function MemoList() {
   const filteredMemos = useMemo(() => {
     if (!searchQuery) return sorted;
     var q = searchQuery.toLowerCase();
-    return sorted.filter(function(m) {
-      if (m.title && m.title.toLowerCase().indexOf(q) >= 0) return true;
-      if (m.doc && m.doc.some(function(n) {
-        return n.children && n.children.some(function(c) {
-          return c.text && c.text.toLowerCase().indexOf(q) >= 0;
-        });
-      })) return true;
-      return false;
-    });
+    return sorted.filter(function(m) { return matchesMemoSearch(m, q); });
   }, [sorted, searchQuery]);
   const hasImageAttachment = useCallback(memo => {
     return memo.doc && memo.doc.some(function(n) {
@@ -712,4 +733,4 @@ function MemoList() {
 }
 
 window.MynoteMemoList = MemoList;
-window.MynoteSearch = { toPy: toPy, toCn: toCn };
+window.MynoteSearch = { toCn: toCn, memoSearchText: memoSearchText, matchesMemoSearch: matchesMemoSearch };
