@@ -66,11 +66,14 @@
         req.onsuccess = function () {
           try {
             var current = req.result || [];
-            // First save without a loaded baseline retains legacy full-replacement semantics.
-            // Normal app saves have a baseline from loadMemosFromDB and merge only local deltas.
-            if (!_memoBaseline) {
-              store.clear();
-              snapshot.forEach(function (memo) { store.put(memo); });
+            var firstWrite = !_memoBaseline;
+            if (firstWrite) {
+              // 首次写入：只 put incoming，不 delete 既有行。
+              // 否则 load 失败后一次 saveMemo 会把库里其它笔记清掉。
+              snapshot.forEach(function (memo) {
+                if (!memo || typeof memo.id !== 'string') throw new Error('笔记缺少有效 ID');
+                store.put(memo);
+              });
             } else {
               Object.keys(_memoBaseline).forEach(function (id) {
                 if (!Object.prototype.hasOwnProperty.call(incomingMap, id)) store.delete(id);
@@ -81,9 +84,20 @@
                 if (!Object.prototype.hasOwnProperty.call(_memoBaseline, memo.id) || _memoBaseline[memo.id] !== serialized) store.put(memo);
               });
             }
+            tx.__firstWrite = firstWrite;
+            tx.__currentSnapshot = current;
           } catch (error) { try { tx.abort(); } catch (_) {} reject(error); }
         };
-        tx.oncomplete = function () { _memoBaseline = incomingMap; resolve(); };
+        tx.oncomplete = function () {
+          if (tx.__firstWrite) {
+            var merged = memoSnapshotMap(tx.__currentSnapshot);
+            Object.assign(merged, incomingMap);
+            _memoBaseline = merged;
+          } else {
+            _memoBaseline = incomingMap;
+          }
+          resolve();
+        };
         tx.onerror = function () { reject(tx.error); };
         tx.onabort = function () { reject(tx.error || new Error('笔记保存事务中止')); };
       });
@@ -277,41 +291,36 @@
     }
   }
 
-  async function restoreAttachmentsFromZip(unzipped, db) {
-    var attPaths = Object.keys(unzipped).filter(function (k) { return k.startsWith('attachments/'); });
-    var man = parseBackupManifest(unzipped);
-    var success = 0, fail = 0;
-    for (var ai = 0; ai < attPaths.length; ai++) {
-      var attPath = attPaths[ai];
-      var bytes = unzipped[attPath];
-      if (!bytes) continue;
-      try {
-        var fileName = attPath.replace('attachments/', '');
-        var manMap = man.attachments || {};
-        var fileId = resolveAttachmentId(fileName, manMap);
-        var displayName = fileId === fileName ? fileName : fileName.slice(fileId.length + 1);
-        var manAtt = (man.attachments || {})[fileId];
-        if (manAtt && manAtt.name) displayName = manAtt.name;
-        var mime = (manAtt && manAtt.type) || guessMimeFromName(displayName);
-        if (mime === 'application/octet-stream') { var bm = guessMimeFromBytes(bytes); if (bm) mime = bm; }
-        var blob = new Blob([bytes], { type: mime });
-        var dataUrl = await new Promise(function (res) {
-          var reader = new FileReader();
-          reader.onload = function () { res(reader.result); };
-          reader.readAsDataURL(blob);
-        });
-        await deleteAttachmentFromDB(db, fileId).catch(function () {});
-        var regenThumb = await createThumbnail(dataUrl).catch(function () { return null; });
-        await saveAttachmentToDB(db, {
-          id: fileId, name: displayName, type: mime, url: dataUrl, thumb: regenThumb
-        });
-        success++;
-      } catch (attErr) {
-        console.error('附件恢复失败:', attPath, attErr);
-        fail++;
-      }
+  /**
+   * 逐个产出附件字节，不在主线程堆整个 zipData。
+   * onFile(name, uint8) 返回 Promise；并发 2，峰值内存 ≈ 2 个附件。
+   */
+  async function forEachAttachmentBytes(db, onFile, onProgress) {
+    var allKeys = await new Promise(function (res, rej) {
+      var tx = db.transaction('attachments', 'readonly');
+      var req = tx.objectStore('attachments').getAllKeys();
+      req.onsuccess = function () { res(req.result); };
+      req.onerror = function () { rej(req.error); };
+    });
+    var CONCURRENCY = 2;
+    for (var i = 0; i < allKeys.length; i += CONCURRENCY) {
+      if (onProgress) onProgress(Math.min(i + CONCURRENCY, allKeys.length), allKeys.length);
+      var batch = allKeys.slice(i, i + CONCURRENCY);
+      await Promise.all(batch.map(async function (key) {
+        try {
+          var record = await loadAttachmentFromDB(db, key);
+          if (!record || !record.url) return;
+          var parts = record.url.split(',');
+          if (parts.length < 2) return;
+          var binStr = atob(parts[1]);
+          var buf = new Uint8Array(binStr.length);
+          for (var j = 0; j < binStr.length; j++) buf[j] = binStr.charCodeAt(j);
+          await onFile('attachments/' + key, buf);
+        } catch (e) {
+          if (typeof w.warn === 'function') w.warn('读取附件失败: ' + key, e);
+        }
+      }));
     }
-    return { success: success, fail: fail };
   }
 
   async function restoreAvatars(avatars, db) {
@@ -452,7 +461,11 @@
       catch (e) { reject(e); return; }
       tx.onerror = function () { reject(tx.error); };
       tx.onabort = function () { reject(tx.error || new Error('恢复事务被中止，已回滚')); };
-      tx.oncomplete = function () { resolve({ memos: (opts.memos || []).length }); };
+      tx.oncomplete = function () {
+        // 恢复提交后立即采纳新快照为 baseline，防止旧 baseline 把恢复前状态写回。
+        _memoBaseline = memoSnapshotMap(opts.memos || []);
+        resolve({ memos: (opts.memos || []).length });
+      };
 
       try {
         var att = tx.objectStore('attachments');
@@ -719,7 +732,10 @@
         try { tx = db.transaction(['memos', 'attachments', 'avatars'], 'readwrite'); }
         catch (e) { reject(e); return; }
         var merged = null;
-        tx.oncomplete = function () { resolve(merged); };
+        tx.oncomplete = function () {
+          if (merged) _memoBaseline = memoSnapshotMap(merged);
+          resolve(merged);
+        };
         tx.onerror = function () { reject(tx.error); };
         tx.onabort = function () { reject(tx.error || new Error('合并事务中止，数据未更改')); };
         try {
@@ -823,6 +839,7 @@
     createThumbnail: createThumbnail,
     dataURLtoBlob: dataURLtoBlob,
     packAttachmentsToZip: packAttachmentsToZip,
+    forEachAttachmentBytes: forEachAttachmentBytes,
     validateZipInput: validateZipInput,
     validateZipPayload: validateZipPayload,
     validateBackupData: validateBackupData,
@@ -832,7 +849,6 @@
     buildAttachmentRecord: buildAttachmentRecord,
     commitMergedData: commitMergedData,
     deleteUnreferencedAttachments: deleteUnreferencedAttachments,
-    restoreAttachmentsFromZip: restoreAttachmentsFromZip,
     restoreAvatars: restoreAvatars,
     saveMemosToDB: saveMemosToDB,
     loadMemosFromDB: loadMemosFromDB,

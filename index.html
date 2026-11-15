@@ -6,6 +6,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="此刻">
+    <link rel="icon" href="./Mynoteicon.png">
     <link rel="apple-touch-icon" href="Mynoteicon.png">
     <link rel="manifest" href="manifest.json">
 
@@ -15,11 +16,12 @@
     <!-- 深/浅色模式状态栏颜色跟随 -->
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
     <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com https://ssl.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://mynote.overtrees.workers.dev https://*.qweatherapi.com https://ipapi.co https://accounts.google.com https://www.googleapis.com https://oauth2.googleapis.com https://ssl.gstatic.com; frame-src https://accounts.google.com; worker-src 'self' blob:; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 
     <!-- 注意：原有的自动跳转脚本已移除。现在所有启动方式都先展示恐龙启动页! -->
 
-<link rel="stylesheet" href="./src/styles/tokens.css?v=2.2.0">
-<link rel="stylesheet" href="./src/styles/launch.css?v=2.2.0">
+<link rel="stylesheet" href="./src/styles/tokens.css?v=2.2.1">
+<link rel="stylesheet" href="./src/styles/launch.css?v=2.2.1">
 
 </head>
 <body>
@@ -47,7 +49,9 @@
         <button class="enter-btn" onclick="window.location.replace('Moments.html')">立即进入</button>
     </div>
 
-    <script src="./src/app/launch.js?v=2.2.0"></script>
+    <script src="./src/app/launch.js?v=2.2.1"></script>
+    <script src="./src/app/compat.js?v=2.2.1"></script>
+    <script src="./src/app/sw-register.js?v=2.2.1"></script>
 
 </body>
 </html>

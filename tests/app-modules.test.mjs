@@ -36,6 +36,17 @@ test('列表搜索不暴露不完整拼音映射，城市转换辅助函数可�
   assert.equal(win.MynoteSearch.toCn('Unknown'), 'Unknown');
 });
 
+test('斜杠命令过滤为纯函数，不污染共享 defs', () => {
+  const { win } = makeAppEnv();
+  const defs = win.MynoteSlashCommands;
+  const snapshot = JSON.stringify(defs);
+  const out = win.MynoteSlashModel.filter(defs, 'bt', []);
+  assert.ok(out.length > 0, '搜索应命中标题命令');
+  assert.equal(JSON.stringify(defs), snapshot, 'defs 不得被改写');
+  const recent = win.MynoteSlashModel.filter(defs, '', [defs[0].id]);
+  assert.ok(recent.some(c => c.recent), '最近使用应标记 recent');
+});
+
 test('运行时桥接导出关键工具函数', () => {
   const { win } = makeAppEnv();
   for (const name of ['genId', 'escapeHTML', 'timeAgo', 'getSectionLabel', 'parseEditorDOM', 'renderDocToEditorHTML', 'getDB']) {
@@ -108,7 +119,7 @@ test('IP 兜底返回赤道纬度 0 时仍查询天气', async () => {
   win.navigator.geolocation = { getCurrentPosition(_ok, fail) { fail(new Error('no GPS')); } };
   win.fetch = async url => {
     calls.push(String(url));
-    if (String(url).includes('ip-api.com')) return { ok: true, json: async () => ({ lat: 0, lon: 0, city: 'Equator' }) };
+    if (String(url).includes('ipapi.co')) return { ok: true, json: async () => ({ latitude: 0, longitude: 0, city: 'Equator', region: '' }) };
     if (String(url).includes('/weather/now')) return { ok: true, json: async () => ({ code: '200', now: { temp: '25', text: '晴' } }) };
     if (String(url).includes('/geo/v2/')) return { ok: true, json: async () => ({ code: '200', location: [] }) };
     throw new Error('unexpected request');

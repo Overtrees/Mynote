@@ -13,8 +13,8 @@
     var setFontSize = _useState[1];
 
     var applyFontSize = function (size) {
-      var map = { small:'14px', medium:'16px', large:'19px' };
-      document.documentElement.style.fontSize = map[size] || '16px';
+      var map = (w.MynoteTokens && w.MynoteTokens.fontSizeMap) || { small:'14px', medium:'16px', large:'19px' };
+      document.documentElement.style.fontSize = map[size] || map.medium || '16px';
       localStorage.setItem('sj_fontsize', size);
       setFontSize(size);
     };
@@ -67,7 +67,7 @@
           R.createElement('div', { className:'backup-card' },
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u7248\u672C'),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, (w.MynoteConstants && w.MynoteConstants.APP_VERSION) || '2.2.0')),
+              R.createElement('span', { style:{ color:'var(--text-secondary)', fontSize:'0.875rem', fontWeight:400 } }, (w.MynoteConstants && w.MynoteConstants.APP_VERSION) || '2.2.1')),
             R.createElement('div', { style:{ height:'0.5px', background:'var(--border-color)', marginLeft:16, marginRight:16 } }),
             R.createElement('div', { style:{ padding:'14px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' } },
               R.createElement('div', { className:'item-title' }, '\u8054\u7CFB\u6211\u4EEC'),

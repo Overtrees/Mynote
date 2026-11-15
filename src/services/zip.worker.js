@@ -25,8 +25,69 @@ function compressZip(data) {
   }
 }
 
+/* ===== 流式打包：主线程逐文件投喂，峰值内存 = 当前文件 + 已产出压缩流 ===== */
+var zStream = null, zOut = [], zSize = 0, zLevel = 3, zMaxCompressed = 50 * 1024 * 1024, zFailed = false;
+
+function zFail(message) {
+  if (zFailed) return;
+  zFailed = true;
+  try { if (zStream) zStream.terminate && zStream.terminate(); } catch (_) {}
+  self.postMessage({ error: String(message) });
+  self.close();
+}
+
+function startStreamZip(data) {
+  try {
+    zOut = []; zSize = 0; zFailed = false;
+    zLevel = data.level == null ? 3 : data.level;
+    zMaxCompressed = data.maxCompressed || 50 * 1024 * 1024;
+    zStream = new fflate.Zip(function (err, dat, final) {
+      if (zFailed) return;
+      if (err) return zFail('ZIP 压缩失败：' + (err && err.message || err));
+      if (dat && dat.length) {
+        zOut.push(dat);
+        zSize += dat.length;
+        if (zSize > zMaxCompressed) return zFail('压缩后的备份超过安全上限');
+      }
+      if (final) {
+        var total = 0;
+        zOut.forEach(function (c) { total += c.length; });
+        var out = new Uint8Array(total), off = 0;
+        zOut.forEach(function (c) { out.set(c, off); off += c.length; });
+        self.postMessage({ zip: out }, [out.buffer]);
+        self.close();
+      }
+    });
+  } catch (e) { zFail(e && e.message || e); }
+}
+
+function assertZipName(name) {
+  if (!name || name.charAt(0) === '/' || name.indexOf('\\') >= 0 || name.indexOf('\0') >= 0 || name.split('/').some(function (p) { return p === '..' || p === '__proto__' || p === 'constructor' || p === 'prototype'; })) {
+    throw new Error('备份包含不安全路径');
+  }
+}
+
+function addStreamFile(data) {
+  if (zFailed || !zStream) return;
+  try {
+    assertZipName(data.name);
+    var def = new fflate.ZipDeflate(data.name, { level: zLevel });
+    zStream.add(def);
+    def.push(data.data, true);
+  } catch (e) { zFail(e && e.message || e); }
+}
+
+function endStreamZip() {
+  if (zFailed || !zStream) return;
+  try { zStream.end(); } catch (e) { zFail(e && e.message || e); }
+}
+
 self.onmessage = function (event) {
-  if (event.data && event.data.mode === 'compress') return compressZip(event.data);
+  var d = event.data || {};
+  if (d.mode === 'compress') return compressZip(d);
+  if (d.mode === 'zip-start') return startStreamZip(d);
+  if (d.mode === 'zip-file') return addStreamFile(d);
+  if (d.mode === 'zip-end') return endStreamZip();
   var bytes = new Uint8Array(event.data.buffer);
   var maxExpanded = event.data.maxExpanded || 100 * 1024 * 1024;
   var maxFile = event.data.maxFile || 50 * 1024 * 1024;

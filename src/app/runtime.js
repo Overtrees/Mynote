@@ -71,7 +71,6 @@ const NEW_CARD_ID = window.MynoteConstants.NEW_CARD_ID;
 
 /* ---------- Google Drive 配置 ---------- */
 const GOOGLE_CLIENT_ID = window.MynoteConstants.GOOGLE_CLIENT_ID;
-const GOOGLE_API_KEY = window.MynoteConstants.GOOGLE_API_KEY;
 const BACKUP_FILE_NAME = window.MynoteConstants.BACKUP_FILE_NAME;
 
 /* ---------- DB 单例（来自 MynoteIdb 模块） ---------- */
@@ -121,9 +120,6 @@ async function packAttachmentsToZip(db, zipData, onProgress) {
   return window.MynoteIdb.packAttachmentsToZip(db, zipData, onProgress);
 }
 // 从 ZIP 恢复附件到 IDB（来自 MynoteIdb 模块）
-async function restoreAttachmentsFromZip(unzipped, db) {
-  return window.MynoteIdb.restoreAttachmentsFromZip(unzipped, db);
-}
 async function restoreAvatars(avatars, db) {
   return window.MynoteIdb.restoreAvatars(avatars, db);
 }

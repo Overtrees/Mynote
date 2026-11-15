@@ -74,8 +74,8 @@ function MemoList() {
   var idbInited = useRef(false);
   function tryOpenNote(list) {
     if (typeof __preopenNoteId !== 'undefined' && __preopenNoteId) {
-      var found = list.filter(function(m) { return m && (m.id === __preopenNoteId || m.title.indexOf(__preopenNoteId) >= 0); });
-      if (found.length > 0) { setEditingMemoId(found[0].id); console.log('[此刻] auto-open', found[0].id); }
+      var found = list.filter(function(m) { return m && (m.id === __preopenNoteId || (m.title || '').indexOf(__preopenNoteId) >= 0); });
+      if (found.length > 0) { setEditingMemoId(found[0].id); }
     }
   }
   /* 历史数据修复：早期待办图标曾以内联 data:URI 文本落进正文，读入时清除 */
@@ -135,6 +135,13 @@ function MemoList() {
           if (changed) {
             setMemos(memos.slice());
             try { localStorage.setItem("memos_app_v2", JSON.stringify(memos)); } catch(e) {}
+            // image 标记也要写回 IDB，否则下次启动重跑迁移
+            (async function() {
+              try {
+                var db2 = await (window.MynoteIdb ? window.MynoteIdb.getDB() : null);
+                if (db2) await window.MynoteIdb.saveMemosToDB(db2, memos);
+              } catch(_) {}
+            })();
           }
         } catch(_) {}
       })();
@@ -332,7 +339,7 @@ function MemoList() {
   const handleNew = () => {
     const now = new Date().toISOString();
     const newMemo = {
-      id: Date.now().toString(),
+      id: genId(),
       title: "无标题",
       doc: [{
         id: genId(),
@@ -413,12 +420,24 @@ function MemoList() {
   const saveMemo = useCallback((id, changes) => {
     const before = memosRef.current || [];
     const previousMemo = before.find(m => m.id === id);
-    const next = changes && changes._delete
+    let next = changes && changes._delete
       ? before.filter(m => m.id !== id)
       : before.map(m => m.id === id ? Object.assign({}, m, changes) : m);
+    // bgColor: null → 删除字段，而不是留一个 null/undefined
+    if (changes && !changes._delete && Object.prototype.hasOwnProperty.call(changes, 'bgColor') && changes.bgColor == null) {
+      next = next.map(m => {
+        if (m.id !== id) return m;
+        const copy = Object.assign({}, m);
+        delete copy.bgColor;
+        return copy;
+      });
+    }
     skipSaveCountRef.current += 1;
     memosRef.current = next;
     setMemos(next);
+    // localStorage 先同步落盘：IDB 失败/页面关闭时缓存不丢
+    try { localStorage.setItem("memos_app_v2", JSON.stringify(next.map(m => ({ ...m, doc: m.doc })))); }
+    catch (cacheError) { console.warn('[此刻] memo cache write failed', cacheError); }
     return (async function() {
       try {
         const safe = next.map(m => ({
@@ -438,9 +457,6 @@ function MemoList() {
             }
           }
         }
-        // IDB is the source of truth. A full/disabled localStorage must not block its commit.
-        try { localStorage.setItem("memos_app_v2", JSON.stringify(safe)); }
-        catch (cacheError) { console.warn('[此刻] memo cache write failed', cacheError); }
       } catch (e) { console.warn('[此刻] memo save flush', e); }
       finally { skipSaveCountRef.current = Math.max(0, skipSaveCountRef.current - 1); }
     })();
@@ -689,15 +705,15 @@ function MemoList() {
     className: "section-header"
   }, group.label), group.imageMemos.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "list-group"
-  }, group.imageMemos.length > 2 && !expandedBlocks.has(`${gi}-img`) ? /*#__PURE__*/React.createElement("div", {
-    onClick: () => toggleBlock(`${gi}-img`)
+  }, group.imageMemos.length > 2 && !expandedBlocks.has(`${group.label}-img`) ? /*#__PURE__*/React.createElement("div", {
+    onClick: () => toggleBlock(`${group.label}-img`)
   }, /*#__PURE__*/React.createElement(ImageCard, {
     memo: group.imageMemos[0],
-    onOpen: () => toggleBlock(`${gi}-img`),
+    onOpen: () => toggleBlock(`${group.label}-img`),
     onPin: togglePin,
     onDelete: deleteMemo,
     expandText: `▼ 展开 ${group.imageMemos.length} 条`,
-    onExpand: () => toggleBlock(`${gi}-img`)
+    onExpand: () => toggleBlock(`${group.label}-img`)
   })) : group.imageMemos.map((memo, mi) => /*#__PURE__*/React.createElement("div", {
     key: memo.id,
     onClick: () => openEditor(memo)
@@ -707,20 +723,20 @@ function MemoList() {
     onPin: togglePin,
     onDelete: deleteMemo,
     expandText: mi === group.imageMemos.length - 1 && group.imageMemos.length > 2 ? '▲ 收起' : undefined,
-    onExpand: () => toggleBlock(`${gi}-img`)
+    onExpand: () => toggleBlock(`${group.label}-img`)
   })))), group.imageMemos.length > 0 && group.textMemos.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "gap-16"
   }), group.textMemos.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "list-group"
-  }, group.textMemos.length > 2 && !expandedBlocks.has(`${gi}-txt`) ? /*#__PURE__*/React.createElement("div", {
-    onClick: () => toggleBlock(`${gi}-txt`)
+  }, group.textMemos.length > 2 && !expandedBlocks.has(`${group.label}-txt`) ? /*#__PURE__*/React.createElement("div", {
+    onClick: () => toggleBlock(`${group.label}-txt`)
   }, /*#__PURE__*/React.createElement(SwipeRow, {
     memo: group.textMemos[0],
     onOpen: () => {},
     onPin: togglePin,
     onDelete: deleteMemo,
     expandText: `▼ 展开 ${group.textMemos.length} 条`,
-    onExpand: () => toggleBlock(`${gi}-txt`)
+    onExpand: () => toggleBlock(`${group.label}-txt`)
   })) : group.textMemos.map((memo, mi) => /*#__PURE__*/React.createElement("div", {
     key: memo.id
   }, /*#__PURE__*/React.createElement(SwipeRow, {
@@ -729,7 +745,7 @@ function MemoList() {
     onPin: togglePin,
     onDelete: deleteMemo,
     expandText: mi === group.textMemos.length - 1 && group.textMemos.length > 2 ? '▲ 收起' : undefined,
-    onExpand: () => toggleBlock(`${gi}-txt`)
+    onExpand: () => toggleBlock(`${group.label}-txt`)
   })))))))))
 }
 

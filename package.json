@@ -1,6 +1,6 @@
 {
   "name": "mynote-cike",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "private": true,
   "description": "此刻 / Mynote —— 静态 HTML 单页笔记应用（无构建步骤，脚本按顺序直出）",
   "scripts": {
@@ -11,6 +11,6 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "playwright-core": "1.65.1"
+    "playwright-core": "^1.65.1"
   }
 }

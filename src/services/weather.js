@@ -36,14 +36,13 @@ async function fetchWeather() {
     ]);
     lat = pos.coords.latitude; lng = pos.coords.longitude;
   } catch(e) {}
-  /* ip-api 兜底（GPS失败时） */
-  /* 获取城市名（无论 GPS 还是 ip-api 都尝试） */
+  /* HTTPS IP 兜底（ip-api.com 免费端点仅 HTTP，https 页面下必挂，换 ipapi.co） */
   if (!Number.isFinite(lat)) {
     try {
-      var ipRes = await fetch("https://ip-api.com/json/?fields=lat,lon,city,regionName", { signal: AbortSignal.timeout(4000) });
+      var ipRes = await fetch("https://ipapi.co/json/", { signal: AbortSignal.timeout(4000) });
       if (ipRes.ok) {
         ipD = await ipRes.json();
-        if (ipD && Number.isFinite(ipD.lat) && Number.isFinite(ipD.lon)) { lat = ipD.lat; lng = ipD.lon; }
+        if (ipD && Number.isFinite(ipD.latitude) && Number.isFinite(ipD.longitude)) { lat = ipD.latitude; lng = ipD.longitude; }
       }
     } catch(e) { console.warn('[此刻] weather ip 兜底失败', e); }
   }
@@ -71,7 +70,7 @@ async function fetchWeather() {
           }
         }
       } catch(ge) {}
-      if (!r.city && ipD && ipD.city) r.city = ipD.city + (ipD.regionName ? " " + ipD.regionName : "");
+      if (!r.city && ipD && ipD.city) r.city = ipD.city + (ipD.region ? " " + ipD.region : "");
       WeatherCache.set(r); return r;
     }
   } catch(qe) {}

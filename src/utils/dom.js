@@ -62,7 +62,7 @@
         pending = false;
         var a = lastArgs;
         lastArgs = null;
-        try { fn.apply(null, a || []); } catch (e) { if (typeof warnFn === 'function') warnFn('rafThrottle', e); }
+        try { fn.apply(null, a || []); } catch (e) { console.warn('[此刻] rafThrottle', e); }
       });
     };
   }

@@ -9,6 +9,7 @@
     var ACTION_W = 168, THRESHOLD = 55, MIN_DX = 5;
     var isNewCard = memo && memo.id === (w.MynoteConstants ? w.MynoteConstants.NEW_CARD_ID : '__new_memo_card__');
     var sw = w.MynoteHooks.useSwipeGesture({ isNewCard: isNewCard });
+    var cityLabel = weather && weather.city ? (w.MynoteSearch && w.MynoteSearch.toCn ? w.MynoteSearch.toCn(weather.city) : weather.city) : '';
 
     // Preview text calculation（统一由 MynotePreview 计算，长度 80）
     var summary = (w.MynotePreview && w.MynotePreview.summarizeMemoDoc ? w.MynotePreview.summarizeMemoDoc(memo.doc, 80) : null);
@@ -44,7 +45,7 @@
             expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
         isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:4, flexShrink:0, paddingLeft:12 } },
           R.createElement('span', { style:{ fontSize:"var(--font-16)", fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
-          R.createElement('span', { style:{ fontSize:"var(--font-12)", color:'var(--text-secondary)', lineHeight:1.2 } }, (weather.city || '') + (weather.condition ? ' ' + weather.condition : '')))));
+          R.createElement('span', { style:{ fontSize:"var(--font-12)", color:'var(--text-secondary)', lineHeight:1.2 } }, cityLabel + (weather.condition ? ' ' + weather.condition : '')))));
   }
 
   w.SwipeRow = SwipeRow;

@@ -107,20 +107,26 @@
       // 原子块与不可编辑块：图片说明可编辑，解析时保留媒体属性并同步说明文字。
       var atomicTypes = ['gallery','imgTextCard','imageTextRow'];
       if (atomicTypes.indexOf(type) >= 0) {
-        if (prev && (type === 'imgTextCard' || type === 'imageTextRow')) {
+        if (type === 'imgTextCard' || type === 'imageTextRow') {
           var captionEl = el.querySelector(type === 'imgTextCard' ? '.itc-text' : '.itr-text');
           if (captionEl) {
             var captionText = captionEl.textContent || '';
-            var oldChildren = prev.children || [];
-            var oldCaption = oldChildren[0] && oldChildren[0].text || '';
-            if (captionText !== oldCaption) {
-              var updated = Object.assign({}, prev);
-              updated.children = oldChildren.length
-                ? oldChildren.map(function(child, childIndex) {
-                    return childIndex === 0 ? Object.assign({}, child, { text: captionText }) : child;
-                  })
-                : [{ text: captionText }];
-              doc.push(updated);
+            if (prev) {
+              var oldChildren = prev.children || [];
+              var oldCaption = oldChildren[0] && oldChildren[0].text || '';
+              if (captionText !== oldCaption) {
+                var updated = Object.assign({}, prev);
+                updated.children = oldChildren.length
+                  ? oldChildren.map(function(child, childIndex) {
+                      return childIndex === 0 ? Object.assign({}, child, { text: captionText }) : child;
+                    })
+                  : [{ text: captionText }];
+                doc.push(updated);
+                continue;
+              }
+            } else if (captionText) {
+              // 首次解析（prev 为 null）也要把说明文字带回去，否则插入后立刻保存会丢 caption
+              doc.push({ id:id, type:type, children:[{ text: captionText }] });
               continue;
             }
           }
@@ -176,15 +182,6 @@
       if (type === 'divider') { doc.push(prev && prev.type === 'divider' ? prev : { id:id, type:'divider' }); continue; }
       // data-mdtext 优先（渲染块如表格/代码块/Callout/内联渲染）：保存原始 markdown 文本
       if (el.dataset.mdtext) { doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] }); continue; }
-      // 不可编辑块：优先 data-mdtext，其次 prev
-      if (el.contentEditable === 'false') {
-        if (el.dataset.mdtext) {
-          doc.push(prev || { id:id, type:'paragraph', children:[{text:el.dataset.mdtext}] });
-        } else {
-          doc.push(prev || { id:id, type:type });
-        }
-        continue;
-      }
       var rawText = el.textContent || '';
       if (rawText === '\u200B' || rawText === '') rawText = '';
       if (['P','BLOCKQUOTE','DIV'].indexOf(el.tagName) >= 0) {
@@ -228,7 +225,7 @@
       }
       var icon = typeof w.getTypeIcon === 'function' ? w.getTypeIcon(meta.type) : '\uD83D\uDD17';
       var coverUrl = typeof w.proxyImg === 'function' ? w.proxyImg(meta.cover) : meta.cover;
-      var coverHTML = coverUrl ? '<div class="lkc-cover"><img src="' + safeImageUrl(coverUrl) + '" alt="" onerror="this.parentNode.style.display=\'none\'"></div>' : '';
+      var coverHTML = coverUrl ? '<div class="lkc-cover"><img src="' + safeImageUrl(coverUrl) + '" alt=""></div>' : '';
       var srcDomain = '';
       try { srcDomain = new URL(url).hostname.replace('www.', ''); } catch (e) {}
       var isBilibili = meta && (meta.source === '\u54D4\u54E9\u54D4\u54E9' || meta.type === 'video' && (url.indexOf('bilibili') >= 0 || url.indexOf('b23.tv') >= 0));
@@ -243,7 +240,7 @@
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
         var muTitle = muMeta.title || '\u97F3\u4E50';
         var muHtml2 = '<a contenteditable="false" class="link-card-block music-card-link" href="' + safeHttpUrl(muUrl) + '" target="_blank" rel="noopener noreferrer" aria-label="打开音乐链接" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '">';
-        if (muCover) muHtml2 += '<div class="lkc-cover"><img src="' + safeImageUrl(muCover) + '" alt="" onerror="this.closest(\'.lkc-cover\').style.display=\'none\'"></div>';
+        if (muCover) muHtml2 += '<div class="lkc-cover"><img src="' + safeImageUrl(muCover) + '" alt=""></div>';
         muHtml2 += '<div class="lkc-body' + (muCover ? ' has-cover' : '') + '"><div class="lkc-title">' + w.MynoteEditor.escapeHTML(muTitle) + '</div>';
         if (muMeta.subtitle) muHtml2 += '<div class="lkc-subtitle">' + w.MynoteEditor.escapeHTML(muMeta.subtitle) + '</div>';
         muHtml2 += '<div class="lkc-source"><span class="lkc-source-icon">\uD83C\uDFB5</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + w.MynoteEditor.escapeHTML(muMeta.source || '\u97F3\u4E50') + '</span></div></div></a>';

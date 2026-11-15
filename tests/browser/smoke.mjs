@@ -37,7 +37,7 @@ const errors = [];
 page.on('pageerror', e => errors.push(e.message.split('\n')[0]));
 page.on('console', m => { if (m.type() === 'error' && !/404|CERT|Failed to load resource|mock IndexedDB write failure/.test(m.text())) errors.push(m.text()); });
 
-await page.goto(BASE, { waitUntil: 'load', timeout: 45000 });
+await page.goto(BASE, { waitUntil: 'commit', timeout: 45000 });
 await page.waitForSelector('.list-item', { timeout: 30000 });
 await page.waitForTimeout(1500);
 
