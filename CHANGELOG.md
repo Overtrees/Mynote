@@ -35,8 +35,11 @@
 - 合并云端时单个坏附件不再整体失败
 
 结构与兼容
-- editor.js 抽出 slash-model（纯过滤）、lifecycle-hooks（pagehide / 封面破图）、use-history（撤销/重做 + Cmd+Z / iOS 三指）、use-slash + slash-panel（斜杠状态/应用/面板 UI）
-- editor.js 3662 → 2806 行
+- editor.js 抽出 slash-model（纯过滤）、lifecycle-hooks（pagehide / 封面破图）、use-history（撤销/重做 + Cmd+Z / iOS 三指）、use-slash + slash-panel（斜杠状态/应用/面板 UI）、use-editor-dom（click/todo/blur/focus 管线）
+- editor.js 3662 → 2287 行
+- BackupView 拆出 services/zip.js（有界解压/流式打包）与 services/drive.js（Drive 列表/分片上传/解码），1299→1096 行
+- storage.idb 拆出 services/backup-validate.js（手写 ZIP 校验 + 备份白名单，纯函数可测），860→677 行
+- memo-list 拆出 app/demo-memos.js（demo 笔记 + 城市表），753→671 行
 - 全仓去掉可选链 / ????，补 AbortSignal.timeout 与 Promise.allSettled 垫片
 - 新增 Service Worker（同源 SWR，不碰跨域 API）
 - Moments / index 加 CSP（登录 iframe 已放行 accounts.google.com）

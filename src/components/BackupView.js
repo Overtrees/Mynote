@@ -3,214 +3,10 @@
   var R = w.React;
   var useState = R.useState, useEffect = R.useEffect, useRef = R.useRef, useCallback = R.useCallback, useMemo = R.useMemo, useLayoutEffect = R.useLayoutEffect;
 
-function classifyDriveResponse(status) {
-  if (status === 401) return 'expired';
-  if (status === 403) return 'forbidden';
-  return null;
-}
-function selectMynoteBackup(files) {
-  var candidates = (files || []).filter(function (f) { return f && f.id && (f.name === 'memories_backup.zip' || f.name === 'memories_backup.json'); });
-  candidates.sort(function (a, b) {
-    var az = a.name === 'memories_backup.zip' ? 1 : 0, bz = b.name === 'memories_backup.zip' ? 1 : 0;
-    if (az !== bz) return bz - az;
-    return String(b.modifiedTime || '').localeCompare(String(a.modifiedTime || ''));
-  });
-  return candidates[0] || null;
-}
-function unzipOnMainThread(bytes) {
-  // file:// 或 Worker 不可用时降级到主线程 fflate；限流仍由 validateZipInput / validateZipPayload 把关。
-  var files = fflate.unzipSync(bytes);
-  window.MynoteIdb.validateZipPayload(files);
-  return files;
-}
-function unzipZipBounded(buffer, limits) {
-  limits = limits || {};
-  var bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-  window.MynoteIdb.validateZipInput(bytes);
-  if (typeof Worker === 'undefined') {
-    return Promise.resolve(unzipOnMainThread(bytes));
-  }
-  var worker;
-  try { worker = new Worker(new URL('./src/services/zip.worker.js', window.location.href)); }
-  catch (e) {
-    console.warn('[备份] Worker 启动失败，降级主线程解压', e);
-    return Promise.resolve(unzipOnMainThread(bytes));
-  }
-  return new Promise(function (resolve, reject) {
-    var settled = false;
-    function finish(error, files) {
-      if (settled) return; settled = true;
-      try { worker.terminate(); } catch (_) {}
-      if (error) reject(error); else resolve(files);
-    }
-    worker.onerror = function (e) { finish(new Error('安全解压进程失败：' + (e.message || '未知错误'))); };
-    worker.onmessage = function (e) {
-      if (e.data && e.data.error) return finish(new Error(e.data.error));
-      try { window.MynoteIdb.validateZipPayload(e.data.files); finish(null, e.data.files); }
-      catch (err) { finish(err); }
-    };
-    var transferable = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
-    worker.postMessage({ buffer: transferable, maxExpanded: limits.maxExpanded || 100 * 1024 * 1024, maxFile: limits.maxFile || 50 * 1024 * 1024, maxEntries: limits.maxEntries || 3000 }, [transferable]);
-  });
-}
-async function checkedZip(bytes, limits) { return unzipZipBounded(bytes, limits); }
-async function compressZipBounded(files, level) {
-  function compressOnMain() {
-    window.MynoteIdb.validateZipPayload(files, { maxExpanded: 100 * 1024 * 1024, maxFile: 50 * 1024 * 1024 });
-    var zipped = fflate.zipSync(files, { level: level == null ? 3 : level });
-    if (zipped.byteLength > 50 * 1024 * 1024) throw new Error('压缩后的备份超过 50 MiB 安全上限');
-    return zipped;
-  }
-  if (typeof Worker === 'undefined') return compressOnMain();
-  var worker;
-  try { worker = new Worker(new URL('./src/services/zip.worker.js', window.location.href)); }
-  catch (e) {
-    console.warn('[备份] Worker 启动失败，降级主线程打包', e);
-    return compressOnMain();
-  }
-  return new Promise(function (resolve, reject) {
-    var settled = false;
-    function finish(error, zip) {
-      if (settled) return; settled = true;
-      try { worker.terminate(); } catch (_) {}
-      if (error) reject(error); else resolve(zip);
-    }
-    worker.onerror = function (e) { finish(new Error('后台打包失败：' + (e.message || '未知错误'))); };
-    worker.onmessage = function (e) {
-      if (e.data && e.data.error) return finish(new Error(e.data.error));
-      finish(null, e.data.zip);
-    };
-    var transfers = [];
-    Object.keys(files || {}).forEach(function (key) {
-      var value = files[key];
-      if (value instanceof Uint8Array && value.byteLength) transfers.push(value.buffer);
-    });
-    worker.postMessage({ mode: 'compress', files: files, level: level, maxExpanded: 100 * 1024 * 1024, maxFile: 50 * 1024 * 1024, maxCompressed: 50 * 1024 * 1024, maxEntries: 3000 }, transfers);
-  });
-}
-function bestEffortMemoCache(memos) {
-  try { localStorage.setItem('memos_app_v2', JSON.stringify(memos)); return true; }
-  catch (e) { console.warn('[备份] IndexedDB 已提交；localStorage 缓存写入失败', e); return false; }
-}
-async function buildAttachmentManifest(db) {
-  // cursor 只取 name/type，不把 dataURL 拉进内存
-  return new Promise(function (resolve, reject) {
-    var manifest = { version: 1, attachments: {} };
-    var tx;
-    try { tx = db.transaction('attachments', 'readonly'); } catch (e) { resolve(manifest); return; }
-    var req = tx.objectStore('attachments').openCursor();
-    req.onsuccess = function (e) {
-      var cur = e.target.result;
-      if (!cur) { resolve(manifest); return; }
-      var rec = cur.value;
-      manifest.attachments[cur.key] = { name: (rec && rec.name) || '', type: (rec && rec.type) || 'application/octet-stream' };
-      cur.continue();
-    };
-    req.onerror = function () { reject(tx.error); };
-  });
-}
 /**
  * 流式打包：基础文件 + IDB 附件逐个喂 Worker fflate.Zip。
  * Worker 不可用时退回“攒全量 + zipSync”（file:// / 旧浏览器）。
  */
-function compressZipStream(db, baseFiles, level, onProgress) {
-  function fallbackSync() {
-    var files = Object.assign({}, baseFiles || {});
-    return w.MynoteIdb.forEachAttachmentBytes(db, function (name, buf) {
-      files[name] = buf;
-    }, onProgress).then(function () {
-      return compressZipBounded(files, level);
-    });
-  }
-  if (typeof Worker === 'undefined') return fallbackSync();
-  var worker;
-  try { worker = new Worker(new URL('./src/services/zip.worker.js', window.location.href)); }
-  catch (e) {
-    console.warn('[备份] Worker 启动失败，降级主线程流式打包', e);
-    return fallbackSync();
-  }
-  return new Promise(function (resolve, reject) {
-    var settled = false;
-    function finish(error, zip) {
-      if (settled) return; settled = true;
-      try { worker.terminate(); } catch (_) {}
-      if (error) reject(error); else resolve(zip);
-    }
-    worker.onerror = function (e) { finish(new Error('后台打包失败：' + (e.message || '未知错误'))); };
-    worker.onmessage = function (e) {
-      if (e.data && e.data.error) return finish(new Error(e.data.error));
-      if (e.data && e.data.zip) return finish(null, e.data.zip);
-    };
-    var names = Object.keys(baseFiles || {});
-    var i = 0;
-    function sendNext() {
-      if (i >= names.length) {
-        w.MynoteIdb.forEachAttachmentBytes(db, function (name, buf) {
-          if (settled) return;
-          worker.postMessage({ mode: 'zip-file', name: name, data: buf, level: level }, [buf.buffer]);
-        }, onProgress).then(function () {
-          if (!settled) worker.postMessage({ mode: 'zip-end' });
-        }).catch(function (err) { finish(err); });
-        return;
-      }
-      var name = names[i++];
-      var val = baseFiles[name];
-      worker.postMessage({ mode: 'zip-file', name: name, data: val, level: level }, [val.buffer]);
-    }
-    worker.postMessage({ mode: 'zip-start', level: level, maxCompressed: 50 * 1024 * 1024 });
-    sendNext();
-  });
-}
-async function listMynoteBackups(token, checkAuth) {
-  var files = [], pageToken = null;
-  do {
-    var url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`(name='${BACKUP_FILE_NAME}' or name='memories_backup.json')`)}&trashed=false&spaces=appDataFolder&pageSize=1000&fields=files(id,name,mimeType,modifiedTime),nextPageToken` + (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '');
-    var response = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
-    if (checkAuth(response)) return { interrupted: true, files: files };
-    if (!response.ok) throw new Error('读取云端备份列表失败：HTTP ' + response.status);
-    var data = await response.json();
-    files = files.concat(data.files || []);
-    pageToken = data.nextPageToken || null;
-  } while (pageToken);
-  return { files: files };
-}
-async function decodeCloudBackup(file, buffer) {
-  if (file && /\.json$/i.test(file.name || '')) {
-    var backup = JSON.parse(new TextDecoder().decode(new Uint8Array(buffer))); window.MynoteIdb.validateBackupData(backup); return { backup: backup, files: {} };
-  }
-  var files = await checkedZip(buffer);
-  var memoBytes = files['memos.json'];
-  if (!memoBytes) throw new Error('备份 ZIP 中缺少 memos.json');
-  return { backup: JSON.parse(fflate.strFromU8(memoBytes)), files: files };
-}
-// Drive multipart 官方建议 ≤5MB；大备份改走 resumable，避免 50MiB 上限直接 4xx。
-async function uploadDriveZipResumable(token, fileId, blob, metadata) {
-  var initUrl = fileId
-    ? 'https://www.googleapis.com/upload/drive/v3/files/' + fileId + '?uploadType=resumable'
-    : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable';
-  var initResp = await fetch(initUrl, {
-    method: fileId ? 'PATCH' : 'POST',
-    headers: {
-      Authorization: 'Bearer ' + token,
-      'Content-Type': 'application/json; charset=UTF-8',
-      'X-Upload-Content-Type': 'application/zip',
-      'X-Upload-Content-Length': String(blob.size)
-    },
-    body: JSON.stringify(metadata)
-  });
-  if (!initResp.ok) {
-    var errData = await initResp.json().catch(function () { return {}; });
-    throw new Error(errData.error && errData.error.message || ('初始化分片上传失败：HTTP ' + initResp.status));
-  }
-  var uploadUrl = initResp.headers.get('location') || initResp.headers.get('Location') || initResp.headers.get('x-goog-upload-url');
-  if (!uploadUrl) throw new Error('Drive 未返回分片上传地址（Location 头不可用）');
-  var uploadResp = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Length': String(blob.size) },
-    body: blob
-  });
-  return uploadResp;
-}
 
 const BackupView = ({
   onClose
@@ -360,9 +156,9 @@ const BackupView = ({
       const zipData = {};
       zipData['memos.json'] = fflate.strToU8(JSON.stringify(backup, null, 2));
       const db = await w.MynoteIdb.getDB();
-      zipData['manifest.json'] = fflate.strToU8(JSON.stringify(await buildAttachmentManifest(db)));
+      zipData['manifest.json'] = fflate.strToU8(JSON.stringify(await window.MynoteDrive.buildAttachmentManifest(db)));
       showStatus('正在打包附件...');
-      const zipped = await compressZipStream(db, zipData, 6, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
+      const zipped = await window.MynoteZip.compressZipStream(db, zipData, 6, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
       if (zipped.byteLength > 50 * 1024 * 1024) throw new Error('压缩后的备份超过 50 MiB 安全上限');
       const fileName = `此刻备份_${new Date().toISOString().slice(0, 10)}.zip`;
       const blob = new Blob([zipped], {
@@ -422,7 +218,7 @@ const BackupView = ({
       const buf = await file.arrayBuffer();
       const zipBytes = new Uint8Array(buf);
       w.MynoteIdb.validateZipInput(zipBytes);
-      const unzipped = await checkedZip(zipBytes);
+      const unzipped = await window.MynoteZip.checkedZip(zipBytes);
       const jsonBytes = unzipped['memos.json'];
       if (!jsonBytes) throw new Error('ZIP 中未找到备份数据');
       const backup = JSON.parse(fflate.strFromU8(jsonBytes));
@@ -477,7 +273,7 @@ const BackupView = ({
   }, [restoreLoading]);
   const tokenFailRef = useRef(0);
   const checkTokenExpiry = useCallback(resp => {
-    var authState = classifyDriveResponse(resp.status);
+    var authState = window.MynoteDrive.classifyDriveResponse(resp.status);
     if (authState === 'expired') {
       tokenFailRef.current = 0;
       setGoogleToken(null);
@@ -538,7 +334,7 @@ const BackupView = ({
       const zipData = {};
       zipData['memos.json'] = fflate.strToU8(JSON.stringify(backup, null, 2));
       const db = await w.MynoteIdb.getDB();
-      zipData['manifest.json'] = fflate.strToU8(JSON.stringify(await buildAttachmentManifest(db)));
+      zipData['manifest.json'] = fflate.strToU8(JSON.stringify(await window.MynoteDrive.buildAttachmentManifest(db)));
       const tx = db.transaction('avatars', 'readonly');
       const allAvatars = await new Promise(res => {
         const req = tx.objectStore('avatars').getAll();
@@ -549,14 +345,14 @@ const BackupView = ({
         for (const a of allAvatars) avatarsObj[a.id] = a.dataUrl;
         zipData['avatars.json'] = fflate.strToU8(JSON.stringify(avatarsObj));
       }
-      const zipped = await compressZipStream(db, zipData, 3, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
+      const zipped = await window.MynoteZip.compressZipStream(db, zipData, 3, (i, total) => showStatus(`正在打包附件 ${i + 1}/${total}...`));
       if (zipped.byteLength > 50 * 1024 * 1024) throw new Error('压缩后的备份超过 50 MiB 安全上限');
       const blob = new Blob([zipped], {
         type: 'application/zip'
       });
-      const listData = await listMynoteBackups(googleToken, checkTokenExpiry);
+      const listData = await window.MynoteDrive.listMynoteBackups(googleToken, checkTokenExpiry);
       if (listData.interrupted) return;
-      var selectedBackup = selectMynoteBackup(listData.files);
+      var selectedBackup = window.MynoteDrive.selectMynoteBackup(listData.files);
       let fileId = selectedBackup ? selectedBackup.id : null;
       const metadata = fileId ? {
         name: BACKUP_FILE_NAME,
@@ -566,7 +362,7 @@ const BackupView = ({
         mimeType: 'application/zip',
         parents: ['appDataFolder']
       };
-      const uploadResp = await uploadDriveZipResumable(googleToken, fileId, blob, metadata);
+      const uploadResp = await window.MynoteDrive.uploadDriveZipResumable(googleToken, fileId, blob, metadata);
       if (checkTokenExpiry(uploadResp)) return;
       if (!uploadResp.ok) {
         const errData = await uploadResp.json().catch(() => ({}));
@@ -588,10 +384,10 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在下载云端备份...');
     try {
-      const listData = await listMynoteBackups(googleToken, checkTokenExpiry);
+      const listData = await window.MynoteDrive.listMynoteBackups(googleToken, checkTokenExpiry);
       if (listData.interrupted) return;
       if (!listData.files || listData.files.length === 0) return showStatus('❌ 云端无备份文件');
-      const selectedBackup = selectMynoteBackup(listData.files);
+      const selectedBackup = window.MynoteDrive.selectMynoteBackup(listData.files);
       if (!selectedBackup) return showStatus('❌ 没有可识别的云端备份');
       const fileId = selectedBackup.id;
       const dlResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -605,7 +401,7 @@ const BackupView = ({
       if (len && len > 50 * 1024 * 1024) throw new Error('云端备份超过 50 MiB 安全上限');
       const buf = await dlResp.arrayBuffer();
       if (buf.byteLength > 50 * 1024 * 1024) throw new Error('云端备份超过 50 MiB 安全上限');
-      const decoded = await decodeCloudBackup(selectedBackup, buf);
+      const decoded = await window.MynoteDrive.decodeCloudBackup(selectedBackup, buf);
       const unzipped = decoded.files;
       const cloudBackup = decoded.backup;
       w.MynoteIdb.validateBackupData(cloudBackup);
@@ -627,7 +423,7 @@ const BackupView = ({
       }
       const cloudAvatars = unzipped['avatars.json'] ? JSON.parse(fflate.strFromU8(unzipped['avatars.json'])) : cloudBackup.avatars || {};
       const merged = await w.MynoteIdb.commitMergedData(db, cloudMemos, attachments, cloudAvatars);
-      bestEffortMemoCache(merged || []);
+      window.MynoteDrive.bestEffortMemoCache(merged || []);
       showStatus('✅ 合并成功' + (attFail ? '（跳过 ' + attFail + ' 个坏附件）' : '') + '！正在刷新...');
       setTimeout(() => window.location.href = location.href, 800);
     } catch (e) {
@@ -647,10 +443,10 @@ const BackupView = ({
     setRestoreLoading(true);
     showStatus('正在从云端下载...');
     try {
-      const listData = await listMynoteBackups(googleToken, checkTokenExpiry);
+      const listData = await window.MynoteDrive.listMynoteBackups(googleToken, checkTokenExpiry);
       if (listData.interrupted) return;
       if (!listData.files || listData.files.length === 0) return showStatus('❌ 云端无备份文件');
-      const selectedBackup = selectMynoteBackup(listData.files);
+      const selectedBackup = window.MynoteDrive.selectMynoteBackup(listData.files);
       if (!selectedBackup) return showStatus('❌ 没有可识别的云端备份');
       const fileId = selectedBackup.id;
       const dlResp = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
@@ -664,7 +460,7 @@ const BackupView = ({
       if (len && len > 50 * 1024 * 1024) throw new Error('云端备份超过 50 MiB 安全上限');
       const buf = await dlResp.arrayBuffer();
       if (buf.byteLength > 50 * 1024 * 1024) throw new Error('云端备份超过 50 MiB 安全上限');
-      const decoded = await decodeCloudBackup(selectedBackup, buf);
+      const decoded = await window.MynoteDrive.decodeCloudBackup(selectedBackup, buf);
       const unzipped = decoded.files;
       const backup = decoded.backup;
       if (!Array.isArray(backup.memos)) throw new Error('无效的备份文件');
@@ -1294,6 +1090,7 @@ const BackupView = ({
   }());
 };
 
-  w.MynoteBackupUtils = { selectMynoteBackup: selectMynoteBackup, decodeCloudBackup: decodeCloudBackup, listMynoteBackups: listMynoteBackups, checkedZip: checkedZip, compressZip: compressZipBounded, classifyDriveResponse: classifyDriveResponse };
+  // 兼容旧导出：逻辑已迁至 services/zip.js 与 services/drive.js
+  w.MynoteBackupUtils = w.MynoteDrive && w.MynoteZip ? { selectMynoteBackup: w.MynoteDrive.selectMynoteBackup, decodeCloudBackup: w.MynoteDrive.decodeCloudBackup, listMynoteBackups: w.MynoteDrive.listMynoteBackups, checkedZip: w.MynoteZip.checkedZip, compressZip: w.MynoteZip.compressZipBounded, classifyDriveResponse: w.MynoteDrive.classifyDriveResponse } : {};
   w.BackupView = BackupView;
 })(window);

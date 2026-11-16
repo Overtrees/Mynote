@@ -130,6 +130,7 @@ test('图文卡片与图文横排的说明文字编辑后保存且保留媒体�
 test('ZIP 预检拒绝超大声明与危险路径', () => {
   const env = makeEnv();
   env.win.TextDecoder = TextDecoder;
+  load(env, 'src/services/backup-validate.js');
   load(env, 'src/services/storage.idb.js');
   assert.throws(() => env.win.MynoteIdb.validateZipInput(new Uint8Array(10)), /安全限制|目录损坏/);
   const b = new Uint8Array(22);
@@ -144,6 +145,7 @@ test('ZIP 预检校验本地文件头与中央目录一致', () => {
   const env = makeEnv();
   env.win.TextDecoder = TextDecoder;
   load(env, 'vendor/fflate.min.js');
+  load(env, 'src/services/backup-validate.js');
   load(env, 'src/services/storage.idb.js');
   const bytes = env.win.fflate.zipSync({ 'memos.json': env.win.fflate.strToU8('{"memos":[]}') });
   assert.ok(env.win.MynoteIdb.validateZipInput(bytes).entries === 1);
@@ -157,6 +159,7 @@ test('ZIP 预检校验本地文件头与中央目录一致', () => {
 test('导入备份递归校验拒绝注入 ID 与危险协议', () => {
   const env = makeEnv();
   env.win.TextDecoder = TextDecoder;
+  load(env, 'src/services/backup-validate.js');
   load(env, 'src/services/storage.idb.js');
   const validate = env.win.MynoteIdb.validateBackupData;
   assert.equal(validate({ memos: [{ id: 'm_1', title: 'ok', doc: [{ id: 'b1', type: 'paragraph', children: [{ text: '安全' }] }] }] }), true);
@@ -166,6 +169,7 @@ test('导入备份递归校验拒绝注入 ID 与危险协议', () => {
 
 test('备份校验兼容旧版并覆盖当前所有 block 类型与恶意字段', () => {
   const env = makeEnv();
+  load(env, 'src/services/backup-validate.js');
   load(env, 'src/services/storage.idb.js');
   const validate = env.win.MynoteIdb.validateBackupData;
   const blocks = [
@@ -201,6 +205,8 @@ test('备份校验兼容旧版并覆盖当前所有 block 类型与恶意字段'
 test('Drive 列表错误路径区分授权、HTTP 错误与损坏响应', async () => {
   const env = makeEnv();
   env.win.BACKUP_FILE_NAME = 'memories_backup.zip';
+  load(env, 'src/services/zip.js');
+  load(env, 'src/services/drive.js');
   load(env, 'src/components/BackupView.js');
   const api = env.win.MynoteBackupUtils;
   for (const status of [401, 403]) {
@@ -229,6 +235,7 @@ test('无生产构建脚本，危险 Drive 清理页保持无脚本且应用入�
 
 test('搜索递归覆盖嵌套正文且不作不完整拼音误匹配', () => {
   const env = makeEnv();
+  load(env, 'src/app/demo-memos.js');
   load(env, 'src/app/memo-list.js');
   const search = env.win.MynoteSearch.matchesMemoSearch;
   const memo = { id: 'm1', title: '随记', doc: [{ type: 'gallery', attrs: { items: [{ alt: '深层关键词' }] }, children: [{ text: '中文内容' }] }] };
@@ -239,6 +246,8 @@ test('搜索递归覆盖嵌套正文且不作不完整拼音误匹配', () => {
 
 test('Drive 备份候选优先 ZIP 并选最新版本', () => {
   const env = makeEnv();
+  load(env, 'src/services/zip.js');
+  load(env, 'src/services/drive.js');
   load(env, 'src/components/BackupView.js');
   const select = env.win.MynoteBackupUtils.selectMynoteBackup;
   assert.equal(select([
@@ -252,6 +261,8 @@ test('Drive 备份候选优先 ZIP 并选最新版本', () => {
 
 test('Drive 401 与 403 分类分离，权限错误不代表 token 过期', () => {
   const env = makeEnv();
+  load(env, 'src/services/zip.js');
+  load(env, 'src/services/drive.js');
   load(env, 'src/components/BackupView.js');
   const classify = env.win.MynoteBackupUtils.classifyDriveResponse;
   assert.equal(classify(401), 'expired');
