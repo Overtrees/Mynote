@@ -24,7 +24,7 @@ const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? '✔' : '✖'} ${name}${detail ? ' — ' + detail : ''}`); };
 try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-  await page.goto(`http://127.0.0.1:${port}/Moments.html`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`http://127.0.0.1:${port}/Moment.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.list-item', { timeout: 30000 });
   await page.waitForTimeout(400); // Ignore the app's initial slide-in transform during overflow measurements.
   const resultsByTheme = {};

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * 静态校验：在没有打包器的前提下，替代「构建」这一步的最低限度检查。
- *   1. Moments.html / index.html 的本地脚本与样式引用必须存在
+ *   1. Moment.html / index.html 的本地脚本与样式引用必须存在
  *   2. 所有 src/ 脚本与页面内联脚本必须能通过语法解析
  *   3. 页面不得残留内联 style/script（启动页字号引导已外移）
  *   4. 本地 src/ 资源必须携带统一版本串
@@ -27,7 +27,7 @@ function walk(dir, ext, out = []) {
   return out;
 }
 
-const pages = ['Moments.html', 'index.html'];
+const pages = ['Moment.html', 'index.html'];
 const allLocalRefs = [];
 for (const page of pages) {
   const html = read(page);
@@ -105,12 +105,12 @@ const usedVars = new Set([...(`${css}\n${js}`).matchAll(/var\((--[a-zA-Z0-9-]+)/
 const undefinedVars = [...usedVars].filter(v => !definedVars.has(v));
 if (undefinedVars.length) problems.push(`未定义的 CSS 变量: ${undefinedVars.join(', ')}`);
 
-const moments = read('Moments.html');
+const moments = read('Moment.html');
 const order = [...moments.matchAll(/<script[^>]*\ssrc="\.\/src\/([^"?]+)/g)].map(m => m[1]);
 const iPreview = order.indexOf('utils/preview.js');
 const iSwipe = order.indexOf('components/SwipeRow.js');
 const iImg = order.indexOf('components/ImageCard.js');
-if (iPreview === -1) problems.push('Moments.html 未引入 src/utils/preview.js');
+if (iPreview === -1) problems.push('Moment.html 未引入 src/utils/preview.js');
 else if (iPreview > iSwipe || iPreview > iImg) problems.push('preview.js 必须在 SwipeRow/ImageCard 之前引入');
 
 // ---- 版本号单一来源 ----

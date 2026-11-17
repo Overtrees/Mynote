@@ -40,7 +40,7 @@ export function makeEnv() {
     clear: () => storage.clear()
   };
   win.sessionStorage = win.localStorage;
-  win.location = { href: 'https://example.test/Moments.html', search: '', host: 'example.test', reload() {} };
+  win.location = { href: 'https://example.test/Moment.html', search: '', host: 'example.test', reload() {} };
   win.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} });
   win.requestAnimationFrame = (fn) => setTimeout(fn, 0);
   win.cancelAnimationFrame = (id) => clearTimeout(id);

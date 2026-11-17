@@ -8,8 +8,8 @@ import { makeEnv, loadScript } from './helpers/env.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const load = (env, rel) => loadScript(env, path.join(ROOT, rel));
 
-test('构建脚本清单：Moments.html 引用的本地脚本全部存在', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'Moments.html'), 'utf8');
+test('构建脚本清单：Moment.html 引用的本地脚本全部存在', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'Moment.html'), 'utf8');
   const refs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]).filter(r => !/^https?:/.test(r));
   assert.ok(refs.length > 15, '脚本引用数量异常: ' + refs.length);
   for (const ref of refs) {
@@ -240,7 +240,7 @@ test('无生产构建脚本，危险 Drive 清理页保持无脚本且应用入�
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(pkg.description.includes('无构建步骤'), true);
   assert.equal(Object.hasOwn(pkg.scripts || {}, 'build'), false);
-  const entry = ['Moments.html', 'index.html'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
+  const entry = ['Moment.html', 'index.html'].map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
   assert.doesNotMatch(entry, /clear_drive|dev\/clear_drive/i);
   for (const f of ['clear_drive.html', 'dev/clear_drive.html']) {
     const html = fs.readFileSync(path.join(ROOT, f), 'utf8');

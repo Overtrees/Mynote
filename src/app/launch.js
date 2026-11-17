@@ -8,7 +8,7 @@ window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
     seconds--;
     if (seconds <= 0) {
       clearInterval(timer);
-      window.location.replace('Moments.html');
+      window.location.replace('Moment.html');
     } else {
       el.textContent = seconds + ' 秒后自动进入';
     }

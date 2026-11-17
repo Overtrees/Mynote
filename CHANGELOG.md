@@ -53,13 +53,13 @@ Markdown 阅读体验
 - memo-list 拆出 app/demo-memos.js（demo 笔记 + 城市表），753→671 行
 - 全仓去掉可选链 / ????，补 AbortSignal.timeout 与 Promise.allSettled 垫片
 - 新增 Service Worker（同源 SWR，不碰跨域 API）
-- Moments / index 加 CSP（登录 iframe 已放行 accounts.google.com）
+- Moment / index 加 CSP（登录 iframe 已放行 accounts.google.com）
 - ZIP 打包改流式 fflate.Zip，主线程不再堆全量附件；manifest 改 cursor 只读 name/type
 - Chromium 冒烟：列表渲染 / 编辑输入 / 撤销重做 / 斜杠面板应用+Esc / SW 接管，0 pageerror
 
 ## 2.2.0
 
-- 拆分 Moments.html：主运行时按桥接、Editor、天气、列表、启动拆为独立脚本
+- 拆分 Moment.html：主运行时按桥接、Editor、天气、列表、启动拆为独立脚本
 - 抽取全局设计令牌，CSS 与内联样式统一使用颜色、字号、圆角、阴影变量
 - 启动页样式与倒计时脚本独立，移除页面内联 style/script
 - 新增拆分结构、样式令牌与运行模块测试

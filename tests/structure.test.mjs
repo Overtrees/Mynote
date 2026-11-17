@@ -8,14 +8,14 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = rel => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const exists = rel => fs.existsSync(path.join(ROOT, rel));
 
-const moments = read('Moments.html');
+const moments = read('Moment.html');
 const index = read('index.html');
 const scriptRefs = html => [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]);
 const styleRefs = html => [...html.matchAll(/<link[^>]*rel="stylesheet"[^>]*href="([^"]+)"/g)].map(m => m[1]);
 const refPath = ref => ref.split('?')[0].replace(/^\.\//, '');
 
-test('Moments.html 只保留页面骨架与外部引用', () => {
-  assert.ok(moments.split('\n').length < 120, 'Moments.html 应保持为薄入口');
+test('Moment.html 只保留页面骨架与外部引用', () => {
+  assert.ok(moments.split('\n').length < 120, 'Moment.html 应保持为薄入口');
   assert.doesNotMatch(moments, /<style[\s>]/i, '不应再有内联 style');
   assert.doesNotMatch(moments, /<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/i, '不应再有内联 script');
   assert.ok(index.split('\n').length < 70, '启动页应保持短小');

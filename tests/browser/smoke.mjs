@@ -2,8 +2,8 @@
 /**
  * 浏览器冒烟：用真实 Chromium 验证「线上/本地页面」的关键链路。
  *
- *   node tests/browser/smoke.mjs                        # 打 http://127.0.0.1:8080/Moments.html
- *   BASE=https://overtrees.github.io/Mynote/Moments.html node tests/browser/smoke.mjs
+ *   node tests/browser/smoke.mjs                        # 打 http://127.0.0.1:8080/Moment.html
+ *   BASE=https://overtrees.github.io/Mynote/Moment.html node tests/browser/smoke.mjs
  *
  * 需要本机已装 playwright-core（npm i -D playwright-core）与一个 Chromium：
  *   CHROME=/usr/bin/chromium（默认值）；沙箱里若走 MITM 代理需 --proxy-server=direct://。
@@ -13,7 +13,7 @@
  */
 import { chromium } from 'playwright-core';
 
-const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moments.html';
+const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
 const CHROME = process.env.CHROME || '/usr/bin/chromium';
 const ARGS = ['--no-sandbox', '--proxy-server=direct://', '--proxy-bypass-list=*'];
 

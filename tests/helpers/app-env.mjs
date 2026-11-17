@@ -1,4 +1,4 @@
-// 按 Moments.html 的真实顺序加载全部非 vendor 脚本，供结构回归测试使用。
+// 按 Moment.html 的真实顺序加载全部非 vendor 脚本，供结构回归测试使用。
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { makeEnv, loadScript } from './env.mjs';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-export const MOMENTS = path.join(ROOT, 'Moments.html');
+export const MOMENT = path.join(ROOT, 'Moment.html');
 
-export function readPage(file = MOMENTS) {
+export function readPage(file = MOMENT) {
   return fs.readFileSync(file, 'utf8');
 }
 

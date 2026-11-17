@@ -3,7 +3,7 @@ const CACHE = 'mynote-2.2.2';
 const CORE = [
   './',
   './index.html',
-  './Moments.html',
+  './Moment.html',
   './manifest.json',
   './Mynoteicon.png'
 ];

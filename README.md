@@ -120,7 +120,7 @@
 
 ### 代码结构
 
-- `Moments.html`：只保留页面骨架、样式与脚本引用
+- `Moment.html`：只保留页面骨架、样式与脚本引用
 - `src/app/`：运行时桥接、Editor、列表、天气、启动等应用模块
 - `src/styles/`：全局设计令牌、基础样式、编辑器/卡片/面板样式
 - `src/editor/`、`src/components/`、`src/services/`：可复用编辑器、组件与存储能力

@@ -2,7 +2,7 @@
 /* Mobile regression: slash music command → paste → immediate Enter → async completion → reopen. */
 import { chromium } from 'playwright-core';
 
-const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moments.html';
+const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
 const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/chromium', args: ['--no-sandbox', '--disable-dev-shm-usage', '--headless=new'] });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, permissions: ['clipboard-read', 'clipboard-write'] });
 const page = await context.newPage();

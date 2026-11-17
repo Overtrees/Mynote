@@ -2,7 +2,7 @@
 /* 全功能真机冒烟：斜杠 29 命令矩阵 + 菜单 + 列表 + 设置/备份 + 粘贴链接。 */
 import { chromium } from 'playwright-core';
 
-const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moments.html';
+const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
 const CHROME = process.env.CHROME || '/usr/local/bin/chromium';
 const results = [];
 const errs = [];
