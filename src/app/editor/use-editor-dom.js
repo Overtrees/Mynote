@@ -44,6 +44,15 @@
     var escapeHTML = opts.escapeHTML;
 
   var handleEditorClick = useCallback(function (e) {
+    var host = editorBodyRef.current;
+    if (host) {
+      var clickedBlock = e.target && e.target.closest && e.target.closest('[data-blockid]');
+      if (clickedBlock && clickedBlock.dataset.musicUrl === 'pending') {
+        host.dataset.activeMusicInputId = clickedBlock.dataset.blockid || '';
+      } else if (clickedBlock || e.target === host) {
+        delete host.dataset.activeMusicInputId;
+      }
+    }
     if (showMenu) closeEditorMenu();
     /* ---- 点击已渲染块（表格/代码块/Callout）→ 回到编辑态 ---- */
     var mdBlock = e.target.closest('.md-preview.block[data-mdtext]');
@@ -533,6 +542,13 @@
               }
             }
           }).catch(function () {
+            var failedDoc = docRef.current;
+            var failedIdx = failedDoc.findIndex(function (n) { return n.id === muId; });
+            if (failedIdx !== -1) {
+              failedDoc[failedIdx].status = 'error';
+              failedDoc[failedIdx].meta = null;
+              setEditorDocRef(failedDoc);
+            }
             var ce2 = editorBodyRef.current;
             if (ce2) {
               var el2 = ce2.querySelector('[data-blockid="' + muId + '"]');

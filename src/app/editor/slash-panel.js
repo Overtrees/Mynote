@@ -16,6 +16,8 @@
     var applySlashCommand = props.applySlashCommand;
     var slashApplyingRef = props.slashApplyingRef;
     var SVG_ICONS = props.SVG_ICONS || {};
+    var suppressPointerClickRef = props.suppressPointerClickRef;
+    var pointerClickTimerRef = props.pointerClickTimerRef;
 
     function hl(text) {
       var q = (slashQuery || '').trim().toLowerCase();
@@ -123,12 +125,24 @@
               setSlashSelectedIndex(flatIdx);
             },
             onPointerUp: function (e) {
-              // pointerUp = 确认是点击（不是滚动），执行命令
+              // PointerUp and the compatibility click are one physical gesture.
+              // Suppress the click even if a slow device outlasts the apply lock.
               e.preventDefault();
+              suppressPointerClickRef.current = true;
+              clearTimeout(pointerClickTimerRef.current);
+              pointerClickTimerRef.current = setTimeout(function () {
+                suppressPointerClickRef.current = false;
+              }, 1000);
               applySlashCommand(cmd);
             },
             onClick: function () {
-              // 桌面端 fallback
+              // Keep click as a fallback for keyboard/older input paths, never as
+              // a second activation after pointerup.
+              if (suppressPointerClickRef.current) {
+                suppressPointerClickRef.current = false;
+                clearTimeout(pointerClickTimerRef.current);
+                return;
+              }
               if (!slashApplyingRef.current) applySlashCommand(cmd);
             },
             onPointerEnter: function () { setSlashSelectedIndex(flatIdx); },

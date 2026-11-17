@@ -1,0 +1,123 @@
+#!/usr/bin/env node
+/* Mobile regression: slash music command → paste → immediate Enter → async completion → reopen. */
+import { chromium } from 'playwright-core';
+
+const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moments.html';
+const browser = await chromium.launch({ executablePath: process.env.CHROME || '/usr/bin/chromium', args: ['--no-sandbox', '--disable-dev-shm-usage', '--headless=new'] });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, permissions: ['clipboard-read', 'clipboard-write'] });
+const page = await context.newPage();
+const failures = [];
+page.on('pageerror', error => { failures.push(error.message); console.log('PAGEERROR', error.stack); });
+page.on('console', message => { console.log('CONSOLE', message.type(), message.text()); if (message.type() === 'error' && !/favicon|404|status of 503 \(Service Unavailable\)/.test(message.text())) failures.push(message.text()); });
+page.on('request', request => {});
+await page.route('**/meta?*', async route => {
+  if (route.request().url().includes('mobile-race-fail')) {
+    await new Promise(resolve => setTimeout(resolve, 250));
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'simulated metadata failure' }) });
+    return;
+  }
+  await new Promise(resolve => setTimeout(resolve, 900));
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Regression Song', subtitle: 'Regression Artist', source: 'Mock', type: 'music' }) });
+});
+const results = [];
+const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`); };
+
+await page.goto(BASE, { waitUntil: 'commit' });
+await page.waitForSelector('.list-item');
+const target = page.locator('.list-item').nth(2);
+const memoTitle = (await target.innerText()).trim();
+const failureTarget = page.locator('.list-item').nth(3);
+const failureMemoTitle = (await failureTarget.innerText()).trim().split('\n')[0];
+await target.click();
+await page.locator('.editor-body').waitFor();
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+const musicRow = page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first();
+if (!(await musicRow.isVisible().catch(() => false))) { console.log('DEBUG after slash:', (await page.locator('body').innerText()).slice(-1000)); throw new Error('music slash command did not appear'); }
+await musicRow.tap();
+const input = page.locator('.editor-body [data-music-url="pending"]');
+await input.waitFor({ state: 'visible' });
+await input.tap();
+const retargetedPaste = await page.evaluate(() => {
+  // Simulate mobile browsers losing the capsule selection and retargeting paste
+  // to the editor host while the last focused music capsule is still active.
+  const capsule = document.querySelector('.editor-body [data-music-url="pending"]');
+  const next = capsule && capsule.nextElementSibling;
+  if (next) {
+    const range = document.createRange();
+    range.selectNodeContents(next);
+    range.collapse(true);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  const markedBefore = document.querySelector('.editor-body')?.dataset.activeMusicInputId || null;
+  const data = new DataTransfer();
+  data.setData('text/plain', 'https://open.spotify.com/track/mobile-race-regression');
+  const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+  document.querySelector('.editor-body').dispatchEvent(event);
+  return { prevented: event.defaultPrevented, target: event.target.className, active: document.activeElement?.dataset?.musicUrl || null, marked: markedBefore, markerAfter: document.querySelector('.editor-body')?.dataset.activeMusicInputId || null };
+});
+await page.keyboard.press('Enter');
+
+const immediate = await page.evaluate(() => ({
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body [data-music-url="pending"]')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, pending: el.dataset.musicUrl, className: el.className })),
+  slashRows: document.querySelectorAll('.slash-row').length,
+  bodyText: document.querySelector('.editor-body')?.innerText || ''
+}));
+check('retargeted paste uses the remembered capsule despite selection loss', retargetedPaste.prevented && !!retargetedPaste.marked, JSON.stringify(retargetedPaste));
+check('paste + immediate Enter creates exactly one loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton'), JSON.stringify(immediate.cards));
+check('slash search closes and no stray slash remains', immediate.slashRows === 0 && !/(^|\n)\s*\/\s*(\n|$)/.test(immediate.bodyText), `rows=${immediate.slashRows}`);
+await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
+const resolved = await page.evaluate(() => [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText })));
+check('async completion preserves one resolved music card', resolved.length === 1 && resolved[0].text.includes('Regression Song'), JSON.stringify(resolved));
+await page.waitForTimeout(1500); // allow autosave/debounce to commit before closing.
+await page.locator('.editor-fab.left').click();
+await page.waitForSelector('.list-item');
+await page.locator('.list-item').nth(2).click();
+await page.locator('.editor-body').waitFor();
+await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
+const reopened = await page.evaluate(() => ({
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText })),
+  straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
+}));
+check('reopen retains exactly one resolved card with no slash placeholder', reopened.cards.length === 1 && reopened.cards[0].text.includes('Regression Song') && !reopened.straySlash, JSON.stringify(reopened));
+// A second memo exercises failed metadata resolution and persistence independently.
+await page.locator('.editor-fab.left').click();
+await page.waitForSelector('.list-item');
+await page.locator('.list-item').filter({ hasText: failureMemoTitle }).first().click();
+await page.locator('.editor-body').waitFor();
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first().tap();
+await page.locator('.editor-body [data-music-url="pending"]').waitFor({ state: 'visible' });
+await page.evaluate(() => {
+  const dt = new DataTransfer();
+  dt.setData('text/plain', 'https://open.spotify.com/track/mobile-race-fail');
+  const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+  document.querySelector('.editor-body [data-music-url="pending"]').dispatchEvent(ev);
+});
+await page.keyboard.press('Enter');
+await page.locator('.editor-body .music-card-error[data-url*="mobile-race-fail"]').waitFor({ state: 'visible', timeout: 10000 });
+const failedBeforeReopen = await page.evaluate(() => ({
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body .music-card-error')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, className: el.className })),
+  straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
+}));
+check('failed lookup becomes one recoverable error card, not a skeleton or slash', failedBeforeReopen.cards.length === 1 && /music-card-error/.test(failedBeforeReopen.cards[0].className) && !failedBeforeReopen.straySlash, JSON.stringify(failedBeforeReopen));
+await page.waitForTimeout(1500);
+await page.locator('.editor-fab.left').click();
+await page.waitForSelector('.list-item');
+await page.locator('.list-item').filter({ hasText: failureMemoTitle }).first().click();
+await page.locator('.editor-body').waitFor();
+await page.locator('.editor-body .music-card-error[data-url*="mobile-race-fail"]').waitFor({ state: 'visible', timeout: 10000 });
+const failedReopen = await page.evaluate(() => ({
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body .music-card-error')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, className: el.className })),
+  pending: document.querySelectorAll('.editor-body [data-music-url="pending"], .editor-body.link-card-skeleton').length,
+  straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
+}));
+check('failed card survives reopen once with no pending/loading/stray slash', failedReopen.cards.length === 1 && failedReopen.pending === 0 && !failedReopen.straySlash, JSON.stringify(failedReopen));
+check('no browser JavaScript errors', failures.length === 0, failures.join(' | '));
+await browser.close();
+if (results.some(result => !result.ok)) process.exitCode = 1;

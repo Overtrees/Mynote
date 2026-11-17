@@ -19,14 +19,18 @@
     const [slashClosing, setSlashClosing] = useState(false);
     const [slashEntered, setSlashEntered] = useState(false);
     var closeSlashPanel = useCallback(function () {
+      // Hide and clear synchronously: Enter immediately after a paste must not
+      // apply the stale highlighted slash command during the exit animation.
+      setShowSlash(false);
+      setSlashQuery('');
+      setSlashTargetBlockId(null);
+      slashTargetBlockRef.current = null;
+      setSlashSelectedIndex(0);
       setSlashClosing(true);
-      setTimeout(function () {
-        setShowSlash(false);
+      clearTimeout(slashHideTimerRef.current);
+      slashHideTimerRef.current = setTimeout(function () {
         setSlashClosing(false);
         setSlashEntered(false);
-        setSlashQuery('');
-        setSlashTargetBlockId(null);
-        slashTargetBlockRef.current = null;
       }, 150);
     }, []);
     const [slashQuery, setSlashQuery] = useState('');
@@ -63,6 +67,8 @@
     var slashRepositionRafRef = useRef(null);
     var slashApplyingRef = useRef(false);
     var slashHideTimerRef = useRef(null);
+    var suppressPointerClickRef = useRef(false);
+    var pointerClickTimerRef = useRef(null);
 
     var slashCommands = useMemo(function () {
       return (w.MynoteSlashModel && w.MynoteSlashModel.filter
@@ -440,6 +446,7 @@
         // musicCard input 态：聚焦输入框，光标放到文本末尾
         var musicInput = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + newBlock.id + '"][data-music-url="pending"]');
         if (musicInput && type === 'musicCard') {
+          if (editorBodyRef.current) editorBodyRef.current.dataset.activeMusicInputId = newBlock.id;
           var tn = musicInput.firstChild;
           if (tn && tn.nodeType === 3) {
             var r2 = w.document.createRange();
@@ -557,6 +564,8 @@
       slashRef: slashRef,
       slashApplyingRef: slashApplyingRef,
       slashHideTimerRef: slashHideTimerRef,
+      suppressPointerClickRef: suppressPointerClickRef,
+      pointerClickTimerRef: pointerClickTimerRef,
       slashRepositionRafRef: slashRepositionRafRef,
       slashCommands: slashCommands,
       slashRecent: slashRecent,

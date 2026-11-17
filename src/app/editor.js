@@ -528,6 +528,8 @@ function Editor({
   var slashRef = Slash.slashRef;
   var slashApplyingRef = Slash.slashApplyingRef;
   var slashHideTimerRef = Slash.slashHideTimerRef;
+  var suppressPointerClickRef = Slash.suppressPointerClickRef;
+  var pointerClickTimerRef = Slash.pointerClickTimerRef;
   var slashCommands = Slash.slashCommands;
   var setSlashTargetBlockId = function (v) { if (!v) Slash.slashTargetBlockRef.current = null; };
   var updateSlashStateFromSelection = Slash.updateSlashStateFromSelection;
@@ -1047,7 +1049,11 @@ function Editor({
   }, [insertAtomicBlockToDOM]);
 
   /* ===== DOM input handlers ===== */
-  var handleEditorInput = useCallback(function () {
+  var handleEditorInput = useCallback(function (e) {
+    var inputTarget = e && e.target;
+    if (editorBodyRef.current && !(inputTarget && inputTarget.closest && inputTarget.closest('[data-music-url="pending"]'))) {
+      delete editorBodyRef.current.dataset.activeMusicInputId;
+    }
     if (!hasTyped) setHasTyped(true);
     // Contenteditable may copy data-blockid when Enter splits a paragraph. Normalize
     // immediately so slash commands target the new line instead of replacing its sibling.
@@ -1197,6 +1203,13 @@ function Editor({
     }, 80);
   }, [triggerAutoSave, updateSlashStateFromSelection]);
   var handleEditorKeyDown = useCallback(function (e) {
+    var host = editorBodyRef.current;
+    if (host && host.dataset.activeMusicInputId && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
+      var keySel = window.getSelection();
+      var keyNode = keySel && keySel.focusNode;
+      var keyEl = keyNode ? keyNode.nodeType === 1 ? keyNode : keyNode.parentElement : null;
+      if (!keyEl || !keyEl.closest || !keyEl.closest('[data-music-url="pending"]')) delete host.dataset.activeMusicInputId;
+    }
     var focusedMusicLink = e.target && e.target.closest && e.target.closest('a.music-card-link[data-url]');
     if (focusedMusicLink && e.key === 'Enter') {
       e.preventDefault();
@@ -1310,7 +1323,17 @@ function Editor({
     var focusEl = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
     // React paste events can target the editable music placeholder before the browser selection updates.
     var eventMusicInput = e.target && e.target.closest && e.target.closest('[data-music-url="pending"]');
-    var musicInput = eventMusicInput || (focusEl && focusEl.closest('[data-music-url="pending"]'));
+    // Mobile paste can be retargeted to the editor host while the capsule itself
+    // remains the focused editable. Prefer the real focused element before a stale selection.
+    var activeEl = document.activeElement;
+    var activeMusicInput = activeEl && activeEl.closest && activeEl.closest('[data-music-url="pending"]');
+    var markedMusicInput = null;
+    var host = editorBodyRef.current;
+    var markedId = host && host.dataset.activeMusicInputId;
+    if (!eventMusicInput && e.target === host && markedId) {
+      markedMusicInput = host.querySelector('[data-blockid="' + markedId + '"][data-music-url="pending"]');
+    }
+    var musicInput = eventMusicInput || activeMusicInput || markedMusicInput || (focusEl && focusEl.closest('[data-music-url="pending"]'));
     if (musicInput) {
       e.preventDefault();
       closeSlashPanel();
@@ -1321,6 +1344,7 @@ function Editor({
       if (!muUrl) muUrl = muRaw;
       if (!muUrl.startsWith('http')) muUrl = 'https://' + muUrl;
       var mId = musicInput.dataset.blockid;
+      if (host && host.dataset.activeMusicInputId === mId) delete host.dataset.activeMusicInputId;
       var mDoc = docRef.current;
       var mIdx = mDoc.findIndex(function (n) {
         return n.id === mId;
@@ -2292,6 +2316,8 @@ function Editor({
     setSlashSelectedIndex: setSlashSelectedIndex,
     applySlashCommand: applySlashCommand,
     slashApplyingRef: slashApplyingRef,
+    suppressPointerClickRef: suppressPointerClickRef,
+    pointerClickTimerRef: pointerClickTimerRef,
     SVG_ICONS: SlashSVGIcons
   }), showColorPicker && /*#__PURE__*/React.createElement(BgSheet, {
     currentColor: bgColor,
