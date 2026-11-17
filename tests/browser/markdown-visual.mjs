@@ -308,9 +308,9 @@ try {
     const caret = range.getBoundingClientRect();
     const box = container.getBoundingClientRect();
     const style = getComputedStyle(container);
-    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretLeft: caret.left, boxLeft: box.left, boxRight: box.right, caretHeight: caret.height, paddingLeft: style.paddingLeft, mask: style.maskImage, webkitMask: style.webkitMaskImage };
+    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretLeft: caret.left, boxLeft: box.left, boxRight: box.right, caretHeight: caret.height, paddingLeft: style.paddingLeft, paddingRight: getComputedStyle(input).paddingRight, scrollPaddingInline: style.scrollPaddingInline, mask: style.maskImage, webkitMask: style.webkitMaskImage };
   });
-  check('长标题起始光标不受渐隐遮罩且保留左侧可见余量', startCaretState.offset === 0 && startCaretState.caretHeight > 0 && startCaretState.caretLeft >= startCaretState.boxLeft + 10 && startCaretState.caretLeft <= startCaretState.boxRight - 8 && startCaretState.paddingLeft === '12px' && startCaretState.mask === 'none' && startCaretState.webkitMask === 'none', JSON.stringify(startCaretState));
+  check('长标题起始光标不受遮罩且两侧留出16px安全间距', startCaretState.offset === 0 && startCaretState.caretHeight > 0 && startCaretState.caretLeft >= startCaretState.boxLeft + 14 && startCaretState.caretLeft <= startCaretState.boxRight - 14 && startCaretState.paddingLeft === '16px' && startCaretState.paddingRight === '16px' && startCaretState.scrollPaddingInline === '16px' && startCaretState.mask === 'none' && startCaretState.webkitMask === 'none', JSON.stringify(startCaretState));
   await wikiPage.setViewportSize({ width: 390, height: 480 });
   await wikiPage.waitForTimeout(100);
   const shortViewportTitle = await wikiPage.evaluate(() => {
@@ -372,6 +372,43 @@ try {
   await wikiPage.waitForFunction(() => !document.querySelector('.editor-title-input'), null, { timeout: 10000 });
   const savedOnClose = await wikiPage.evaluate(title => JSON.parse(localStorage.getItem('memos_app_v2') || '[]').some(memo => memo.title === title), closeSaveTitle);
   check('标题输入仍聚焦时直接返回也会先提交并保存最新文本', savedOnClose, closeSaveTitle);
+  await wikiPage.waitForTimeout(360);
+  await wikiPage.locator('.list-item').filter({ hasText: '新建笔记' }).first().click();
+  await wikiPage.waitForSelector('.editor-title-input', { timeout: 10000 });
+  const firstLongTitle = '新建笔记首次快速输入长标题测试左右留白与副标题居中'.repeat(2);
+  const firstTitleInput = wikiPage.locator('.editor-title-input');
+  await firstTitleInput.click();
+  await firstTitleInput.press('Control+A');
+  await firstTitleInput.pressSequentially(firstLongTitle, { delay: 0 });
+  await wikiPage.waitForFunction(value => document.querySelector('.editor-title-input')?.textContent === value, firstLongTitle, { timeout: 10000 });
+  await wikiPage.waitForTimeout(100);
+  const firstTitleLayout = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const scroller = input.parentElement;
+    const capsule = scroller.parentElement;
+    const meta = capsule.querySelector('.editor-title-meta');
+    const selection = getSelection();
+    const range = document.createRange();
+    range.setStart(selection.focusNode, selection.focusOffset);
+    range.collapse(true);
+    const caret = range.getBoundingClientRect();
+    const box = scroller.getBoundingClientRect();
+    const capsuleBox = capsule.getBoundingClientRect();
+    const metaBox = meta && meta.getBoundingClientRect();
+    return {
+      text: input.textContent,
+      maxScroll: scroller.scrollWidth - scroller.clientWidth,
+      leftGap: caret.left - box.left,
+      rightGap: box.right - caret.right,
+      capsuleCenterDelta: capsuleBox.left + capsuleBox.width / 2 - innerWidth / 2,
+      metaCenterDelta: metaBox && (metaBox.left + metaBox.width / 2 - (capsuleBox.left + capsuleBox.width / 2)),
+      metaInsideCapsule: !!metaBox && metaBox.left >= capsuleBox.left && metaBox.right <= capsuleBox.right,
+      metaClientWidth: meta?.clientWidth || 0,
+      metaScrollWidth: meta?.scrollWidth || 0,
+      metaText: meta?.textContent.trim() || ''
+    };
+  });
+  check('新建笔记首次快速输入长标题时光标两侧留白，时间/计数完整并保持胶囊中轴', firstTitleLayout.text === firstLongTitle && firstTitleLayout.maxScroll > 0 && firstTitleLayout.leftGap >= 14 && firstTitleLayout.rightGap >= 14 && Math.abs(firstTitleLayout.capsuleCenterDelta) <= 1 && Math.abs(firstTitleLayout.metaCenterDelta) <= 1 && firstTitleLayout.metaInsideCapsule && firstTitleLayout.metaText.length > 0 && firstTitleLayout.metaScrollWidth <= firstTitleLayout.metaClientWidth, JSON.stringify(firstTitleLayout));
   await wikiContext.close();
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 const failed=results.filter(r=>!r.ok); console.log(`\n${results.length-failed.length}/${results.length} 通过`); process.exitCode=failed.length?1:0;

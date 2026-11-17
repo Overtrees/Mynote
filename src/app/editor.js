@@ -827,7 +827,7 @@ const handleClose = async () => {
           }
           if (!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) return;
           const containerRect = container.getBoundingClientRect();
-          const MARGIN = 12;
+          const MARGIN = 16;
           if (cursorRect.left < containerRect.left + MARGIN) {
             const delta = containerRect.left + MARGIN - cursorRect.left;
             container.scrollLeft = Math.max(0, container.scrollLeft - delta);
@@ -2034,6 +2034,7 @@ onPointerDown: function (e) {
         minWidth: 66,
         width: isOverflow ? CAPSULE_MAX_CONTENT_W + 36 : "auto",
         maxWidth: "100%",
+        alignSelf: "center",
         borderRadius: "var(--radius-33)",
         background: "var(--glass-control-bg)",
         backdropFilter: "var(--glass-control-filter)",
@@ -2059,7 +2060,8 @@ onPointerDown: function (e) {
         overflowX: "scroll",
         overflowY: "hidden",
         boxSizing: "border-box",
-        paddingLeft: isOverflow ? 12 : 0,
+        paddingLeft: isOverflow ? 16 : 0,
+        scrollPaddingInline: isOverflow ? 16 : 0,
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         msOverflowStyle: "none",
@@ -2170,7 +2172,7 @@ onPointerDown: function (e) {
         // 编辑期间最小宽度撑开容器，保证 scrollLeft 可以正常工作
         minWidth: isOverflow ? "max-content" : "auto",
         // 末尾留出空间，避免光标顶在滚动视口裁切边缘。
-        paddingRight: isOverflow ? 12 : 0
+        paddingRight: isOverflow ? 16 : 0
       }
     })), !editorScrolled && /*#__PURE__*/React.createElement("div", {
       className: "editor-title-meta",
@@ -2178,6 +2180,13 @@ onPointerDown: function (e) {
         fontSize: "var(--font-10)",
         color: "var(--text-secondary)",
         pointerEvents: "none",
+        display: "block",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
+        alignSelf: "center",
+        flexShrink: 0,
         textAlign: "center",
         lineHeight: 1.2,
         whiteSpace: "nowrap"
