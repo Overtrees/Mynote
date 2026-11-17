@@ -136,16 +136,16 @@
 }
 
 @keyframes slideInFromRight {
-    from { transform: translateX(100%); }
-    to   { transform: translateX(0); }
+    from { opacity: 0.94; transform: translate3d(24px, 0, 0); }
+    to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 @keyframes mainFadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
 }
 @keyframes slideOutToRight {
-    from { transform: translateX(0); }
-    to   { transform: translateX(100%); }
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to   { opacity: 0.92; transform: translate3d(16px, 0, 0); }
 }
 .attachment-placeholder {
     height: 180px; margin: 8px 0; border-radius: var(--radius-12);

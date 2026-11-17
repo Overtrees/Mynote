@@ -14,7 +14,7 @@ const BackupView = ({
   const [closing, setClosing] = useState(false);
   const handleClose = useCallback(function () {
     setClosing(true);
-    setTimeout(() => onClose(), 350);
+    setTimeout(() => onClose(), 320);
   }, [onClose]);
   const [googleToken, setGoogleToken] = useState(null); // access tokens stay memory-only
   const [showRestoreSheet, setShowRestoreSheet] = useState(false);
@@ -496,7 +496,7 @@ const BackupView = ({
     className: "editor-fab left",
     onPointerDown: function (e) {
       e.stopPropagation();
-      onClose();
+      handleClose();
     }
   }, /*#__PURE__*/React.createElement("svg", {
     xmlns: "http://www.w3.org/2000/svg",
@@ -524,7 +524,7 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      animation: closing ? 'slideOutToRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards' : 'slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both'
+      animation: closing ? 'slideOutToRight 0.28s cubic-bezier(0.22,0.61,0.36,1) forwards' : 'slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "backup-hero"

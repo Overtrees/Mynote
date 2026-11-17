@@ -1,0 +1,68 @@
+{
+  "startup": {
+    "light": "rgb(138, 155, 176)",
+    "dark": "rgb(229, 231, 235)"
+  },
+  "home": {
+    "dark": [
+      "rgb(229, 231, 235)"
+    ],
+    "light": [
+      "rgb(138, 155, 176)"
+    ]
+  },
+  "editor": {
+    "dark": [
+      "rgb(229, 231, 235)"
+    ],
+    "light": [
+      "rgb(138, 155, 176)"
+    ]
+  },
+  "standaloneAsset": {
+    "dark": "rgb(229, 231, 235)",
+    "light": "rgb(138, 155, 176)"
+  },
+  "checks": [
+    {
+      "name": "启动页浅色",
+      "ok": true,
+      "detail": "rgb(138, 155, 176)"
+    },
+    {
+      "name": "启动页深色",
+      "ok": true,
+      "detail": "rgb(229, 231, 235)"
+    },
+    {
+      "name": "首页浅色",
+      "ok": true,
+      "detail": "[\"rgb(138, 155, 176)\"]"
+    },
+    {
+      "name": "首页深色",
+      "ok": true,
+      "detail": "[\"rgb(229, 231, 235)\"]"
+    },
+    {
+      "name": "编辑页浅色",
+      "ok": true,
+      "detail": "[\"rgb(138, 155, 176)\"]"
+    },
+    {
+      "name": "编辑页深色",
+      "ok": true,
+      "detail": "[\"rgb(229, 231, 235)\"]"
+    },
+    {
+      "name": "独立 SVG 浅色",
+      "ok": true,
+      "detail": "rgb(138, 155, 176)"
+    },
+    {
+      "name": "独立 SVG 深色",
+      "ok": true,
+      "detail": "rgb(229, 231, 235)"
+    }
+  ]
+}

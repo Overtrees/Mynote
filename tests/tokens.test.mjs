@@ -136,7 +136,7 @@ test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', ()
 });
 
 
-test('首页横屏与宽屏看板使用三列方形笔记卡和 26px 圆角', () => {
+test('首页横屏与平板看板使用三列，宽桌面切换四列方形笔记卡和 26px 圆角', () => {
   const home = read('src/styles/base.css');
   assert.match(home, /@media \(min-width: 768px\), \(orientation: landscape\) and \(max-height: 560px\)/);
   assert.match(home, /\.container\s*\{\s*display:\s*grid;/);
@@ -144,10 +144,23 @@ test('首页横屏与宽屏看板使用三列方形笔记卡和 26px 圆角', ()
   assert.match(home, /\.container > div:not\(\.empty-tip\),[\s\S]*?\.container \.card-expand-wrapper\s*\{\s*display:\s*contents;/);
   assert.match(home, /\.container \.section-header,[\s\S]*?\.container \.gap-16\s*\{\s*display:\s*none;/);
   assert.match(home, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(home, /@media \(min-width: 1280px\)\s*\{\s*\.container\s*\{\s*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(home, /aspect-ratio:\s*1\s*\/\s*1/);
   assert.match(home, /border-radius:\s*var\(--radius-26\)/);
   assert.match(read('src/styles/tokens.css'), /--radius-26:\s*26px/);
   assert.match(home, /\.container \.img-card \{ display: flex; flex-direction: column; \}/);
+});
+
+test('恐龙 SVG 保留浅色灰蓝，并在深色主题切换为浅灰白', () => {
+  const dino = read('dino.svg');
+  assert.match(dino, /stroke="#8A9BB0"/);
+  assert.match(dino, /@media\s*\(prefers-color-scheme:\s*dark\)[\s\S]*svg\s*\{\s*stroke:\s*#E5E7EB;/);
+  const tokens = read('src/styles/tokens.css');
+  assert.match(tokens, /--color-icon-muted:\s*#8A9BB0;/);
+  assert.match(tokens, /@media \(prefers-color-scheme: dark\)[\s\S]*--color-icon-muted:\s*#E5E7EB;/);
+  assert.match(read('index.html'), /stroke="var\(--color-icon-muted\)"/);
+  assert.match(read('src/app/memo-list.js'), /stroke:\s*"var\(--color-icon-muted\)"/);
+  assert.match(read('src/app/editor.js'), /stroke:\s*"var\(--color-icon-muted\)"/);
 });
 
 

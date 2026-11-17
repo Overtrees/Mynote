@@ -10,7 +10,7 @@ function Editor({
   const [animDone, setAnimDone] = useState(false);
   useEffect(() => {
     if (closing) return;
-    const t = setTimeout(() => setAnimDone(true), 330);
+    const t = setTimeout(() => setAnimDone(true), 320);
     return () => clearTimeout(t);
   }, [closing]);
   const [title, setTitle] = useState(memo.title === "无标题" ? "" : memo.title);
@@ -656,7 +656,7 @@ function Editor({
       var bgStyle = document.getElementById('body-before-bg');
       if (bgStyle) bgStyle.remove();
       onClose();
-    }, 350);
+    }, 320);
   };
   const handleAvatarSelected = async e => {
     const file = e.target.files && e.target.files[0];
@@ -1838,9 +1838,9 @@ function Editor({
       zIndex: 0,
       backgroundColor: editorBg,
       ...(closing ? {
-        animation: "slideOutToRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards"
+        animation: "slideOutToRight 0.28s cubic-bezier(0.22,0.61,0.36,1) forwards"
       } : animDone ? {} : {
-        animation: "slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both"
+        animation: "slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both"
       })
     }
   }, /*#__PURE__*/React.createElement("div", {

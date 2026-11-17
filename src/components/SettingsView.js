@@ -26,11 +26,11 @@
     ];
 
     return R.createElement('div', { style:{ background:'var(--primary-bg)', minHeight:'100vh' } },
-      R.createElement('button', { className:'editor-fab left', onPointerDown:function(e){e.stopPropagation();setClosing(true);setTimeout(function(){onClose();},350);} },
+      R.createElement('button', { className:'editor-fab left', onPointerDown:function(e){e.stopPropagation();setClosing(true);setTimeout(function(){onClose();},320);} },
         R.createElement('svg', { xmlns:'http://www.w3.org/2000/svg', viewBox:'0 0 24 24', width:22, height:22, fill:'none', stroke:'currentColor', strokeWidth:'2.5', strokeLinecap:'round', strokeLinejoin:'round' },
           R.createElement('path', { d:'M15 18l-6-6 6-6' }))),
       R.createElement('div', { className:'page-title compact', style:{ visibility:'visible', opacity:1, pointerEvents:'none' } }, '\u8BBE\u7F6E'),
-      R.createElement('div', { style: closing ? { animation:'slideOutToRight 0.35s cubic-bezier(0.32,0.94,0.6,1) forwards' } : { animation:'slideInFromRight 0.35s cubic-bezier(0.32,0.94,0.6,1) both' } },
+      R.createElement('div', { style: closing ? { animation:'slideOutToRight 0.28s cubic-bezier(0.22,0.61,0.36,1) forwards' } : { animation:'slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both' } },
         R.createElement('div', { style:{ padding:'126px 20px calc(40px + env(safe-area-inset-bottom))' } },
           R.createElement('div', { className:'section-header', style:{ paddingTop:4 } }, '\u5916\u89C2'),
           R.createElement('div', { className:'list-group' },
