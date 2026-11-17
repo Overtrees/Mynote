@@ -1853,6 +1853,7 @@ function Editor({
     }
   }, /*#__PURE__*/React.createElement("button", {
     className: "editor-fab left",
+    "aria-label": "返回笔记列表",
     onPointerDown: function (e) {
       e.stopPropagation();
       if (isEditingTitleRef.current) {
@@ -1896,6 +1897,7 @@ function Editor({
     // 胶囊内容区最大宽度（11字时的自然宽度）
     const CAPSULE_MAX_CONTENT_W = 148;
     return /*#__PURE__*/React.createElement("div", {
+      className: "editor-title-dock",
       style: {
         position: "fixed",
         zIndex: 3000,
@@ -1913,6 +1915,8 @@ function Editor({
         pointerEvents: "none"
       }
     }, /*#__PURE__*/React.createElement("button", {
+      className: "editor-avatar-button",
+      "aria-label": "更换笔记头像",
       onClick: () => avatarInputRef.current && avatarInputRef.current.click(),
       style: {
         flexShrink: 0,
@@ -1978,6 +1982,9 @@ function Editor({
         maskImage: isOverflow ? "linear-gradient(to right, transparent 0%, black 22%)" : "none"
       }
     }, /*#__PURE__*/React.createElement("div", {
+      className: "editor-title-input",
+      role: "textbox",
+      "aria-label": "笔记标题",
       contentEditable: true,
       suppressContentEditableWarning: true,
       ref: el => {
@@ -2080,6 +2087,7 @@ function Editor({
         minWidth: isOverflow ? "max-content" : "auto"
       }
     })), !editorScrolled && /*#__PURE__*/React.createElement("div", {
+      className: "editor-title-meta",
       style: {
         fontSize: "var(--font-10)",
         color: "var(--text-secondary)",
@@ -2099,6 +2107,7 @@ function Editor({
     }
   }), /*#__PURE__*/React.createElement("button", {
     className: "editor-fab right",
+    "aria-label": "打开更多菜单",
     style: {
       zIndex: 3003
     },
@@ -2135,6 +2144,7 @@ function Editor({
     }
   }), /*#__PURE__*/React.createElement("div", {
     onPointerDown: e => e.stopPropagation(),
+    className: "editor-menu-panel",
     style: {
       position: "fixed",
       zIndex: 3002,

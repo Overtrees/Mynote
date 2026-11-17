@@ -6,7 +6,7 @@
     .editor-body [data-type="todo"]:hover { background: var(--fill-hover); }
     .editor-body [data-type="todo"]:active { background: var(--fill-hover-strong); }
     .editor-body [data-type="todo"] .todo-checkbox { appearance: none; -webkit-appearance: none; box-sizing: border-box; width: 44px; height: 44px; flex: 0 0 44px; display: grid; place-content: center; padding: 0; margin: 0; border: 0; background: transparent; cursor: pointer; border-radius: 50%; }
-    .editor-body [data-type="todo"] .todo-checkbox::before { content: ""; grid-area: 1 / 1; box-sizing: border-box; width: 21px; height: 21px; border: 1.75px solid var(--md-checkbox-border); border-radius: 50%; background: transparent; transition: background-color 0.15s ease, border-color 0.15s ease; }
+    .editor-body [data-type="todo"] .todo-checkbox::before { content: ""; grid-area: 1 / 1; box-sizing: border-box; width: 22px; height: 22px; border: 1.75px solid var(--md-checkbox-border); border-radius: 50%; background: transparent; transition: background-color 0.15s ease, border-color 0.15s ease; }
     .editor-body [data-type="todo"] .todo-checkbox:checked::before { background: var(--md-checkbox-checked); border-color: var(--md-checkbox-checked); }
     .editor-body [data-type="todo"] .todo-checkbox:checked::after { content: ""; grid-area: 1 / 1; justify-self: center; align-self: center; width: 5px; height: 9px; margin-top: -2px; border: solid var(--md-checkbox-check); border-width: 0 2px 2px 0; transform: rotate(45deg); }
     .editor-body [data-type="todo"] .todo-checkbox:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 1px; }
@@ -157,5 +157,215 @@
   .editor-spread > .editor-body {
     column-count: 1;
     column-rule: none;
+  }
+}
+
+
+/* 双栏正文细节：栏内块按可用宽度收缩，媒体跨页卡保留完整节奏。 */
+@media (min-width: 768px) and (min-height: 600px), (min-width: 1100px) {
+  .editor-spread > .editor-body {
+    column-gap: clamp(28px, 3.2vw, 52px);
+    line-height: 1.72;
+  }
+
+  .editor-spread > .editor-body > * {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .editor-spread > .editor-body > .md-preview.block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .editor-spread > .editor-body > .atomic[data-type="image"],
+  .editor-spread > .editor-body > .atomic[data-type="gallery"] {
+    margin: 8px 0;
+  }
+
+  /* 附件中的图片与独立图片保持同样的整页展示，不让整张图缩在一栏里。 */
+  .editor-spread > .editor-body > .atomic.attachment:has(> img) {
+    column-span: all;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .editor-spread > .editor-body [data-type="todo"] .todo-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .editor-spread > .editor-body [data-type="todo"].is-checked .todo-text {
+    color: var(--md-text-muted);
+    text-decoration: line-through;
+  }
+
+  .editor-spread > .editor-body [data-type="todo"] .todo-checkbox::before {
+    width: 22px;
+    height: 22px;
+  }
+
+  .editor-spread > .editor-body .attachment-file {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: var(--radius-22);
+  }
+
+  .editor-spread > .editor-body .attachment-file .att-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .editor-spread > .editor-body .attachment-file .att-hint {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding-inline: 8px;
+  }
+
+  .editor-spread > .editor-body .link-card-block,
+  .editor-spread > .editor-body .link-card-err,
+  .editor-spread > .editor-body .link-card-skeleton {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .editor-spread > .editor-body .lkc-title,
+  .editor-spread > .editor-body .lkc-subtitle {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .editor-spread > .editor-body .lkc-source {
+    min-width: 0;
+    line-height: 1.35;
+  }
+
+  .editor-spread > .editor-body .lkc-source-text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .editor-spread > .editor-body > [data-type="musicCard"] {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .editor-spread > .editor-body > [data-type="musicCard"] > span:not(:first-child) {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .editor-spread > .editor-body > [data-type="musicCard"] > span:first-child {
+    flex: 0 0 auto;
+  }
+
+  .editor-spread > .editor-body .link-card-skeleton-cover,
+  .editor-spread > .editor-body .link-card-skeleton-body,
+  .editor-spread > .editor-body .link-card-skeleton-line {
+    box-sizing: border-box;
+    max-width: 100%;
+  }
+
+  .editor-spread > .editor-body .link-card-skeleton-body {
+    min-width: 0;
+  }
+
+  .editor-spread > .editor-body .md-preview.block > pre,
+  .editor-spread > .editor-body > pre {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 10px 12px;
+  }
+
+  .editor-spread > .editor-body .md-preview.block > pre code,
+  .editor-spread > .editor-body > pre code {
+    padding: 0;
+  }
+
+  .editor-spread > .editor-body .md-preview.block > table,
+  .editor-spread > .editor-body > table {
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .editor-spread > .editor-body th,
+  .editor-spread > .editor-body td {
+    min-width: 5rem;
+    padding: 7px 9px;
+  }
+
+  .editor-spread > .editor-body blockquote,
+  .editor-spread > .editor-body .md-preview.block > blockquote {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 9px 12px;
+  }
+}
+
+/* 顶栏、菜单和斜杠面板在宽屏保持固定于视口，不进入正文分栏流。 */
+.editor-fab:focus-visible,
+.editor-menu-panel button:focus-visible,
+.editor-title-dock button:focus-visible,
+.editor-title-input:focus-visible,
+.slash-panel :focus-visible {
+  outline: 3px solid var(--md-focus-ring);
+  outline-offset: 2px;
+}
+
+.editor-menu-panel,
+.editor-export-panel,
+.slash-panel {
+  box-sizing: border-box;
+  max-width: calc(100vw - 24px);
+}
+
+.editor-menu-panel button,
+.editor-export-panel button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.editor-menu-panel button:not(:disabled):hover {
+  background-color: var(--fill-hover);
+}
+
+.editor-menu-panel button:not(:disabled):active {
+  background-color: var(--fill-hover-strong);
+}
+
+.slash-panel .slash-row {
+  min-width: 0;
+}
+
+.slash-panel .slash-recent-pill {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: var(--font-11) !important;
+}
+
+.slash-panel .slash-shortcut {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: var(--font-11) !important;
+  opacity: 0.78 !important;
+}
+
+@media (max-width: 430px) {
+  .editor-menu-panel,
+  .editor-export-panel,
+  .slash-panel {
+    max-width: calc(100vw - 24px);
   }
 }

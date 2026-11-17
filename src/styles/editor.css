@@ -231,3 +231,56 @@
     right: 16px;
     top: calc(env(safe-area-inset-top) + 7px);
 }
+
+
+/* 编辑态块级 Markdown（包括 .md-preview.block 内部）复用阅读态语义层级。 */
+.editor-body .callout {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
+    border-radius: var(--radius-12);
+    padding: 12px 14px;
+    margin: 0.75em 0;
+    font-size: var(--font-14);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    border: 1px solid var(--border-color);
+}
+.editor-body .callout-note { background: var(--md-callout-note-bg); }
+.editor-body .callout-warning { background: var(--md-callout-warning-bg); }
+.editor-body .callout-tip { background: var(--md-callout-tip-bg); }
+.editor-body .callout-important { background: var(--md-callout-important-bg); }
+.editor-body .callout-caution { background: var(--md-callout-caution-bg); }
+.editor-body .callout-header { display: flex; align-items: center; gap: 8px; min-width: 0; margin-bottom: 5px; }
+.editor-body .callout-icon { flex: 0 0 18px; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; }
+.editor-body .callout-icon svg { display: block; width: 18px; height: 18px; }
+.editor-body .callout-title { min-width: 0; font-size: var(--font-15); font-weight: 700; color: var(--text-main); letter-spacing: -0.1px; overflow-wrap: anywhere; }
+.editor-body .callout-body { min-width: 0; font-size: var(--font-14); color: var(--text-main); line-height: 1.65; overflow-wrap: anywhere; }
+.editor-body .callout code { background: var(--md-callout-code-bg); padding: 1px 5px; border-radius: var(--radius-4); font-size: 0.9em; overflow-wrap: anywhere; }
+
+/* ContentEditable todo blocks use the same compact rhythm and wrap as preview todos. */
+.editor-body [data-type="todo"] .todo-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.editor-body [data-type="todo"].is-checked .todo-text {
+    color: var(--md-text-muted);
+    text-decoration: line-through;
+}
+.editor-body [data-type="todo"] .todo-checkbox::before { width: 22px; height: 22px; }
+
+@media (min-width: 768px) and (min-height: 600px), (min-width: 1100px) {
+    .editor-spread > .editor-body h1 { font-size: clamp(var(--md-heading-h2), 2.4vw, var(--md-heading-h1)); }
+    .editor-spread > .editor-body h2 { font-size: clamp(var(--md-heading-h3), 2vw, var(--md-heading-h2)); }
+    .editor-spread > .editor-body h3 { font-size: clamp(var(--md-heading-h4), 1.7vw, var(--md-heading-h3)); }
+    .editor-spread > .editor-body h4 { font-size: clamp(var(--font-16), 1.45vw, var(--md-heading-h4)); }
+
+    .editor-spread > .editor-body .img-text-card .itc-text,
+    .editor-spread > .editor-body .img-text-row .itr-text {
+        box-sizing: border-box;
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+}

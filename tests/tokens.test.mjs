@@ -198,3 +198,23 @@ test('编辑器大屏采用跨页双栏，窄屏手机横屏维持单栏，媒�
   assert.match(shell, /\.editor-spread > \.editor-body > \[data-type="musicCard"\][\s\S]*?column-span:\s*all;/);
   assert.match(shell, /@media \(orientation: landscape\) and \(max-height: 560px\) and \(max-width: 1099px\)[\s\S]*?column-count:\s*1;/);
 });
+
+
+test('双栏编辑模块的窄栏排版与控件适配有回归覆盖', () => {
+  const shell = read('src/styles/editor-shell.css');
+  const editorCss = read('src/styles/editor.css');
+  const editor = read('src/app/editor.js');
+  const slash = read('src/app/editor/slash-panel.js');
+  assert.match(shell, /column-gap:\s*clamp\(28px,\s*3\.2vw,\s*52px\)/);
+  assert.match(shell, /\.editor-spread > \.editor-body > \*\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/);
+  assert.match(shell, /\.editor-spread > \.editor-body \[data-type="todo"\] \.todo-text[\s\S]*?flex:\s*1 1 auto;[\s\S]*?overflow-wrap:\s*anywhere/);
+  assert.match(shell, /\.editor-spread > \.editor-body > \.atomic\.attachment:has\(> img\)[\s\S]*?column-span:\s*all/);
+  assert.match(shell, /\.editor-spread > \.editor-body \.lkc-source-text[\s\S]*?min-width:\s*0/);
+  assert.match(editorCss, /\.editor-body \.callout\s*\{/);
+  assert.match(editorCss, /\.editor-body \[data-type="todo"\] \.todo-checkbox::before\s*\{\s*width:\s*22px;\s*height:\s*22px/);
+  assert.match(editor, /className: "editor-menu-panel"/);
+  assert.match(editor, /aria-label": "打开更多菜单"/);
+  assert.match(slash, /className: 'slash-panel'/);
+  assert.match(slash, /className: 'slash-recent-pill'/);
+  assert.match(slash, /className: 'slash-shortcut'/);
+});

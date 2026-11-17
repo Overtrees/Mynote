@@ -6,9 +6,10 @@
   "scripts": {
     "verify": "node tools/verify.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "npm run verify && npm test && npm run test:browser:visual",
+    "check": "npm run verify && npm test && npm run test:browser:responsive && npm run test:browser:visual",
     "test:browser": "node tests/browser/smoke.mjs",
     "test:browser:markdown": "node tests/browser/markdown-visual.mjs",
+    "test:browser:responsive": "node tests/browser/editor-responsive.mjs",
     "test:browser:visual": "node tests/browser/glass-visual.mjs"
   },
   "license": "MIT",

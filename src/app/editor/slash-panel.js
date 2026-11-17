@@ -36,6 +36,7 @@
     var flatIdx = -1;
     return R.createElement('div', {
       ref: slashRef,
+      className: 'slash-panel',
       onTouchStart: function () {
         // 阻止编辑器失焦：触摸面板时重新聚焦编辑器
         // 不用 preventDefault，保留面板内滚动能力
@@ -160,6 +161,7 @@
               R.createElement('div', { style: { fontWeight: 600, fontSize: 'var(--font-14)', display: 'flex', alignItems: 'center', gap: 6 } },
                 R.createElement('span', null, hl(cmd.title)),
                 cmd.recent && R.createElement('span', {
+                  className: 'slash-recent-pill',
                   style: {
                     fontSize: 'var(--font-10)', color: 'var(--glass-label-color)',
                     background: 'var(--glass-control-bg)',
@@ -168,6 +170,7 @@
                 }, '\u6700\u8FD1')),
               R.createElement('div', { style: { fontSize: 'var(--font-12)', color: 'var(--text-secondary)', marginTop: 3 } }, hl(cmd.subtitle))),
             cmd.shortcut && R.createElement('div', {
+              className: 'slash-shortcut',
               style: {
                 fontSize: 'var(--font-10)', fontFamily: 'var(--font-family-mono)',
                 color: 'var(--text-secondary)', opacity: 0.5, flexShrink: 0,
