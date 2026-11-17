@@ -1,4 +1,4 @@
-# 此刻（Mynote）
+# Mynote
 
 <p align="center">
   <a href="https://overtrees.github.io/Mynote"><img src="./Mynoteicon.png" width="80" alt="此刻"></a>
@@ -19,8 +19,6 @@
 「此刻」就是为这种场景做的：无需选择模版，打开就写，数据归你。
 
 音乐链接贴进去自动变卡片、标题点一下就能改、顶部渐变随背景色自适应——这些细节你可能用着用着才会发现。
-
----
 
 ## 这个 App 想解决什么问题
 
