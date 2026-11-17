@@ -11,6 +11,10 @@ const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); c
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--headless=new'] });
 const ctx = await browser.newContext({ viewport: { width: 430, height: 900 } });
 const page = await ctx.newPage();
+const zipWorkerResponses = [];
+page.on('response', response => {
+  if (new URL(response.url()).pathname.endsWith('/src/services/zip.worker.js')) zipWorkerResponses.push(response.status());
+});
 page.on('pageerror', e => errs.push('pageerror: ' + e.message.split('\n')[0]));
 page.on('console', m => { if (m.type() === 'error' && !/404|favicon/.test(m.text())) errs.push('console: ' + m.text().slice(0, 140)); });
 await page.route('**/meta?*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Mock Song', subtitle: 'Mock Artist', source: 'Mock', type: 'music' }) }));
@@ -18,6 +22,12 @@ await page.route('**/meta?*', r => r.fulfill({ status: 200, contentType: 'applic
 await page.goto(BASE, { waitUntil: 'commit', timeout: 15000 });
 await page.waitForSelector('.list-item', { timeout: 20000 });
 await page.waitForTimeout(800);
+await page.addStyleTag({ content: '*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; scroll-behavior: auto !important; }' });
+const zipWorkerProbe = await page.evaluate(async () => {
+  const zipped = await window.MynoteBackupUtils.compressZip({ 'worker-probe.txt': new TextEncoder().encode('worker ok') }, 3);
+  return zipped instanceof Uint8Array && zipped.length > 0;
+});
+check('ZIP Worker 从实际 src 路径加载并压缩', zipWorkerProbe && zipWorkerResponses.includes(200), JSON.stringify(zipWorkerResponses));
 
 /* ===== 列表页 ===== */
 check('列表渲染', (await page.$$('.list-item')).length >= 6);
@@ -158,31 +168,79 @@ await page.waitForTimeout(1200);
 const pureCard = await page.evaluate(() => !!document.querySelector('.editor-body [data-type="link-card"], .editor-body .link-card-block, .editor-body .link-card-skeleton'));
 check('粘贴纯 URL→卡片', pureCard);
 
+/* ===== 音乐卡粘贴回归：命令仍可弹出，URL 粘贴不触发拼音搜索 ===== */
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').first().waitFor({ state: 'visible', timeout: 5000 });
+const slashBeforeMusic = await page.locator('.slash-row').count();
+await page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first().click();
+await page.waitForTimeout(350);
+const musicInput = page.locator('.editor-body [data-music-url="pending"]');
+await musicInput.waitFor({ state: 'visible', timeout: 5000 });
+const musicPaste = await page.evaluate(() => {
+  const input = document.querySelector('.editor-body [data-music-url="pending"]');
+  const data = new DataTransfer();
+  data.setData('text/plain', 'https://open.spotify.com/track/slash-paste-regression');
+  const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
+  input.dispatchEvent(event);
+  return { prevented: event.defaultPrevented };
+});
+await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/slash-paste-regression"]').waitFor({ state: 'visible', timeout: 5000 });
+await page.waitForTimeout(250);
+const musicPasteUi = await page.evaluate(() => ({
+  card: !!document.querySelector('.editor-body a.music-card-link[href="https://open.spotify.com/track/slash-paste-regression"]'),
+  slashRows: document.querySelectorAll('.slash-row').length,
+  visibleSlash: [...document.querySelectorAll('.slash-row')].some(e => e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== 'hidden')
+}));
+check('音乐卡命令仍可打开菜单', slashBeforeMusic > 0);
+check('音乐卡粘贴生成链接且关闭拼音菜单', musicPaste.prevented && musicPasteUi.card && musicPasteUi.slashRows === 0 && !musicPasteUi.visibleSlash, JSON.stringify(musicPasteUi));
+
 /* ===== 编辑器菜单 ===== */
+const editorBody = page.locator('.editor-body');
+await editorBody.click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('MENU_HISTORY_MARKER');
+await page.waitForTimeout(700);
 await page.click('.editor-fab.right');
 await page.waitForTimeout(400);
 const menuText = await page.evaluate(() => document.body.innerText);
 check('菜单:撤销/重做', menuText.includes('撤销') && menuText.includes('重做'));
 check('菜单:添加附件', menuText.includes('添加附件'));
 check('菜单:更换背景色', menuText.includes('更换背景色'));
-// 撤销按钮可点
-const undoBtn = await page.evaluateHandle(() => [...document.querySelectorAll('button')].find(b => b.innerText.includes('撤销')));
-await undoBtn.asElement().click().catch(() => {});
+const undoBtn = page.locator('button').filter({ hasText: '撤销' }).first();
+await undoBtn.click({ force: true });
 await page.waitForTimeout(500);
-check('菜单撤销执行', true);
-// 背景色
-await page.click('.editor-fab.right'); await page.waitForTimeout(400);
-const bgBtn = await page.evaluateHandle(() => [...document.querySelectorAll('button')].find(b => b.innerText.includes('更换背景色')));
-await bgBtn.asElement().click();
+const menuUndoOk = !(await editorBody.innerText()).includes('MENU_HISTORY_MARKER');
+await page.click('.editor-fab.right');
+await page.waitForTimeout(250);
+await page.locator('button').filter({ hasText: '重做' }).first().click({ force: true });
 await page.waitForTimeout(500);
-const bgSheet = await page.evaluate(() => !!document.querySelector('[aria-label]') || document.body.innerText.includes('背景色'));
+const menuRedoOk = (await editorBody.innerText()).includes('MENU_HISTORY_MARKER');
+check('菜单撤销/重做实际可用', menuUndoOk && menuRedoOk, `undo=${menuUndoOk}, redo=${menuRedoOk}`);
+
+await page.click('.editor-fab.right');
+const chooserPromise = page.waitForEvent('filechooser');
+await page.locator('button').filter({ hasText: '添加附件' }).click({ force: true });
+const chooser = await chooserPromise;
+await chooser.setFiles({ name: 'menu-audit.txt', mimeType: 'text/plain', buffer: Buffer.from('menu attachment test') });
+await page.locator('.editor-body .atomic.attachment[data-fileid]').last().waitFor({ state: 'visible', timeout: 10000 });
+const attachmentAdded = await page.evaluate(() => {
+  const e = [...document.querySelectorAll('.editor-body .atomic.attachment[data-fileid]')].at(-1);
+  return !!e && e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().height > 0;
+});
+check('菜单添加附件可选文件并显示附件块', attachmentAdded);
+
+const bgBefore = await page.evaluate(() => document.body.style.backgroundColor);
+await page.click('.editor-fab.right'); await page.waitForTimeout(250);
+await page.locator('button').filter({ hasText: '更换背景色' }).click({ force: true });
+await page.getByRole('button', { name: '暖沙' }).waitFor({ state: 'visible' });
 const bgSwatches = await page.$$eval('button[aria-label]', els => els.length);
 check('背景色 8 色板', bgSwatches >= 8, `swatches=${bgSwatches}`);
-if (bgSwatches >= 3) {
-  const sw = (await page.$$('button[aria-label]'))[2];
-  if (sw) { await sw.click().catch(() => {}); await page.waitForTimeout(400); }
-}
-check('背景色选择应用', true);
+await page.getByRole('button', { name: '暖沙' }).click();
+await page.waitForTimeout(400);
+const bgAfter = await page.evaluate(() => document.body.style.backgroundColor);
+check('背景色选择实际改变编辑器底色', !!bgAfter && bgAfter !== bgBefore, `${bgBefore} → ${bgAfter}`);
 await page.click('.editor-fab.left'); await page.waitForTimeout(600);
 
 /* ===== 列表交互：置顶 / 删除 / 搜索 / 展开收起 ===== */

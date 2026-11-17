@@ -876,87 +876,77 @@ function Editor({
     var pendingBlockId = pendingImageBlockRef.current;
     if (pendingBlockId) {
       pendingImageBlockRef.current = null;
-      var file = filesArr[0];
-      if (file && file.type && file.type.startsWith('image/')) {
+      var pendingBlock = docRef.current.find(function (n) { return n.id === pendingBlockId; });
+      var isGalleryTarget = pendingBlock && pendingBlock.type === 'gallery';
+      var imageFiles = isGalleryTarget ? filesArr.filter(function (f) { return f && f.type && f.type.startsWith('image/'); }) : [filesArr[0]];
+      if (!imageFiles.length || !imageFiles[0] || !imageFiles[0].type || !imageFiles[0].type.startsWith('image/')) {
+        if (window.MynoteErrors) window.MynoteErrors.addWarn('此处只接受图片文件，请重新选择。', new Error('non-image for card placeholder'));
+      } else {
         if (!window._pendingCardReaders) window._pendingCardReaders = [];
-        var pendingPromise = new Promise(function (resolve) {
-          var fileId = genId();
-          var reader = new FileReader();
-          reader.onload = function (ev) {
-            var dataUrl = ev.target.result;
-            /* 保存到 IndexedDB（与附件一致） */
-            (async function () {
-              try {
-                var db = dbRef.current || (await getDB());
-                if (!dbRef.current) dbRef.current = db;
-                var thumb = file.type.startsWith('image/') ? await createThumbnail(dataUrl) : null;
-                await saveAttachmentToDB(db, {
-                  id: fileId,
-                  name: file.name,
-                  type: file.type,
-                  size: file.size,
-                  url: dataUrl,
-                  thumb: thumb
-                });
-                setFiles(function (prev) {
-                  var n = Object.assign({}, prev);
-                  n[fileId] = {
-                    name: file.name,
-                    type: file.type,
-                    url: dataUrl,
-                    thumb: thumb
-                  };
-                  return n;
-                });
-              } catch (e) {
-                if (window.MynoteErrors) window.MynoteErrors.addWarn('卡片图片保存失败，未添加图片，请重试。', e);
-                resolve();
-                return;
-              }
-              var blk = docRef.current.find(function (n) {
-                return n.id === pendingBlockId;
+        var pendingPromise = (async function () {
+          var savedImages = [];
+          for (var imageIndex = 0; imageIndex < imageFiles.length; imageIndex++) {
+            var file = imageFiles[imageIndex];
+            var dataUrl = await new Promise(function (resolve) {
+              var reader = new FileReader();
+              reader.onload = function (ev) { resolve(ev.target.result); };
+              reader.onerror = function () { resolve(null); };
+              reader.onabort = function () { resolve(null); };
+              reader.readAsDataURL(file);
+            });
+            if (!dataUrl) {
+              if (window.MynoteErrors) window.MynoteErrors.addWarn('图片读取失败，未添加该图片。', new Error('image file read failed'));
+              continue;
+            }
+            var fileId = genId();
+            try {
+              var db = dbRef.current || (await getDB());
+              if (!dbRef.current) dbRef.current = db;
+              var thumb = await createThumbnail(dataUrl);
+              await saveAttachmentToDB(db, {
+                id: fileId,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                url: dataUrl,
+                thumb: thumb
               });
-              if (!blk) {
-                resolve();
-                return;
-              }
-              var isGallery = blk.type === 'gallery';
-              var newAttrs;
-              if (isGallery) {
-                var oldItems = blk.attrs && blk.attrs.items || [];
-                /* 仅存 fileId，dataUrl 不写入 localStorage 防撑爆限额 */
-                newAttrs = Object.assign({}, blk.attrs || {}, {
-                  items: oldItems.concat([{
-                    fileId: fileId
-                  }])
-                });
-              } else {
-                newAttrs = Object.assign({}, blk.attrs || {}, {
-                  fileId: fileId
-                });
-              }
-              updateBlock(pendingBlockId, {
-                attrs: newAttrs
+              savedImages.push({
+                id: fileId,
+                name: file.name,
+                type: file.type,
+                url: dataUrl,
+                thumb: thumb
               });
-              doSave(JSON.parse(JSON.stringify(docRef.current)));
-              resolve();
-            })();
-          };
-          reader.onerror = function () {
-            resolve();
-          };
-          reader.onabort = function () {
-            resolve();
-          };
-          reader.readAsDataURL(file);
-        });
+            } catch (saveErr) {
+              if (window.MynoteErrors) window.MynoteErrors.addWarn('卡片图片保存失败，未添加图片，请重试。', saveErr);
+            }
+          }
+          if (!savedImages.length) return;
+          setFiles(function (prev) {
+            var next = Object.assign({}, prev);
+            savedImages.forEach(function (image) {
+              next[image.id] = { name: image.name, type: image.type, url: image.url, thumb: image.thumb };
+            });
+            return next;
+          });
+          var block = docRef.current.find(function (n) { return n.id === pendingBlockId; });
+          if (!block) return;
+          var newAttrs = Object.assign({}, block.attrs || {});
+          if (block.type === 'gallery') {
+            /* 仅存 fileId，dataUrl 不写入 localStorage 防撑爆限额 */
+            newAttrs.items = (newAttrs.items || []).concat(savedImages.map(function (image) { return { fileId: image.id }; }));
+          } else {
+            newAttrs.fileId = savedImages[0].id;
+          }
+          updateBlock(pendingBlockId, { attrs: newAttrs });
+          doSave(JSON.parse(JSON.stringify(docRef.current)));
+        })();
         window._pendingCardReaders.push(pendingPromise);
         pendingPromise.then(function () {
           var idx = window._pendingCardReaders.indexOf(pendingPromise);
           if (idx >= 0) window._pendingCardReaders.splice(idx, 1);
         });
-      } else {
-        if (window.MynoteErrors) window.MynoteErrors.addWarn('此处只接受图片文件，请重新选择。', new Error('non-image for card placeholder'));
       }
       return;
     }
@@ -1059,9 +1049,29 @@ function Editor({
   /* ===== DOM input handlers ===== */
   var handleEditorInput = useCallback(function () {
     if (!hasTyped) setHasTyped(true);
+    // Contenteditable may copy data-blockid when Enter splits a paragraph. Normalize
+    // immediately so slash commands target the new line instead of replacing its sibling.
+    var curEl = editorBodyRef.current;
+    if (curEl) {
+      var seenBlockIds = Object.create(null);
+      var repairedBlockIds = false;
+      Array.prototype.forEach.call(curEl.children, function (block) {
+        if (!block || !block.dataset) return;
+        var blockId = block.dataset.blockid;
+        if (!blockId || seenBlockIds[blockId]) {
+          blockId = genId();
+          block.dataset.blockid = blockId;
+          repairedBlockIds = true;
+        }
+        seenBlockIds[blockId] = true;
+      });
+      if (repairedBlockIds) {
+        docRef.current = parseEditorDOM(curEl);
+        setEditorDocRef(docRef.current);
+      }
+    }
     // 即时检测斜杠，不等 80ms 延迟
     try {
-      var curEl = editorBodyRef.current;
       if (curEl && curEl.textContent && curEl.textContent.includes('/')) {
         updateSlashStateFromSelection();
       }
@@ -1298,9 +1308,12 @@ function Editor({
     var sel = window.getSelection();
     var focusNode = sel && sel.focusNode;
     var focusEl = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
-    var musicInput = focusEl && focusEl.closest('[data-music-url="pending"]');
+    // React paste events can target the editable music placeholder before the browser selection updates.
+    var eventMusicInput = e.target && e.target.closest && e.target.closest('[data-music-url="pending"]');
+    var musicInput = eventMusicInput || (focusEl && focusEl.closest('[data-music-url="pending"]'));
     if (musicInput) {
       e.preventDefault();
+      closeSlashPanel();
       /* 从粘贴文本中提取 URL（支持文本混有链接），否则尝试补协议后直接使用 */
       var muRaw = trimmed;
       var muUrl = extractUrlFromText(muRaw);
@@ -1321,6 +1334,17 @@ function Editor({
       setEditorDocRef(docRef.current);
       var mLoad = '<div contenteditable="false" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       musicInput.outerHTML = mLoad;
+      var musicCardEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + mId + '"]');
+      var afterMusicCard = musicCardEl && musicCardEl.nextElementSibling;
+      if (afterMusicCard && afterMusicCard.contentEditable !== 'false') {
+        var afterRange = document.createRange();
+        afterRange.selectNodeContents(afterMusicCard);
+        afterRange.collapse(true);
+        var afterSelection = window.getSelection();
+        if (afterSelection) { afterSelection.removeAllRanges(); afterSelection.addRange(afterRange); }
+        afterMusicCard.focus();
+      }
+      triggerAutoSave();
       fetchLinkMeta(muUrl).then(function (meta) {
         var d2 = docRef.current;
         var i2 = d2.findIndex(function (n) {
@@ -1351,6 +1375,8 @@ function Editor({
         }
       }).catch(function () {
         var ce2 = editorBodyRef.current;
+        var errIdx = docRef.current.findIndex(function (n) { return n.id === mId; });
+        if (errIdx !== -1) docRef.current[errIdx].status = 'error';
         if (ce2) {
           var el2 = ce2.querySelector('[data-blockid="' + mId + '"]');
           if (el2) {
@@ -1366,17 +1392,20 @@ function Editor({
     var MUSIC_OR_MEDIA_RE = /music\.163\.com|163cn\.tv|y\.qq\.com|i\.y\.qq\.com|open\.spotify\.com|music\.apple\.com|b23\.tv|xiaohongshu\.com|xhslink\.com/i;
     if (isPureUrl) {
       e.preventDefault();
+      closeSlashPanel();
       insertLinkCardAtDOM(trimmed);
       return;
     }
     if (embeddedUrl && MUSIC_OR_MEDIA_RE.test(embeddedUrl)) {
       e.preventDefault();
+      closeSlashPanel();
       insertLinkCardAtDOM(embeddedUrl);
       return;
     }
     if (embeddedUrl && !looksLikeMarkdown(trimmed)) {
       // 文本里夹着普通链接：链接转链接卡，剩余文本保留原位
       e.preventDefault();
+      closeSlashPanel();
       insertLinkCardAtDOM(embeddedUrl).then(function () {
         var remain = trimmed.replace(embeddedUrl, '').trim();
         if (remain) {
@@ -1422,7 +1451,7 @@ function Editor({
       docRef.current = parseEditorDOM(editorBodyRef.current);
       triggerAutoSave();
     }, 80);
-  }, [insertLinkCardAtDOM, triggerAutoSave, insertAttachmentAtCursor]);
+  }, [insertLinkCardAtDOM, triggerAutoSave, insertAttachmentAtCursor, closeSlashPanel]);
 
   /* ===== Remove attachment ===== */
 

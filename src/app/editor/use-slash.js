@@ -129,6 +129,14 @@
       }
       var focusNode = sel.focusNode;
       var baseEl = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
+      // URLs pasted into the music-card editor contain slashes, but are never slash commands.
+      if (baseEl && baseEl.closest && baseEl.closest('[data-music-url="pending"]')) {
+        setShowSlash(false);
+        setSlashQuery('');
+        setSlashTargetBlockId(null);
+        slashTargetBlockRef.current = null;
+        return;
+      }
       var rescued = rescueOrphanCaret();
       var blockEl = baseEl && baseEl.closest ? baseEl.closest('[data-blockid]') : null;
       if (rescued && !blockEl && baseEl) {
@@ -173,6 +181,11 @@
         caretOffset = 0;
       }
       var slashPos = text.lastIndexOf('/', Math.min(caretOffset - 1, text.length - 1));
+      // URL path slashes are text, but keep slash commands usable mid-sentence.
+      var beforeSlash = slashPos >= 0 ? text.slice(0, slashPos + 1) : '';
+      var slashTokenMatch = beforeSlash.match(/\S+$/);
+      var slashToken = slashTokenMatch ? slashTokenMatch[0].replace(/^[([{<\"'“‘]+/, '') : '';
+      if (/^(?:https?:\/\/|www\.)\S*$/i.test(slashToken)) slashPos = -1;
       if (slashPos < 0 || slashPos >= caretOffset) {
         setShowSlash(false);
         setSlashQuery('');

@@ -17,7 +17,7 @@
       return Promise.resolve(unzipOnMainThread(bytes));
     }
     var worker;
-    try { worker = new Worker(new URL('./zip.worker.js', w.location.href)); }
+    try { worker = new Worker(new URL('src/services/zip.worker.js', w.location.href)); }
     catch (e) {
       console.warn('[备份] Worker 启动失败，降级主线程解压', e);
       return Promise.resolve(unzipOnMainThread(bytes));
@@ -51,7 +51,7 @@
     }
     if (typeof Worker === 'undefined') return compressOnMain();
     var worker;
-    try { worker = new Worker(new URL('./zip.worker.js', w.location.href)); }
+    try { worker = new Worker(new URL('src/services/zip.worker.js', w.location.href)); }
     catch (e) {
       console.warn('[备份] Worker 启动失败，降级主线程打包', e);
       return compressOnMain();
@@ -92,7 +92,7 @@
     }
     if (typeof Worker === 'undefined') return fallbackSync();
     var worker;
-    try { worker = new Worker(new URL('./zip.worker.js', w.location.href)); }
+    try { worker = new Worker(new URL('src/services/zip.worker.js', w.location.href)); }
     catch (e) {
       console.warn('[备份] Worker 启动失败，降级主线程流式打包', e);
       return fallbackSync();
@@ -124,6 +124,8 @@
         var name = names[i++];
         var val = baseFiles[name];
         worker.postMessage({ mode: 'zip-file', name: name, data: val, level: level }, [val.buffer]);
+        // Continue through every manifest/base entry before streaming IDB attachments.
+        sendNext();
       }
       worker.postMessage({ mode: 'zip-start', level: level, maxCompressed: 50 * 1024 * 1024 });
       sendNext();

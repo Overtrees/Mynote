@@ -44,6 +44,19 @@ await page.waitForTimeout(1500);
 const rows = await page.$$('.list-item');
 check('列表渲染', rows.length >= 2, `${rows.length} 行`);
 
+// ---- 流式 ZIP 必须包含所有基础文件，且 Worker 正常结束 ----
+const streamedZip = await page.evaluate(async () => {
+  const db = await window.MynoteIdb.getDB();
+  const base = {
+    'memos.json': window.fflate.strToU8('{"source":"mobile-smoke"}'),
+    'manifest.json': window.fflate.strToU8('{"version":1}')
+  };
+  const zipped = await window.MynoteZip.compressZipStream(db, base, 3);
+  const files = window.fflate.unzipSync(zipped);
+  return { names: Object.keys(files).sort(), memo: window.fflate.strFromU8(files['memos.json']), manifest: window.fflate.strFromU8(files['manifest.json']) };
+});
+check('流式 ZIP 包含全部基础文件', streamedZip.names.includes('memos.json') && streamedZip.names.includes('manifest.json') && streamedZip.memo.includes('mobile-smoke') && streamedZip.manifest.includes('version'), JSON.stringify(streamedZip));
+
 // ---- 撤销 / 重做 ----
 await rows[2].click();
 await page.waitForSelector('.editor-body');
@@ -200,8 +213,10 @@ const crossTab = await page.evaluate(async () => {
   frame.style.display = 'none';
   document.body.appendChild(frame);
   const script = frame.contentDocument.createElement('script');
-  script.textContent = await (await fetch('/src/services/storage.idb.js')).text();
-  frame.contentDocument.body.appendChild(script);
+  script.src = new URL('/src/services/storage.idb.js', location.href).href;
+  const loaded = new Promise((resolve, reject) => { script.onload = resolve; script.onerror = reject; });
+  frame.contentDocument.head.appendChild(script);
+  await loaded;
   const C2 = frame.contentWindow.MynoteIdb, db2 = await C2.getDB();
   const second = await C2.loadMemosFromDB(db2);
   const one = first.map(m => m.id === 'cross_a' ? { ...m, title: 'A1' } : m);
@@ -395,7 +410,7 @@ const dividerSaved = await storedBlockForLast('hr');
 check('分割线命令保存后保留分割线', dividerSaved?.type === 'divider', JSON.stringify(dividerSaved));
 await applyExactSlash('待办');
 const todo = page.locator('.editor-body [data-type="todo"]').last();
-await todo.locator('span').last().click();
+await todo.click({ position: { x: 60, y: 12 } });
 await page.keyboard.type('AUDIT_TASK');
 await page.waitForTimeout(800);
 await todo.locator('.todo-checkbox').click();
