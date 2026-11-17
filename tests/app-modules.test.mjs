@@ -20,13 +20,15 @@ test('跨脚本全局词法环境仍可共享 Hook 与组件', () => {
   assert.equal(runInApp(env, 'typeof refreshGoogleAvatar'), 'function');
 });
 
-test('斜杠命令目录保持 29 条且 id 唯一', () => {
+test('斜杠命令目录保持 22 条且 id 唯一', () => {
   const { win } = makeAppEnv();
   const commands = win.MynoteSlashCommands;
-  assert.equal(commands.length, 29);
-  assert.equal(new Set(commands.map(c => c.id)).size, 29);
+  assert.equal(commands.length, 22);
+  assert.equal(new Set(commands.map(c => c.id)).size, 22);
   assert.ok(commands.every(c => c.id && c.title && c.type && c.group));
   assert.ok(win.MynoteSlashIcons && typeof win.MynoteSlashIcons.heading === 'string');
+  assert.ok(!commands.some(c => ['decoDivider', 'tip', 'question', 'mention', 'hashtag', 'centered', 'tagLabel'].includes(c.id)));
+  assert.ok(!['decoDivider', 'tip', 'question', 'mention', 'hashtag', 'centered', 'tagLabel'].some(id => id in win.MynoteSlashIcons));
 });
 
 test('列表搜索不暴露不完整拼音映射，城市转换辅助函数可用', () => {

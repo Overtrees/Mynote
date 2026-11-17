@@ -75,16 +75,6 @@
     pinyin: 'fgx',
     shortcut: '---'
   }, {
-    id: 'decoDivider',
-    icon: 'decoDivider',
-    title: '装饰分割线',
-    subtitle: '插入 ---🌟--- 装饰线',
-    keywords: 'deco divider 装饰分割线',
-    type: 'decorative_divider',
-    group: 'basic',
-    pinyin: 'zsfg',
-    shortcut: '---emoji---'
-  }, {
     id: 'bold',
     icon: 'bold',
     title: '加粗',
@@ -114,66 +104,6 @@
     group: 'basic',
     pinyin: 'gl',
     shortcut: '== =='
-  }, {
-    id: 'tip',
-    icon: 'tip',
-    title: '提示',
-    subtitle: '插入 !!提示 标签',
-    keywords: 'tip 提示',
-    type: 'inline_tip',
-    group: 'basic',
-    pinyin: 'ts',
-    shortcut: '!!'
-  }, {
-    id: 'question',
-    icon: 'question',
-    title: '问题',
-    subtitle: '插入 ??问题 标签',
-    keywords: 'q question 问题',
-    type: 'inline_question',
-    group: 'basic',
-    pinyin: 'wt',
-    shortcut: '??'
-  }, {
-    id: 'mention',
-    icon: 'mention',
-    title: '提及',
-    subtitle: '插入 @@提及 标签',
-    keywords: 'm mention 提及 @',
-    type: 'inline_mention',
-    group: 'basic',
-    pinyin: 'tj',
-    shortcut: '@@'
-  }, {
-    id: 'hashtag',
-    icon: 'hashtag',
-    title: '标签',
-    subtitle: '插入 #标签',
-    keywords: 'tag 标签 #',
-    type: 'inline_hashtag',
-    group: 'basic',
-    pinyin: 'bq',
-    shortcut: '#'
-  }, {
-    id: 'centered',
-    icon: 'centered',
-    title: '居中',
-    subtitle: '包裹为 ->居中文字<-',
-    keywords: 'center 居中',
-    type: 'inline_centered',
-    group: 'basic',
-    pinyin: 'jz',
-    shortcut: '-> <-'
-  }, {
-    id: 'tagLabel',
-    icon: 'tagLabel',
-    title: '彩色标签',
-    subtitle: '包裹为 $标签$',
-    keywords: 'tag label 彩色标签',
-    type: 'inline_tag',
-    group: 'basic',
-    pinyin: 'csbq',
-    shortcut: '$ $'
   }, {
     id: 'codeBlock',
     icon: 'codeBlock',
@@ -309,13 +239,6 @@
     code: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 7, 3 10, 7 13"/><polyline points="13 7, 17 10, 13 13"/></svg>',
     strikethrough: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6.5c0-1-1-2-3-2s-3 .8-3 2c0 .8.4 1.3 1.5 1.7"/><path d="M7 13.5c0 1 1 2 3 2s3-.8 3-2"/><line x1="5" y1="10" x2="15" y2="10"/></svg>',
     highlight: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l3-3 6 6-3 3z"/><path d="M16 4a2 2 0 00-3 0l-4 4 3 3 4-4a2 2 0 000-3z"/></svg>',
-    tip: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="1" fill="currentColor"/><path d="M10 3v8"/><circle cx="10" cy="10" r="7"/></svg>',
-    question: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><path d="M7.5 8.5a2.5 2.5 0 115 0c0 1.5-2 2-2 3"/><circle cx="10" cy="14" r="0.8" fill="currentColor"/></svg>',
-    mention: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="3"/><path d="M5 17v-2a4 4 0 014-4h2a4 4 0 014 4v2"/><circle cx="10" cy="10" r="7"/></svg>',
-    hashtag: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="8" y1="3" x2="6" y2="17"/><line x1="14" y1="3" x2="12" y2="17"/><line x1="3" y1="8" x2="17" y2="8"/><line x1="3" y1="13" x2="17" y2="13"/></svg>',
-    centered: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="10" x2="17" y2="10"/><line x1="6" y1="6" x2="14" y2="6"/><line x1="6" y1="14" x2="14" y2="14"/></svg>',
-    tagLabel: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="14" height="8" rx="4"/><path d="M7 10h6"/></svg>',
-    decoDivider: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="3" y1="10" x2="17" y2="10"/><circle cx="10" cy="10" r="2" fill="currentColor" stroke="none"/></svg>',
     callout: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="12" rx="2"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="12" y2="12"/><rect x="4" y="6" width="2" height="8" rx="1" fill="currentColor" stroke="none"/></svg>',
     imgTextCard: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="3"/><rect x="4" y="4" width="12" height="8" rx="2" fill="currentColor" opacity="0.15"/><line x1="5" y1="14" x2="15" y2="14"/></svg>',
     imageTextRow: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="12" rx="1.5"/><rect x="12" y="4" width="6" height="12" rx="1.5"/><circle cx="6.5" cy="7.5" r="1"/></svg>',

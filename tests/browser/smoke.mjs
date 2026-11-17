@@ -470,7 +470,7 @@ await page.keyboard.press('Control+End');
 await page.keyboard.type('/');
 await page.locator('.slash-row').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 const slashCount = await page.locator('.slash-row').count();
-check('斜杠命令菜单可渲染', slashCount >= 29, `当前可见命令 ${slashCount}`);
+check('22 项斜杠命令菜单可渲染', slashCount >= 22, `当前可见命令 ${slashCount}`);
 const headingCommand = page.locator('.slash-row').filter({ hasText: '标题 1' }).first();
 await headingCommand.click();
 await page.locator('.editor-body h1').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});

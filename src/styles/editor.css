@@ -258,6 +258,82 @@
 .editor-body .callout-body { min-width: 0; font-size: var(--font-14); color: var(--text-main); line-height: 1.65; overflow-wrap: anywhere; }
 .editor-body .callout code { background: var(--md-callout-code-bg); padding: 1px 5px; border-radius: var(--radius-4); font-size: 0.9em; overflow-wrap: anywhere; }
 
+/* ===== Extended Markdown semantics ===== */
+.markdown-render .callout-collapsible,
+.editor-body .callout-collapsible { padding: 0; overflow: hidden; }
+.markdown-render .callout-collapsible > summary,
+.editor-body .callout-collapsible > summary {
+    display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 10px 14px;
+    cursor: pointer; list-style: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.markdown-render .callout-collapsible > summary::-webkit-details-marker,
+.editor-body .callout-collapsible > summary::-webkit-details-marker { display: none; }
+.markdown-render .callout-collapsible > summary::after,
+.editor-body .callout-collapsible > summary::after {
+    content: "⌄"; margin-left: auto; color: var(--text-secondary); font-size: var(--font-16);
+    transition: transform 0.16s ease;
+}
+.markdown-render .callout-collapsible[open] > summary::after,
+.editor-body .callout-collapsible[open] > summary::after { transform: rotate(180deg); }
+.markdown-render .callout-collapsible > summary:focus-visible,
+.editor-body .callout-collapsible > summary:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: -3px; }
+.markdown-render .callout-collapsible > .callout-body,
+.editor-body .callout-collapsible > .callout-body { padding: 0 14px 12px; }
+.markdown-render .callout-collapsible .callout-header,
+.editor-body .callout-collapsible .callout-header { margin-bottom: 0; }
+
+.markdown-render .math-block,
+.editor-body .math-block {
+    box-sizing: border-box; max-width: 100%; margin: 0.75em 0; overflow-x: auto; overflow-y: hidden;
+    padding: 2px 0; text-align: center; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
+.markdown-render .math-block .katex-display,
+.editor-body .math-block .katex-display { margin: 0.35em 0; }
+.markdown-render .math-inline,
+.editor-body .math-inline { white-space: normal; }
+.markdown-render .math-source,
+.editor-body .math-source { white-space: pre-wrap; overflow-wrap: anywhere; }
+.markdown-render .katex,
+.editor-body .katex { font-size: 1em; }
+
+.markdown-render .mynote-wiki-link,
+.editor-body .mynote-wiki-link { color: var(--md-link-color); text-decoration: underline; text-decoration-style: dashed; text-underline-offset: 0.18em; }
+.markdown-render .mynote-wiki-link:hover,
+.editor-body .mynote-wiki-link:hover { text-decoration-style: solid; }
+.markdown-render .mynote-wiki-link:focus-visible,
+.editor-body .mynote-wiki-link:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 3px; border-radius: var(--radius-2); }
+.markdown-render .footnote-ref,
+.editor-body .footnote-ref { font-size: 0.76em; line-height: 0; vertical-align: super; }
+.markdown-render .footnotes,
+.editor-body .footnotes { margin: 1.2em 0 0; padding-top: 0.7em; border-top: 1px solid var(--border-color); color: var(--text-secondary); font-size: var(--font-13); }
+.markdown-render .footnotes ol,
+.editor-body .footnotes ol { margin: 0; padding-left: 1.5em; }
+.markdown-render .footnotes li,
+.editor-body .footnotes li { padding: 0.2em 0; overflow-wrap: anywhere; }
+.markdown-render .footnote-backlinks,
+.editor-body .footnote-backlinks { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 0.35em; }
+.markdown-render .footnote-backref,
+.editor-body .footnote-backref { display: inline-flex; min-width: 32px; min-height: 32px; align-items: center; justify-content: center; color: var(--md-link-color); text-decoration: none; border-radius: var(--radius-6); }
+.markdown-render .footnote-backref:focus-visible,
+.editor-body .footnote-backref:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 1px; }
+.markdown-render sup,
+.markdown-render sub,
+.editor-body sup,
+.editor-body sub { font-size: 0.76em; line-height: 0; }
+
+.mynote-highlight { display: inline; padding: 0 0.28em; border-radius: var(--radius-4); background: var(--fill-highlight); color: var(--text-main); font-weight: 600; }
+.mynote-strikethrough { background: var(--fill-hover); padding: 0 2px; }
+.mynote-decorative-divider { position: relative; width: fit-content; max-width: 100%; margin: -1.25em auto 1em; padding: 0 12px; background: var(--card-bg, var(--color-white)); color: var(--color-placeholder); font-size: var(--font-12); letter-spacing: 0.18em; overflow-wrap: anywhere; }
+.mynote-decorative-divider hr { margin: 1.2em 0; }
+
+.wiki-backlinks { box-sizing: border-box; width: min(100%, 720px); margin: 24px auto 0; padding: 14px 0 0; border-top: 1px solid var(--border-color); }
+.wiki-backlinks-title { margin: 0 0 6px; color: var(--text-secondary); font-size: var(--font-12); font-weight: 650; }
+.wiki-backlinks-list { display: flex; flex-direction: column; gap: 2px; }
+.wiki-backlink { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 6px 8px; border: 0; border-radius: var(--radius-10); background: transparent; color: var(--md-link-color); font: inherit; text-align: left; cursor: pointer; }
+.wiki-backlink:hover, .wiki-backlink:active { background: var(--fill-hover); }
+.wiki-backlink:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
+.wiki-backlink::before { content: "↗"; flex: none; color: var(--text-secondary); }
+
 /* ContentEditable todo blocks use the same compact rhythm and wrap as preview todos. */
 .editor-body [data-type="todo"] .todo-text {
     min-width: 0;

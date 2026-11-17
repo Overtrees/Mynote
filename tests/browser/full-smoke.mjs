@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* 全功能真机冒烟：斜杠 29 命令矩阵 + 菜单 + 列表 + 设置/备份 + 粘贴链接。 */
+/* 全功能冒烟：斜杠 22 命令矩阵 + 菜单 + 列表 + 设置/备份 + 粘贴链接。 */
 import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
@@ -72,7 +72,7 @@ const PICKS = [
   { id: 'divider', title: '分割线' },
   { id: 'italic', title: '斜体' },
   { id: 'highlight', title: '高亮' },
-  { id: 'tagLabel', title: '彩色' },
+  { id: 'bold', title: '粗体' },
   { id: 'callout', title: 'Call' },
   { id: 'musicCard', title: '音乐' },
   { id: 'imgTextCard', title: '图文' }
@@ -90,7 +90,7 @@ for (let i = 0; i < PICKS.length; i++) {
   await page.waitForTimeout(350);
   let rows = await page.$$('.slash-row');
   if (!rows.length) {
-    // id 前缀匹配不到（如 tagL）→ 只删 query 字符、保留 '/'，用中文标题前两字重试
+    // id 前缀匹配不到时，删除 query 字符并用中文标题前两字重试
     for (let b = 0; b < cmd.id.slice(0, 4).length; b++) await page.keyboard.press('Backspace');
     const q2 = (await page.evaluate(c => c.title, cmd)).slice(0, 2);
     await page.keyboard.type(q2);
@@ -133,7 +133,7 @@ for (let i = 0; i < PICKS.length; i++) {
   else slashFailed.push(cmd.id + '(no-effect)');
 }
 check('斜杠命令代表集应用', slashApplied === PICKS.length, `${slashApplied}/${PICKS.length}${slashFailed.length ? ' 失败: ' + slashFailed.join(',') : ''}`);
-check('斜杠命令目录 29 条', COMMANDS.length === 29, 'n=' + COMMANDS.length);
+check('斜杠命令目录 22 条', COMMANDS.length === 22, 'n=' + COMMANDS.length);
 
 /* ===== 撤销到干净态 ===== */
 for (let k = 0; k < 40; k++) { await page.keyboard.press('Control+z'); }

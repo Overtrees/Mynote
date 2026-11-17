@@ -1,9 +1,38 @@
 /* Editor 主组件：输入、块操作、附件、渲染与持久化。 */
+function wikiTitleKey(value) {
+  return String(value || '').split('#')[0].trim().toLocaleLowerCase();
+}
+function collectWikiSource(value, out, inCode) {
+  out = out || [];
+  if (!value || typeof value !== 'object') return out;
+  if (Array.isArray(value)) { value.forEach(function (item) { collectWikiSource(item, out, inCode); }); return out; }
+  var type = String(value.type || '').toLowerCase();
+  if (/^(code|codeblock|fencedcode|inlinecode)$/.test(type)) return out;
+  Object.keys(value).forEach(function (key) {
+    var child = value[key];
+    if (typeof child === 'string' && key === 'text') out.push(child);
+    else if (child && typeof child === 'object') collectWikiSource(child, out, inCode);
+  });
+  return out;
+}
+function memoWikiTargets(memo) {
+  var source = collectWikiSource(memo && memo.doc).join('\n').replace(/(`+)([\s\S]*?)\1/g, '');
+  source = source.replace(/\\\[\[[^\]\r\n]*\]\]/g, '');
+  var targets = new Set();
+  source.replace(/\[\[([^\]\r\n|]+)(?:\|[^\]\r\n]+)?\]\]/g, function (_, target) {
+    var key = wikiTitleKey(target);
+    if (key) targets.add(key);
+    return _;
+  });
+  return targets;
+}
 function Editor({
   memo,
   onClose,
   onSave,
-  autoFocus = false
+  autoFocus = false,
+  relatedMemos = [],
+  onOpenWikiLink
 }) {
   const [closing, setClosing] = useState(false);
 // 模块化依赖导出
@@ -14,13 +43,17 @@ function Editor({
     return () => clearTimeout(t);
   }, [closing]);
   const [title, setTitle] = useState(memo.title === "无标题" ? "" : memo.title);
+  const backlinks = (relatedMemos || []).filter(function (candidate) {
+    return candidate && candidate.id !== memo.id && wikiTitleKey(title) && memoWikiTargets(candidate).has(wikiTitleKey(title));
+  });
   const [autoRenderMap, setAutoRenderMap] = useState({});
   const [editorScrolled, setEditorScrolled] = useState(() => window.scrollY > 30);
-  const [editingTitle, setEditingTitle] = useState(null); // 编辑中的实时标题，null=非编辑态
-  // 编辑期间冻结样式快照，防止字数跨越阈值时 DOM 重建导致光标丢失
-  var editingStyleSnapshot = useRef(null);
-  var overflowContainerRef = useRef(null); // 溢出容器 ref，用于光标跟随滚动
-  const initialDoc = memo.doc || [{
+const [editingTitle, setEditingTitle] = useState(null); // 编辑中的实时标题，null=非编辑态
+// 编辑期间冻结样式快照，防止字数跨越阈值时 DOM 重建导致光标丢失
+var editingStyleSnapshot = useRef(null);
+var overflowContainerRef = useRef(null); // 溢出容器 ref，用于光标跟随滚动
+var titleCaretSyncFrameRef = useRef(null);
+const initialDoc = memo.doc || [{
     id: genId(),
     type: "paragraph",
     children: [{
@@ -484,11 +517,22 @@ function Editor({
       if (s) s.remove();
     };
   }, []);
-  var titleValueRef = useRef(title);
-  useEffect(() => {
-    titleValueRef.current = title;
-  }, [title]);
-  var doSave = useCallback(d => {
+var titleValueRef = useRef(title);
+useEffect(() => {
+  titleValueRef.current = title;
+}, [title]);
+function commitTitleFromDOM(el) {
+  if (!el) return titleValueRef.current;
+  var raw = el.textContent.trim() || "无标题";
+  isEditingTitleRef.current = false;
+  isComposingRef.current = false;
+  editingStyleSnapshot.current = null;
+  titleValueRef.current = raw;
+  setTitle(raw);
+  setEditingTitle(null);
+  return raw;
+}
+var doSave = useCallback(d => {
     /* 采集 DOM 渲染缓存 → 存入 IndexedDB */
     var cachePromise = Promise.resolve();
     try {
@@ -534,6 +578,10 @@ function Editor({
       }).catch(function(e) { console.warn('[此刻] draft save', e); });
     }, isDraft ? 300 : 600);
   }, [doSave, memo.id]);
+  var flushAutoSave = useCallback(function () {
+    clearTimeout(saveTimer.current);
+    return doSave(docRef.current);
+  }, [doSave]);
   useEffect(() => {
     triggerAutoSave();
     return () => clearTimeout(saveTimer.current);
@@ -627,8 +675,12 @@ function Editor({
   var applySlashCommand = Slash.applySlashCommand;
   var SlashSVGIcons = Slash.SVG_ICONS;
 
-  const handleClose = async () => {
-    closedRef.current = true;
+const handleClose = async () => {
+  if (isEditingTitleRef.current) {
+    var activeTitleInput = overflowContainerRef.current && overflowContainerRef.current.querySelector('.editor-title-input');
+    if (activeTitleInput) commitTitleFromDOM(activeTitleInput);
+  }
+  closedRef.current = true;
     clearTimeout(saveTimer.current);
     clearTimeout(mdCheckTimerRef.current);
     clearTimeout(inputTimerRef.current);
@@ -641,7 +693,9 @@ function Editor({
     }
     // 新建笔记且没有任何改动（未输入文字、未改背景色、未设头像）→ 不保存，直接删除
     var isNewNote = memo.__isNewNote;
-    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl;
+    var initialTitle = String(memo.title || "无标题").trim() || "无标题";
+    var currentTitle = titleValueRef.current.trim() || "无标题";
+    var isEmptyEnough = !hasTyped && !bgColor && !avatarUrl && currentTitle === initialTitle;
     if (isNewNote && isEmptyEnough) {
       DraftStore.clear(memo.id);
       await Promise.resolve(onSave(memo.id, { _delete: true }));
@@ -741,47 +795,80 @@ function Editor({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 光标跟随：编辑标题时监听 selectionchange，确保光标始终在溢出容器可视区内
+  // 双 rAF 等待布局稳定，并合并快速输入期间排队的多次选区更新。
+  function scheduleTitleCaretSync() {
+    if (titleCaretSyncFrameRef.current !== null) return;
+    titleCaretSyncFrameRef.current = requestAnimationFrame(function () {
+      titleCaretSyncFrameRef.current = requestAnimationFrame(function () {
+        titleCaretSyncFrameRef.current = null;
+        if (!isEditingTitleRef.current) return;
+        const container = overflowContainerRef.current;
+        const sel = window.getSelection();
+        const input = container && container.querySelector('.editor-title-input');
+        if (!container || !sel || !sel.focusNode || !input || !input.contains(sel.focusNode)) return;
+        try {
+          const range = document.createRange();
+          range.setStart(sel.focusNode, sel.focusOffset);
+          range.collapse(true);
+          let cursorRect = range.getBoundingClientRect();
+          if ((!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) && sel.focusNode.nodeType === 3 && sel.focusNode.length) {
+            // iOS Safari 可能不给折叠光标返回 rect；测相邻字形但不改动文字。
+            const offset = Math.max(0, Math.min(sel.focusOffset, sel.focusNode.length));
+            const from = offset > 0 ? offset - 1 : offset;
+            const to = offset > 0 ? offset : Math.min(offset + 1, sel.focusNode.length);
+            const glyphRange = document.createRange();
+            glyphRange.setStart(sel.focusNode, from);
+            glyphRange.setEnd(sel.focusNode, to);
+            const glyphRect = glyphRange.getBoundingClientRect();
+            if (glyphRect && glyphRect.height) {
+              const x = offset > 0 ? glyphRect.right : glyphRect.left;
+              cursorRect = { left: x, right: x, top: glyphRect.top, bottom: glyphRect.bottom, width: 0, height: glyphRect.height };
+            }
+          }
+          if (!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) return;
+          const containerRect = container.getBoundingClientRect();
+          const MARGIN = 12;
+          if (cursorRect.left < containerRect.left + MARGIN) {
+            const delta = containerRect.left + MARGIN - cursorRect.left;
+            container.scrollLeft = Math.max(0, container.scrollLeft - delta);
+          } else if (cursorRect.right > containerRect.right - MARGIN) {
+            const delta = cursorRect.right - containerRect.right + MARGIN;
+            container.scrollLeft = Math.min(container.scrollWidth - container.clientWidth, container.scrollLeft + delta);
+          }
+        } catch (_) {}
+      });
+    });
+  }
   useEffect(() => {
     const handleSelectionChange = () => {
       if (!isEditingTitleRef.current) return;
       const container = overflowContainerRef.current;
-      if (!container) return;
-
-      // 用双 rAF 等待 iOS Safari 布局完全稳定后再读取光标位置
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const sel = window.getSelection();
-          if (!sel || sel.rangeCount === 0) return;
-          try {
-            const range = sel.getRangeAt(0).cloneRange();
-            range.collapse(true);
-
-            // iOS Safari 对折叠光标 getBoundingClientRect 返回零，改用 getClientRects
-            let cursorRect = null;
-            const rects = range.getClientRects();
-            if (rects && rects.length > 0) {
-              cursorRect = rects[0];
-            } else {
-              // fallback：插入零宽字符测量位置
-              cursorRect = range.getBoundingClientRect();
-            }
-            if (!cursorRect || cursorRect.width === 0 && cursorRect.height === 0 && cursorRect.left === 0) return;
-            const containerRect = container.getBoundingClientRect();
-            const MARGIN = 12;
-            if (cursorRect.left < containerRect.left + MARGIN) {
-              const delta = containerRect.left + MARGIN - cursorRect.left;
-              container.scrollLeft = Math.max(0, container.scrollLeft - delta);
-            } else if (cursorRect.right > containerRect.right - MARGIN) {
-              const delta = cursorRect.right - containerRect.right + MARGIN;
-              container.scrollLeft = Math.min(container.scrollWidth - container.clientWidth, container.scrollLeft + delta);
-            }
-          } catch (_) {}
-        });
-      });
+      const input = container && container.querySelector('.editor-title-input');
+      const sel = window.getSelection();
+      if (!input || !sel || !sel.focusNode || !input.contains(sel.focusNode)) return;
+      scheduleTitleCaretSync();
+    };
+    const handleViewportChange = () => {
+      if (isEditingTitleRef.current) scheduleTitleCaretSync();
     };
     document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    window.addEventListener('resize', handleViewportChange);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      window.visualViewport.addEventListener('scroll', handleViewportChange, { passive: true });
+    }
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      window.removeEventListener('resize', handleViewportChange);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      }
+      if (titleCaretSyncFrameRef.current !== null) {
+        cancelAnimationFrame(titleCaretSyncFrameRef.current);
+        titleCaretSyncFrameRef.current = null;
+      }
+    };
   }, []);
 
   /* ===== DOM-based atomic block insertion ===== */
@@ -1709,7 +1796,9 @@ function Editor({
     renderDocToEditorHTML: renderDocToEditorHTML,
     renderAtomicHTML: renderAtomicHTML,
     renderMarkdownHtml: renderMarkdownHtml,
-    escapeHTML: escapeHTML
+    escapeHTML: escapeHTML,
+    flushAutoSave: flushAutoSave,
+    onOpenWikiLink: onOpenWikiLink
   });
   var handleEditorClick = Dom.handleEditorClick;
   var handleTodoClick = Dom.handleTodoClick;
@@ -1854,14 +1943,9 @@ function Editor({
   }, /*#__PURE__*/React.createElement("button", {
     className: "editor-fab left",
     "aria-label": "返回笔记列表",
-    onPointerDown: function (e) {
-      e.stopPropagation();
-      if (isEditingTitleRef.current) {
-        isEditingTitleRef.current = false;
-        editingStyleSnapshot.current = null;
-        setEditingTitle(null);
-      }
-      handleClose();
+onPointerDown: function (e) {
+  e.stopPropagation();
+  handleClose();
     }
   }, /*#__PURE__*/React.createElement("svg", {
     xmlns: "http://www.w3.org/2000/svg",
@@ -1882,17 +1966,15 @@ function Editor({
     // 非编辑态显示：超10字截断加省略号
     const displayTitle = rawTitle.length > 10 ? rawTitle.slice(0, 10) + "…" : rawTitle;
 
-    // 实时字数：仅用于胶囊宽度/overflow判断，不驱动样式
+    // 实时字数只允许编辑态布局向长标题模式单向升级，避免跨阈值来回切换造成光标跳动
     const liveLen = isEditing ? editingTitle.length : displayTitle.length;
 
-    // overflow模式：仅编辑中且超11字时触发（只影响宽度和滚动，不改样式）
-    // 编辑期间从快照读取，防止容器宽度切换导致光标位置被重置
-    const isOverflow = isEditing ? editingStyleSnapshot.current ? editingStyleSnapshot.current.isOverflow : liveLen > 11 : false;
+    // 编辑期间锁定已进入的横向滚动模式；从短标题输入成长标题时在阈值处只切换一次。
+    const isOverflow = isEditing ? !!(editingStyleSnapshot.current && editingStyleSnapshot.current.isOverflow) || liveLen > 11 : false;
 
-    // 样式（isLong/fontSize）编辑期间从快照读取，防止阈值跨越时 DOM 重建导致光标丢失
-    // 非编辑态正常按 displayTitle 长度计算
-    const styleIsLong = isEditing && editingStyleSnapshot.current ? editingStyleSnapshot.current.isLong : displayTitle.length > 5;
-    const capsuleFontSize = isEditing && editingStyleSnapshot.current ? editingStyleSnapshot.current.fontSize : styleIsLong ? 11 : 14;
+    // 编辑期间字号只从短标题向长标题切换一次，输入焦点不会因后续长度变化反复重排。
+    const styleIsLong = isEditing ? !!(editingStyleSnapshot.current && editingStyleSnapshot.current.isLong) || liveLen > 5 : displayTitle.length > 5;
+    const capsuleFontSize = styleIsLong ? 11 : 14;
 
     // 胶囊内容区最大宽度（11字时的自然宽度）
     const CAPSULE_MAX_CONTENT_W = 148;
@@ -1910,6 +1992,7 @@ function Editor({
         flexDirection: editorScrolled ? "row" : "column",
         alignItems: "center",
         justifyContent: "center",
+        flexWrap: "wrap",
         gap: editorScrolled ? 8 : 6,
         transition: 'all 0.25s ease',
         pointerEvents: "none"
@@ -1975,16 +2058,19 @@ function Editor({
         // 始终允许横向滚动（隐藏滚动条），防止模式切换重置 scrollLeft 导致光标跳位
         overflowX: "scroll",
         overflowY: "hidden",
+        boxSizing: "border-box",
+        paddingLeft: isOverflow ? 12 : 0,
+        WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
         msOverflowStyle: "none",
-        // 左侧渐变遮罩，仅 overflow 模式时生效
-        WebkitMaskImage: isOverflow ? "linear-gradient(to right, transparent 0%, black 22%)" : "none",
-        maskImage: isOverflow ? "linear-gradient(to right, transparent 0%, black 22%)" : "none"
+        // 不给文字/光标施加边缘遮罩，避免长标题开头的插入点被淡化。
       }
     }, /*#__PURE__*/React.createElement("div", {
       className: "editor-title-input",
       role: "textbox",
       "aria-label": "笔记标题",
+      "aria-multiline": false,
+      enterKeyHint: "done",
       contentEditable: true,
       suppressContentEditableWarning: true,
       ref: el => {
@@ -1999,11 +2085,10 @@ function Editor({
         isEditingTitleRef.current = true;
         const full = title || "";
         setEditingTitle(full);
-        // 记录进入编辑时的样式快照，编辑期间冻结所有影响布局的样式
+        // 记录初始布局模式；文字变长时仅单向升级，避免频繁切换布局重置光标。
         const snapLen = full.length;
         editingStyleSnapshot.current = {
           isLong: snapLen > 5,
-          fontSize: snapLen > 5 ? 11 : 14,
           isOverflow: snapLen > 11 // 冻结 overflow 状态防止容器宽度切换
         };
         // 仅在显示截断版时替换内容并移光标到末尾
@@ -2020,21 +2105,22 @@ function Editor({
               sel && sel.removeAllRanges();
               sel && sel.addRange(range);
             } catch (_) {}
-            if (el.parentNode) el.parentNode.scrollLeft = el.parentNode.scrollWidth;
+            scheduleTitleCaretSync();
           });
-        }
+        } else scheduleTitleCaretSync();
       },
       onInput: e => {
         const el = e.currentTarget;
         const text = el.textContent;
         // 仅在非输入法组合状态下更新，避免中文输入被打断
         if (!isComposingRef.current) {
+          if (editingStyleSnapshot.current) {
+            if (text.length > 5) editingStyleSnapshot.current.isLong = true;
+            if (text.length > 11) editingStyleSnapshot.current.isOverflow = true;
+          }
           setEditingTitle(text);
         }
-        // 滚动容器到最右
-        requestAnimationFrame(() => {
-          if (el.parentNode) el.parentNode.scrollLeft = el.parentNode.scrollWidth;
-        });
+        scheduleTitleCaretSync();
       },
       onCompositionStart: () => {
         isComposingRef.current = true;
@@ -2043,18 +2129,15 @@ function Editor({
         isComposingRef.current = false;
         const el = e.currentTarget;
         // 输入法上屏后更新实时字数
+        if (editingStyleSnapshot.current) {
+          if (el.textContent.length > 5) editingStyleSnapshot.current.isLong = true;
+          if (el.textContent.length > 11) editingStyleSnapshot.current.isOverflow = true;
+        }
         setEditingTitle(el.textContent);
-        requestAnimationFrame(() => {
-          if (el.parentNode) el.parentNode.scrollLeft = el.parentNode.scrollWidth;
-        });
+        scheduleTitleCaretSync();
       },
       onBlur: e => {
-        isEditingTitleRef.current = false;
-        isComposingRef.current = false;
-        editingStyleSnapshot.current = null; // 清除样式快照
-        const raw = e.currentTarget.textContent.trim() || "无标题";
-        setTitle(raw);
-        setEditingTitle(null);
+        const raw = commitTitleFromDOM(e.currentTarget);
         // 显示截断版本，重置滚动
         const disp = raw.length > 10 ? raw.slice(0, 10) + "…" : raw;
         if (e.currentTarget.textContent !== disp) e.currentTarget.textContent = disp;
@@ -2062,6 +2145,7 @@ function Editor({
       },
       onKeyDown: e => {
         if (e.key === "Enter") {
+          if (e.isComposing || e.nativeEvent && e.nativeEvent.isComposing || isComposingRef.current || e.keyCode === 229) return;
           e.preventDefault();
           e.currentTarget.blur();
         }
@@ -2084,7 +2168,9 @@ function Editor({
         direction: "ltr",
         display: "block",
         // 编辑期间最小宽度撑开容器，保证 scrollLeft 可以正常工作
-        minWidth: isOverflow ? "max-content" : "auto"
+        minWidth: isOverflow ? "max-content" : "auto",
+        // 末尾留出空间，避免光标顶在滚动视口裁切边缘。
+        paddingRight: isOverflow ? 12 : 0
       }
     })), !editorScrolled && /*#__PURE__*/React.createElement("div", {
       className: "editor-title-meta",
@@ -2364,8 +2450,8 @@ function Editor({
       paddingLeft: 4
     }
   }, "\u203A")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "10px 7px 7px",
+      style: {
+        padding: "10px 0 7px",
       marginTop: 3,
       borderTop: "0.5px solid var(--glass-overlay-border)"
     }
@@ -2542,14 +2628,14 @@ function Editor({
     style: { minHeight: 46, flex: "none", display: "flex", alignItems: "center", gap: 8, padding: "0 4px 5px", borderBottom: "0.5px solid var(--glass-overlay-border)" }
   }, React.createElement("button", {
     type: "button",
-    className: "editor-export-back",
+    className: "editor-fab editor-export-back",
     "aria-label": "返回更多菜单",
     onClick: function () { closeExportPanel(); setTimeout(openEditorMenu, 220); },
-    style: { width: 38, height: 38, flex: "none", display: "grid", placeItems: "center", border: "none", borderRadius: "var(--radius-999)", background: "var(--glass-control-bg)", color: "var(--text-main)", cursor: "pointer" }
+    style: { position: "relative", zIndex: 1, left: "auto", right: "auto", top: "auto", width: 46, height: 46, flex: "none", border: "0.5px solid var(--glass-control-border)", borderRadius: "var(--radius-circle)", background: "var(--glass-control-bg)", backdropFilter: "var(--glass-control-filter)", WebkitBackdropFilter: "var(--glass-control-filter)", color: "var(--text-main)", cursor: "pointer", padding: 0, touchAction: "manipulation" }
   }, React.createElement("svg", {
-    viewBox: "0 0 24 24", width: "19", height: "19", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true"
-  }, React.createElement("path", { d: "M15 18l-6-6 6-6M9 12h11" }))), React.createElement("div", {
-    style: { flex: 1, textAlign: "center", paddingRight: 38, color: "var(--text-main)", fontSize: "var(--font-15)", fontWeight: 650 }
+    viewBox: "0 0 24 24", width: "22", height: "22", fill: "none", stroke: "currentColor", strokeWidth: "2.5", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true"
+  }, React.createElement("polyline", { points: "15 18 9 12 15 6" }))), React.createElement("div", {
+    style: { flex: 1, textAlign: "center", paddingRight: 46, color: "var(--text-main)", fontSize: "var(--font-15)", fontWeight: 650 }
   }, "导出笔记")), React.createElement("div", {
     style: { minHeight: 0, flex: "1 1 auto", display: "grid", gap: 3, paddingTop: 6, overflowY: "auto", overscrollBehavior: "contain", scrollbarGutter: "stable" }
   }, [
@@ -2566,8 +2652,9 @@ function Editor({
       onClick: function () { handleExportFormat(option.format); },
       style: { width: "100%", minHeight: 54, display: "flex", alignItems: "center", gap: 11, padding: "6px 9px", border: "none", borderRadius: "var(--radius-14)", background: "transparent", color: "var(--text-main)", fontFamily: "inherit", textAlign: "left", cursor: "pointer" }
     }, React.createElement("span", {
+      className: "editor-export-choice-icon",
       "aria-hidden": "true",
-      style: { width: 34, height: 34, flex: "none", display: "grid", placeItems: "center", borderRadius: "var(--radius-10)", background: "var(--glass-control-bg)", border: "0.5px solid var(--glass-control-border)", color: "var(--color-accent)", fontSize: option.badge.length > 2 ? "var(--font-9)" : "var(--font-11)", fontWeight: 700, letterSpacing: "-0.2px" }
+      style: { width: 34, height: 34, flex: "none", display: "grid", placeItems: "center", color: "var(--color-accent)", fontSize: option.badge.length > 2 ? "var(--font-9)" : "var(--font-11)", fontWeight: 700, letterSpacing: "-0.2px" }
     }, option.badge), React.createElement("span", {
       style: { minWidth: 0, flex: 1 }
     }, React.createElement("span", {
@@ -2607,7 +2694,19 @@ function Editor({
       caretColor: "var(--text-main)",
       outline: "none"
     }
-  })), /*#__PURE__*/React.createElement("input", {
+  })), backlinks.length > 0 && /*#__PURE__*/React.createElement("section", {
+    className: "wiki-backlinks",
+    "aria-label": "引用当前笔记的反向链接"
+  }, /*#__PURE__*/React.createElement("h2", { className: "wiki-backlinks-title" }, "反向链接"), /*#__PURE__*/React.createElement("div", {
+    className: "wiki-backlinks-list"
+  }, backlinks.map(function (sourceMemo) {
+    return React.createElement("button", {
+      key: sourceMemo.id,
+      type: "button",
+      className: "wiki-backlink",
+      onClick: function () { if (typeof onOpenWikiLink === 'function') onOpenWikiLink(sourceMemo.title || ''); }
+    }, sourceMemo.title || "无标题");
+  }))), /*#__PURE__*/React.createElement("input", {
     ref: fileInputRef,
     type: "file",
     multiple: true,

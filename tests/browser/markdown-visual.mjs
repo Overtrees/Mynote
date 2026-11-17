@@ -38,6 +38,17 @@ try {
     const callout = calloutHost.querySelector('.callout');
     const codeCalloutHost = document.createElement('div');
     codeCalloutHost.innerHTML = window.MynoteMd.renderMarkdownHtml('> [!TIP]\n> ```js\n> const nested = \'~~keep~~ ==keep==\';\n> ```');
+    const extensionHost = document.createElement('div');
+    extensionHost.innerHTML = window.MynoteMd.renderMarkdownHtml('> [!TIP]- 自定义标题\n> 正文 **粗体**\n\n行内 $x^2$ 与块公式：\n\n$$\n\\frac{1}{2}\n$$\n\n[[目标笔记|显示文字]]\n\n脚注引用[^note]\n\n[^note]: 脚注内容\n\n上^(高1)^ 下~(低1)~，旧标签 $blue:标签$，短码 :smile:，链接 [网址](https://example.com/$blue:keep$)');
+    const hostileHost = document.createElement('div');
+    hostileHost.innerHTML = window.MynoteMd.renderMarkdownHtml('<img src="x" onerror="window.__mynoteXss=1"><script>window.__mynoteXss=2</script>');
+    const disabledSyntax = '!!提示 ??问题 @@提及 #标签 $标签$ $blue:标签$ ->居中<- ---装饰线---';
+    const disabledHost = document.createElement('div');
+    disabledHost.innerHTML = window.MynoteMd.renderMarkdownHtml(disabledSyntax);
+    const wiki = extensionHost.querySelector('.mynote-wiki-link');
+    const footnoteRef = extensionHost.querySelector('.footnote-ref a');
+    const footnoteTarget = extensionHost.querySelector('.footnotes li');
+    const customCallout = extensionHost.querySelector('details.callout');
     return {
       codeCount: codeNodes.length,
       codeText: codeNodes.map(node => node.textContent),
@@ -46,13 +57,35 @@ try {
       calloutStrong: !!callout?.querySelector('.callout-body strong'),
       calloutLink: callout?.querySelector('.callout-body a')?.getAttribute('href') || '',
       calloutItems: callout?.querySelectorAll('.callout-body li').length || 0,
-      calloutFence: codeCalloutHost.querySelector('.callout-body pre code')?.textContent || ''
+      calloutFence: codeCalloutHost.querySelector('.callout-body pre code')?.textContent || '',
+      customCallout: !!customCallout,
+      customCalloutTitle: customCallout?.querySelector('.callout-title')?.textContent || '',
+      customCalloutBodyStrong: !!customCallout?.querySelector('.callout-body strong'),
+      inlineMath: !!extensionHost.querySelector('.math-inline .katex'),
+      displayMath: !!extensionHost.querySelector('.math-block .katex-display'),
+      wiki: wiki ? [wiki.textContent, wiki.getAttribute('data-note-title')] : null,
+      markdownUrl: extensionHost.querySelector('a[href^="https://example.com/"]')?.getAttribute('href') || '',
+      footnote: !!footnoteRef && !!footnoteTarget && footnoteRef.getAttribute('href') === '#' + footnoteTarget.id && !!footnoteTarget.querySelector('.footnote-backref'),
+      superscript: [...extensionHost.querySelectorAll('sup')].find(node => node.textContent === '高1')?.textContent || '',
+      subscript: extensionHost.querySelector('sub')?.textContent || '',
+      disabledSyntaxText: disabledHost.textContent.trim(),
+      disabledSyntaxStyles: disabledHost.querySelectorAll('.mynote-color-tag, .mynote-tag, .mynote-align-center, .mynote-inline-note, .mynote-inline-question, .mynote-inline-person, .mynote-decorative-divider').length,
+      shortcodeText: extensionHost.textContent.includes(':smile:'),
+      hostileMarkupRemoved: !hostileHost.querySelector('script, img[onerror]')
     };
   });
   const expectedCode = "const literal = '~~strike~~ ==highlight== !!idea ??question @@name :smile: #tag $blue:x$ ->center<-';";
   check('反引号/波浪号围栏与行内代码中的扩展标记逐字保留', markdownPipeline.codeCount === 3 && markdownPipeline.codeText[0] === expectedCode + '\n' && markdownPipeline.codeText[1] === expectedCode + '\n' && markdownPipeline.codeText[2] === expectedCode && markdownPipeline.codeMarkup.every(markup => !/<(?:del|span|svg)\b/i.test(markup)), JSON.stringify(markdownPipeline.codeText));
   check('提示块正文继续解析加粗、链接与 Markdown 列表', markdownPipeline.calloutStrong && markdownPipeline.calloutLink === 'https://example.com' && markdownPipeline.calloutItems === 2, markdownPipeline.calloutBody.replace(/\s+/g, ' ').slice(0, 180));
   check('提示块内部围栏代码保留扩展标记字面量', markdownPipeline.calloutFence === "const nested = '~~keep~~ ==keep==';\n", JSON.stringify(markdownPipeline.calloutFence));
+  check('可折叠提示块支持自定义标题且正文继续解析 Markdown', markdownPipeline.customCallout && markdownPipeline.customCalloutTitle === '自定义标题' && markdownPipeline.customCalloutBodyStrong, JSON.stringify(markdownPipeline.customCallout));
+  check('KaTeX 本地渲染行内与块级公式', markdownPipeline.inlineMath && markdownPipeline.displayMath, JSON.stringify({ inline: markdownPipeline.inlineMath, display: markdownPipeline.displayMath }));
+  check('双链保留目标笔记名与自定义显示文字', JSON.stringify(markdownPipeline.wiki) === JSON.stringify(['显示文字', '目标笔记']), JSON.stringify(markdownPipeline.wiki));
+  check('Markdown 链接目标内的旧标签符号保持原样', markdownPipeline.markdownUrl === 'https://example.com/$blue:keep$', markdownPipeline.markdownUrl);
+  check('脚注引用与返回链接 ID 对应', markdownPipeline.footnote, JSON.stringify(markdownPipeline.footnote));
+  check('上标与下标扩展仍可渲染', markdownPipeline.superscript === '高1' && markdownPipeline.subscript === '低1', JSON.stringify({ sup: markdownPipeline.superscript, sub: markdownPipeline.subscript }));
+  check('停用的自定义标记按原文显示且没有旧装饰节点', markdownPipeline.disabledSyntaxText === '!!提示 ??问题 @@提及 #标签 $标签$ $blue:标签$ ->居中<- ---装饰线---' && markdownPipeline.disabledSyntaxStyles === 0, JSON.stringify({ text: markdownPipeline.disabledSyntaxText, styled: markdownPipeline.disabledSyntaxStyles }));
+  check('emoji 短码作为原文保留，恶意 HTML 属性与脚本被清理', markdownPipeline.shortcodeText && markdownPipeline.hostileMarkupRemoved, JSON.stringify({ shortcode: markdownPipeline.shortcodeText, sanitized: markdownPipeline.hostileMarkupRemoved }));
   const resultsByTheme = {};
   for (const width of [360, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
@@ -122,5 +155,223 @@ try {
     if (width >= 900) check('桌面普通文字居中限宽，图文卡与音乐卡保持全宽', r.readingLayout.textWidth < r.readingLayout.bodyWidth && Math.abs(r.readingLayout.textCenter-r.readingLayout.bodyCenter)<=1 && r.readingLayout.imageWidth >= r.readingLayout.bodyWidth-2 && r.readingLayout.musicWidth >= r.readingLayout.bodyWidth-2, JSON.stringify(r.readingLayout));
   }
   check('桌面和手机宽度均不横向撑开页面', [resultsByTheme['360:light'],resultsByTheme['390:light'],resultsByTheme['1280:light']].every(r=>r.page.scroll<=r.page.client+1), '360px、390px 与 1280px');
+  const wikiContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+  const wikiOrigin = `http://127.0.0.1:${port}`;
+  const wikiMemos = [
+    { id: 'wiki-source', title: '来源笔记', doc: [
+      { id: 'wiki-source-callout', type: 'paragraph', children: [{ text: '> [!TIP]- 可折叠\n> 提示正文。' }] },
+      { id: 'wiki-source-p', type: 'paragraph', children: [{ text: '参考 [[目标笔记|打开目标]]，之后 [[新建笔记]]。' }] }
+    ] },
+    { id: 'wiki-target', title: '目标笔记', doc: [{ id: 'wiki-target-p', type: 'paragraph', children: [{ text: '目标正文。' }] }] }
+  ];
+  await wikiContext.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.origin !== wikiOrigin) return route.abort();
+    return route.continue();
+  });
+  const wikiPage = await wikiContext.newPage();
+  await wikiPage.goto(`${wikiOrigin}/Moment.html`, { waitUntil: 'domcontentloaded' });
+  await wikiPage.waitForSelector('.list-item', { timeout: 30000 });
+  await wikiPage.evaluate(async memos => {
+    const storage = window.MynoteIdb;
+    if (!storage?.getDB || !storage?.saveMemosToDB) throw new Error('MynoteIdb test API is unavailable');
+    const db = await storage.getDB();
+    await storage.saveMemosToDB(db, memos);
+    localStorage.setItem('memos_app_v2', JSON.stringify(memos));
+  }, wikiMemos);
+  await wikiPage.reload({ waitUntil: 'domcontentloaded' });
+  await wikiPage.waitForSelector('.list-item', { timeout: 30000 });
+  await wikiPage.locator('.list-item').filter({ hasText: '来源笔记' }).first().click();
+  await wikiPage.waitForFunction(() => document.querySelector('.editor-title-input')?.textContent.trim() === '来源笔记', null, { timeout: 15000 });
+  await wikiPage.waitForTimeout(400);
+  await wikiPage.evaluate(() => { document.body.style.minHeight = '1400px'; window.scrollTo(0, 120); });
+  await wikiPage.waitForTimeout(100);
+  await wikiPage.setViewportSize({ width: 240, height: 640 });
+  await wikiPage.waitForTimeout(80);
+  const narrowTitleDock = await wikiPage.evaluate(() => {
+    const dock = document.querySelector('.editor-title-dock');
+    const avatar = dock.querySelector('.editor-avatar-button').getBoundingClientRect();
+    const input = dock.querySelector('.editor-title-input');
+    const capsule = input.parentElement.parentElement.getBoundingClientRect();
+    const left = document.querySelector('.editor-fab.left').getBoundingClientRect();
+    const right = document.querySelector('.editor-fab.right').getBoundingClientRect();
+    const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    return { direction: getComputedStyle(dock).flexDirection, wrap: getComputedStyle(dock).flexWrap, avatar, capsule, left, right, avatarCapsuleOverlap: overlap(avatar, capsule), leftOverlap: overlap(left, avatar) || overlap(left, capsule), rightOverlap: overlap(right, avatar) || overlap(right, capsule), inside: [avatar, capsule, left, right].every(r => r.left >= -0.5 && r.right <= innerWidth + 0.5) };
+  });
+  check('240px 极窄视口标题头像与两侧按钮不重叠且内容留在屏内', narrowTitleDock.direction === 'row' && narrowTitleDock.wrap === 'wrap' && !narrowTitleDock.avatarCapsuleOverlap && !narrowTitleDock.leftOverlap && !narrowTitleDock.rightOverlap && narrowTitleDock.inside, JSON.stringify(narrowTitleDock));
+  await wikiPage.setViewportSize({ width: 390, height: 844 });
+  await wikiPage.evaluate(() => { document.body.style.minHeight = ''; window.scrollTo(0, 0); });
+  await wikiPage.waitForTimeout(100);
+  await wikiPage.evaluate(() => { document.body.style.minHeight = '1400px'; window.scrollTo(0, 120); document.querySelector('.editor-body').focus(); });
+  await wikiPage.waitForTimeout(80);
+  await wikiPage.locator('.editor-title-input').click();
+  await wikiPage.waitForTimeout(100);
+  const titleFocusTransfer = await wikiPage.evaluate(() => ({ focused: document.activeElement === document.querySelector('.editor-title-input'), scrollY: window.scrollY, direction: getComputedStyle(document.querySelector('.editor-title-dock')).flexDirection }));
+  check('正文切换焦点到标题时不误滚顶或重排标题栏', titleFocusTransfer.focused && titleFocusTransfer.scrollY >= 60 && titleFocusTransfer.direction === 'row', JSON.stringify(titleFocusTransfer));
+  await wikiPage.locator('.editor-title-input').evaluate(el => el.blur());
+  await wikiPage.evaluate(() => { document.body.style.minHeight = ''; window.scrollTo(0, 0); });
+  const calloutSummary = wikiPage.locator('.callout-collapsible > summary');
+  await calloutSummary.waitFor({ state: 'visible', timeout: 15000 });
+  await calloutSummary.click();
+  await wikiPage.waitForFunction(() => document.querySelector('.callout-collapsible')?.open === true, null, { timeout: 5000 });
+  check('可折叠提示块的标题点击保持 Markdown 预览并切换展开状态', await wikiPage.locator('.md-preview.block').count() > 0, 'details 已展开');
+  const editedSourceTitle = '来源笔记-保存验证';
+  await wikiPage.locator('.editor-title-input').fill(editedSourceTitle);
+  await wikiPage.waitForSelector('a.mynote-wiki-link[data-note-title="目标笔记"]', { timeout: 15000 });
+  await wikiPage.locator('a.mynote-wiki-link[data-note-title="目标笔记"]').click();
+  await wikiPage.waitForFunction(() => document.querySelector('.editor-title-input')?.textContent.trim() === '目标笔记', null, { timeout: 15000 });
+  const persistedSource = await wikiPage.evaluate(() => JSON.parse(localStorage.getItem('memos_app_v2') || '[]').find(memo => memo.id === 'wiki-source'));
+  check('双链导航前即时保存当前笔记的未提交标题', persistedSource?.title === editedSourceTitle, persistedSource?.title || '未找到来源笔记');
+  const backlink = wikiPage.locator('.wiki-backlink').filter({ hasText: editedSourceTitle });
+  await backlink.waitFor({ state: 'visible', timeout: 15000 });
+  check('双链点击打开已存在的同名笔记，并在目标笔记展示反向链接', await backlink.count() === 1, '目标：目标笔记；来源：' + editedSourceTitle);
+  await backlink.click();
+  await wikiPage.waitForFunction(title => document.querySelector('.editor-title-input')?.textContent.trim() === title, editedSourceTitle, { timeout: 15000 });
+  await wikiPage.locator('a.mynote-wiki-link[data-note-title="新建笔记"]').click();
+  await wikiPage.waitForFunction(() => document.querySelector('.editor-title-input')?.textContent.trim() === '新建笔记', null, { timeout: 15000 });
+  check('双链目标未匹配时自动创建并打开同名笔记', true, '新建笔记');
+
+  const titleInput = wikiPage.locator('.editor-title-input');
+  const fastTitle = '标题连续输入光标测试'.repeat(4);
+  await titleInput.click();
+  await titleInput.press('Control+A');
+  await titleInput.pressSequentially(fastTitle, { delay: 0 });
+  await wikiPage.waitForFunction(value => document.querySelector('.editor-title-input')?.textContent === value, fastTitle, { timeout: 10000 });
+  await wikiPage.waitForTimeout(80);
+  const fastTitleState = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const container = input.parentElement;
+    const sel = getSelection();
+    const range = document.createRange();
+    range.setStart(sel.focusNode, sel.focusOffset);
+    range.collapse(true);
+    const caret = range.getBoundingClientRect();
+    const box = container.getBoundingClientRect();
+    return { text: input.textContent, whiteSpace: getComputedStyle(input).whiteSpace, maxScroll: container.scrollWidth - container.clientWidth, scrollLeft: container.scrollLeft, caret: { left: caret.left, right: caret.right, top: caret.top, height: caret.height }, box: { left: box.left, right: box.right }, focusOffset: sel.focusOffset, focusNodeType: sel.focusNode?.nodeType, caretVisible: caret.height > 0 && caret.left >= box.left + 8 && caret.right <= box.right - 8 };
+  });
+  check('标题胶囊快速连续输入长文本后光标仍可见且进入横向滚动模式', fastTitleState.text === fastTitle && fastTitleState.whiteSpace === 'nowrap' && fastTitleState.maxScroll > 0 && fastTitleState.caretVisible, JSON.stringify(fastTitleState));
+
+  const insertionOffset = 10;
+  await titleInput.evaluate((el, offset) => {
+    const text = el.firstChild;
+    const range = document.createRange();
+    range.setStart(text, offset);
+    range.collapse(true);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, insertionOffset);
+  await wikiPage.waitForTimeout(80);
+  const middleBefore = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const container = input.parentElement;
+    const selection = getSelection();
+    const range = document.createRange();
+    range.setStart(selection.focusNode, selection.focusOffset);
+    range.collapse(true);
+    const caret = range.getBoundingClientRect();
+    const box = container.getBoundingClientRect();
+    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretVisible: caret.height > 0 && caret.left >= box.left + 8 && caret.right <= box.right - 8 };
+  });
+  await titleInput.press('Space');
+  const titleAfterSpace = fastTitle.slice(0, insertionOffset) + ' ' + fastTitle.slice(insertionOffset);
+  await wikiPage.waitForFunction(value => document.querySelector('.editor-title-input')?.textContent === value, titleAfterSpace, { timeout: 5000 });
+  await wikiPage.waitForTimeout(80);
+  const middleAfter = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const container = input.parentElement;
+    const selection = getSelection();
+    const range = document.createRange();
+    range.setStart(selection.focusNode, selection.focusOffset);
+    range.collapse(true);
+    const caret = range.getBoundingClientRect();
+    const box = container.getBoundingClientRect();
+    return { text: input.textContent, offset: selection.focusOffset, scrollLeft: container.scrollLeft, maxScroll: container.scrollWidth - container.clientWidth, caretVisible: caret.height > 0 && caret.left >= box.left + 8 && caret.right <= box.right - 8 };
+  });
+  check('中段移动光标后输入空格不会跳到标题末尾，且光标留在可视区', middleBefore.offset === insertionOffset && middleBefore.caretVisible && middleAfter.text === titleAfterSpace && middleAfter.offset === insertionOffset + 1 && middleAfter.caretVisible && middleAfter.scrollLeft < middleAfter.maxScroll - 8, JSON.stringify({ before: middleBefore, after: middleAfter }));
+  await titleInput.evaluate(el => {
+    const range = document.createRange();
+    range.setStart(el.firstChild, 0);
+    range.collapse(true);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  });
+  await wikiPage.waitForTimeout(80);
+  const startCaretState = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const container = input.parentElement;
+    const selection = getSelection();
+    const range = document.createRange();
+    range.setStart(selection.focusNode, selection.focusOffset);
+    range.collapse(true);
+    const caret = range.getBoundingClientRect();
+    const box = container.getBoundingClientRect();
+    const style = getComputedStyle(container);
+    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretLeft: caret.left, boxLeft: box.left, boxRight: box.right, caretHeight: caret.height, paddingLeft: style.paddingLeft, mask: style.maskImage, webkitMask: style.webkitMaskImage };
+  });
+  check('长标题起始光标不受渐隐遮罩且保留左侧可见余量', startCaretState.offset === 0 && startCaretState.caretHeight > 0 && startCaretState.caretLeft >= startCaretState.boxLeft + 10 && startCaretState.caretLeft <= startCaretState.boxRight - 8 && startCaretState.paddingLeft === '12px' && startCaretState.mask === 'none' && startCaretState.webkitMask === 'none', JSON.stringify(startCaretState));
+  await wikiPage.setViewportSize({ width: 390, height: 480 });
+  await wikiPage.waitForTimeout(100);
+  const shortViewportTitle = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const dock = document.querySelector('.editor-title-dock').getBoundingClientRect();
+    const box = input.getBoundingClientRect();
+    return { focused: document.activeElement === input, viewportHeight: window.visualViewport ? window.visualViewport.height : innerHeight, dockTop: dock.top, dockBottom: dock.bottom, inputTop: box.top, inputBottom: box.bottom };
+  });
+  check('模拟可视视口高度缩小后标题输入仍完整位于屏幕内', shortViewportTitle.focused && shortViewportTitle.dockTop >= 0 && shortViewportTitle.dockBottom <= shortViewportTitle.viewportHeight && shortViewportTitle.inputTop >= 0 && shortViewportTitle.inputBottom <= shortViewportTitle.viewportHeight, JSON.stringify(shortViewportTitle));
+  await wikiPage.setViewportSize({ width: 390, height: 844 });
+  const imeEnterState = await titleInput.evaluate(el => {
+    el.focus();
+    el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '日' }));
+    const composingEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, isComposing: true });
+    el.dispatchEvent(composingEnter);
+    const duringComposition = { focused: document.activeElement === el, prevented: composingEnter.defaultPrevented };
+    el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '日本語' }));
+    const doneEnter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    el.dispatchEvent(doneEnter);
+    return { duringComposition, normalEnterPrevented: doneEnter.defaultPrevented, blurredAfterNormalEnter: document.activeElement !== el };
+  });
+  check('输入法组合期间 Enter 不强制失焦，组合结束后 Enter 正常完成标题', imeEnterState.duringComposition.focused && !imeEnterState.duringComposition.prevented && imeEnterState.normalEnterPrevented && imeEnterState.blurredAfterNormalEnter, JSON.stringify(imeEnterState));
+  await titleInput.evaluate(el => el.blur());
+
+  await wikiPage.locator('[aria-label="打开更多菜单"]').click();
+  const menuPanel = wikiPage.locator('.editor-menu-panel');
+  await menuPanel.waitFor({ state: 'visible', timeout: 5000 });
+  const menuAlignment = await wikiPage.evaluate(() => {
+    const panel = document.querySelector('.editor-menu-panel');
+    const exportEntry = panel.querySelector('.editor-export-entry');
+    const exportIcon = exportEntry.querySelector('span');
+    const otherIcon = panel.querySelector('button:not(.editor-export-entry) span');
+    return { exportLeft: exportIcon.getBoundingClientRect().left, otherLeft: otherIcon.getBoundingClientRect().left };
+  });
+  check('更多菜单导出图标与其他项目图标左边缘对齐', Math.abs(menuAlignment.exportLeft - menuAlignment.otherLeft) <= 0.5, JSON.stringify(menuAlignment));
+  await wikiPage.locator('.editor-export-entry').click();
+  await wikiPage.locator('.editor-export-back').waitFor({ state: 'visible', timeout: 5000 });
+  const exportAppearance = await wikiPage.evaluate(() => {
+    const back = document.querySelector('.editor-export-back');
+    const backStyle = getComputedStyle(back);
+    const icons = [...document.querySelectorAll('.editor-export-choice-icon')].map(icon => {
+      const style = getComputedStyle(icon);
+      return { background: style.backgroundColor, borderWidth: style.borderWidth, radius: style.borderRadius };
+    });
+    return { fab: back.classList.contains('editor-fab'), width: backStyle.width, height: backStyle.height, radius: backStyle.borderRadius, iconPoints: back.querySelector('polyline')?.getAttribute('points') || '', choices: icons };
+  });
+  check('导出格式图标无方形底框，返回按钮沿用 46px 玻璃圆形样式并显示返回图标', exportAppearance.fab && exportAppearance.width === '46px' && exportAppearance.height === '46px' && exportAppearance.radius === '50%' && exportAppearance.iconPoints === '15 18 9 12 15 6' && exportAppearance.choices.length === 3 && exportAppearance.choices.every(icon => icon.background === 'rgba(0, 0, 0, 0)' && icon.borderWidth === '0px' && icon.radius === '0px'), JSON.stringify(exportAppearance));
+  await wikiPage.locator('.editor-export-back').click();
+  await wikiPage.locator('.editor-export-panel').waitFor({ state: 'hidden', timeout: 5000 });
+  await wikiPage.locator('.editor-fab.right').click();
+  await wikiPage.locator('.editor-menu-panel').waitFor({ state: 'hidden', timeout: 5000 });
+  await wikiPage.waitForTimeout(240);
+  const closeSaveTitle = '未失焦直接返回保存验证';
+  const closeSaveTitleInput = wikiPage.locator('.editor-title-input');
+  await closeSaveTitleInput.click();
+  await closeSaveTitleInput.fill(closeSaveTitle);
+  await wikiPage.waitForFunction(value => document.querySelector('.editor-title-input')?.textContent === value, closeSaveTitle, { timeout: 5000 });
+  await wikiPage.locator('.editor-fab.left').click();
+  await wikiPage.waitForFunction(() => !document.querySelector('.editor-title-input'), null, { timeout: 10000 });
+  const savedOnClose = await wikiPage.evaluate(title => JSON.parse(localStorage.getItem('memos_app_v2') || '[]').some(memo => memo.title === title), closeSaveTitle);
+  check('标题输入仍聚焦时直接返回也会先提交并保存最新文本', savedOnClose, closeSaveTitle);
+  await wikiContext.close();
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 const failed=results.filter(r=>!r.ok); console.log(`\n${results.length-failed.length}/${results.length} 通过`); process.exitCode=failed.length?1:0;

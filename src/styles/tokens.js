@@ -113,8 +113,7 @@
       }
     },
     palette: {
-      backgroundColors: ['#eaeef2', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0'],
-      tagColors: { red: '#ff453a', blue: '#007aff', green: '#34c759', orange: '#ff9500', purple: '#af52de', gray: '#8e8e93' }
+      backgroundColors: ['#eaeef2', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0']
     },
     fontSizeMap: {
       small: '14px',

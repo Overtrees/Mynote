@@ -69,7 +69,7 @@ test('MynoteTokens 与 MynoteInlineStyles 暴露统一入口', () => {
   assert.equal(w.MynoteTokens.font[14], 'var(--font-14)');
   assert.equal(w.MynoteTokens.radius[32], 'var(--radius-32)');
   assert.equal(w.MynoteTokens.palette.backgroundColors.length, 8);
-  assert.equal(Object.keys(w.MynoteTokens.palette.tagColors).length, 6);
+  assert.equal('tagColors' in w.MynoteTokens.palette, false);
   assert.equal(w.MynoteInlineStyles.fixedOverlay.position, 'fixed');
 });
 

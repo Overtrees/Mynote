@@ -12,6 +12,7 @@
     var setFiles = opts.setFiles;
     var memo = opts.memo;
     var triggerAutoSave = opts.triggerAutoSave;
+    var flushAutoSave = opts.flushAutoSave;
     var recordUndoPoint = opts.recordUndoPoint;
     var setRenderKey = opts.setRenderKey;
     var setEditorScrolled = opts.setEditorScrolled;
@@ -43,6 +44,7 @@
     var renderAtomicHTML = opts.renderAtomicHTML;
     var renderMarkdownHtml = opts.renderMarkdownHtml;
     var escapeHTML = opts.escapeHTML;
+    var onOpenWikiLink = opts.onOpenWikiLink;
 
   var handleEditorClick = useCallback(function (e) {
     var host = editorBodyRef.current;
@@ -66,9 +68,27 @@
       openImageTextSheet(textArea);
       return;
     }
+    /* ---- 双链优先导航；保存当前编辑内容后按笔记名打开或新建目标笔记 ---- */
+    var wikiLink = e.target && e.target.closest && e.target.closest('a.mynote-wiki-link[data-note-title]');
+    if (wikiLink && typeof onOpenWikiLink === 'function') {
+      e.preventDefault();
+      var targetTitle = wikiLink.dataset.noteTitle || '';
+      if (typeof flushAutoSave === 'function') {
+        Promise.resolve(flushAutoSave()).then(function () {
+          onOpenWikiLink(targetTitle);
+        }).catch(function (error) {
+          console.warn('[此刻] wiki navigation save', error);
+          onOpenWikiLink(targetTitle);
+        });
+      } else {
+        if (typeof triggerAutoSave === 'function') triggerAutoSave();
+        onOpenWikiLink(targetTitle);
+      }
+      return;
+    }
     /* ---- 点击已渲染块（表格/代码块/Callout）→ 回到编辑态 ---- */
     var mdBlock = e.target.closest('.md-preview.block[data-mdtext]');
-    if (mdBlock && !e.target.closest('a, button, input, [contenteditable="true"]')) {
+    if (mdBlock && !e.target.closest('a, button, input, summary, [contenteditable="true"]')) {
       var mdtext = mdBlock.dataset.mdtext || '';
       var bid = mdBlock.dataset.blockid || '';
       var p = document.createElement('p');
@@ -133,6 +153,7 @@
     }
     // MD render → 点击还原为可编辑文本
     var renderedEl = e.target.closest('[data-mdtext]');
+    if (renderedEl && e.target.closest('summary')) return;
     if (renderedEl) {
       var id = renderedEl.dataset.blockid;
       var text = renderedEl.dataset.mdtext || '';
@@ -329,7 +350,7 @@
     if (lc && lc.dataset.url) {
       window.open(lc.dataset.url, '_blank');
     }
-  }, [triggerAutoSave, showMenu, files]);
+  }, [triggerAutoSave, flushAutoSave, showMenu, files, onOpenWikiLink]);
 
   /* ---- 原生待办复选框：同步保存状态，键盘操作保留焦点 ---- */
   var handleTodoClick = useCallback(function (e) {
@@ -369,24 +390,23 @@
 
   var handleEditorBlur = useCallback(function () {
     editorFocusedRef.current = false;
-    // 键盘收起时强制重排固定元素位置
-    if (window.visualViewport) {
-      window.scrollTo(0, 0);
-    }
-    // 键盘收起时复位标题胶囊
-    if (isEditingTitleRef.current) {
-      isEditingTitleRef.current = false;
-      editingStyleSnapshot.current = null;
-      setEditingTitle(null);
-    }
-    // 同步滚动状态（键盘收起后 iOS 可能异步恢复滚动位置，需循环覆盖）
-    var retries = 0;
-    function forceVertical() {
-      setEditorScrolled(false);
-      retries++;
-      if (retries < 6) setTimeout(forceVertical, 80);
-    }
-    forceVertical();
+    // 等待焦点转移完成；若正文只是把焦点交给标题，键盘并未收起，不重置顶栏。
+    requestAnimationFrame(function () {
+      var active = document.activeElement;
+      var titleHasFocus = isEditingTitleRef.current || active && active.closest && active.closest('.editor-title-dock');
+      if (titleHasFocus) return;
+      if (window.visualViewport) window.scrollTo(0, 0);
+      // iOS 可能异步恢复滚动位置，重复校正期间若标题重新获得焦点则停止。
+      var retries = 0;
+      function forceVertical() {
+        var current = document.activeElement;
+        if (isEditingTitleRef.current || current && current.closest && current.closest('.editor-title-dock')) return;
+        setEditorScrolled(false);
+        retries++;
+        if (retries < 6) setTimeout(forceVertical, 80);
+      }
+      forceVertical();
+    });
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {

@@ -254,11 +254,11 @@ function MemoList() {
       });
     }
   };
-  const handleNew = () => {
+  const handleNew = (initialTitle) => {
     const now = new Date().toISOString();
     const newMemo = {
       id: genId(),
-      title: "无标题",
+      title: String(initialTitle || '').trim() || "无标题",
       doc: [{
         id: genId(),
         type: "paragraph",
@@ -287,6 +287,17 @@ function MemoList() {
         focusNow() || requestAnimationFrame(() => focusNow());
       });
     }
+  };
+  const openWikiTarget = target => {
+    var requestedTitle = String(target || '').split('#')[0].trim();
+    if (!requestedTitle) return;
+    var key = requestedTitle.toLocaleLowerCase();
+    var current = memosRef.current || memos;
+    var match = current.find(function (candidate) {
+      return candidate && String(candidate.title || '').trim().toLocaleLowerCase() === key;
+    });
+    if (match) openEditor(match);
+    else handleNew(requestedTitle);
   };
   const togglePin = id => {
     if (id === NEW_CARD_ID) return;
@@ -457,7 +468,7 @@ function MemoList() {
       onOpenBackup: () => setView('backup')
     });
   }
-  if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
+  if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { key: editingMemo.id, memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id, relatedMemos: memos, onOpenWikiLink: openWikiTarget });
   return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { className: "page-title compact", style: { visibility: isCompact ? 'visible' : 'hidden', opacity: isCompact ? 1 : 0, pointerEvents: 'auto', cursor: 'pointer', width: 'fit-content', margin: '0 auto' }, onClick: () => setView('settings') }, "\u6B64\u523B"), /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) both" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {

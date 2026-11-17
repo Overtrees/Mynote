@@ -1,6 +1,6 @@
 {
   "name": "mynote-cike",
-  "version": "2.2.5",
+  "version": "2.2.7",
   "private": true,
   "description": "此刻 / Mynote —— 静态 HTML 单页笔记应用（无构建步骤，脚本按顺序直出）",
   "scripts": {

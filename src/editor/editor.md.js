@@ -2,52 +2,43 @@
 (function (w) {
   'use strict';
 
-  function preprocessExtendedMarkdownUnprotected(text) {
-    if (!text || typeof text !== 'string') return text;
-    return text
-      .replace(/~~([^~]+)~~/g, '<del style="background:var(--fill-hover);padding:0 2px;">$1</del>')
-      .replace(/==([^=]+)==/g, '<span style="display:inline-flex;align-items:center;background:var(--fill-highlight);color:var(--text-main);padding:0 10px;border-radius:var(--radius-999);line-height:1.8;font-weight:600;font-size:0.8em;">$1</span>')
-      .replace(/!!([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-info);color:var(--color-accent);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> $1</span></span>')
-      .replace(/\?\?([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-warning-12);color:var(--color-tip);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> $1</span></span>')
-      .replace(/@@([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-success-12);color:var(--color-success);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> $1</span></span>')
-      .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:var(--color-accent);background:var(--fill-accent-08);padding:0 10px;border-radius:var(--radius-999);font-size:0.8em;font-weight:600;line-height:1.8;">#$2</span>')
-      /* ---- emoji shortcodes ---- */
-      .replace(/:([a-z_+-]+):/g, function(m, name) {
-        var map = { smile:'\uD83D\uDE0A', heart:'\u2764\uFE0F', rocket:'\uD83D\uDE80', fire:'\uD83D\uDD25', check:'\u2705', x:'\u274C', warning:'\u26A0\uFE0F', info:'\u2139\uFE0F', question:'\u2753', thumbsup:'\uD83D\uDC4D', thumbsdown:'\uD83D\uDC4E', ok:'\uD83D\uDC4C', wave:'\uD83D\uDC4B', clap:'\uD83D\uDC4F', pray:'\uD83D\uDE4F', star:'\u2B50', sparkles:'\u2728', bookmark:'\uD83D\uDD16', link:'\uD83D\uDD17', gear:'\u2699\uFE0F', lock:'\uD83D\uDD12', unlock:'\uD83D\uDD13', mail:'\uD83D\uDCE7', phone:'\uD83D\uDCDE', calendar:'\uD83D\uDCC5', clock:'\uD83D\uDD50', memo:'\uD83D\uDCDD', pushpin:'\uD83D\uDCCC', paperclip:'\uD83D\uDCCE', file:'\uD83D\uDCC4', folder:'\uD83D\uDCC1', image:'\uD83D\uDDBC\uFE0F', music:'\uD83C\uDFB5', video:'\uD83C\uDFAC', bulb:'\uD83D\uDCA1', book:'\uD83D\uDCD6', chart:'\uD83D\uDCCA', code:'\uD83D\uDCBB', database:'\uD83D\uDEE4\uFE0F', globe:'\uD83C\uDF10', bug:'\uD83D\uDC1B', flask:'\uD83E\uDDEA', robot:'\uD83E\uDD16', party:'\uD83C\uDF89', gift:'\uD83C\uDF81', trophy:'\uD83C\uDFC6', medal:'\uD83E\uDD47', zap:'\u26A1', rain:'\uD83C\uDF27\uFE0F', sun:'\u2600\uFE0F', moon:'\uD83C\uDF19', cloud:'\u2601\uFE0F', snow:'\u2744\uFE0F' };
-        return map[name] || m;
-      })
-      /* ---- 居中文字 ->text<- ---- */
-      .replace(/->(.+?)<-/g, '<div style="text-align:center;margin:0.6em 0;">$1</div>')
-      /* ---- 彩色标签 $color:文字$ / $文字$ ---- */
-      .replace(/\$(\w+):([^$]+)\$/g, function(m, color, text) {
-        var colors = (window.MynoteTokens && window.MynoteTokens.palette.tagColors) || {};
-        var c = colors[color.toLowerCase()] || colors.blue;
-        return '<span style="display:inline-flex;align-items:center;gap:3px;background:' + c + '18;color:' + c + ';padding:0 10px;border-radius:var(--radius-999);font-size:var(--font-12);font-weight:600;line-height:1.8;">' + text.trim() + '</span>';
-      })
-      .replace(/\$([^$]{1,30})\$/g, '<span style="display:inline-flex;align-items:center;gap:3px;background:var(--fill-accent-10);color:var(--color-accent);padding:0 10px;border-radius:var(--radius-999);font-size:var(--font-12);font-weight:600;line-height:1.8;">$1</span>')
-      /* ---- 装饰分割线 ---emoji--- ---- */
-      .replace(/^---(.+?)---$/gm, function(m, icon) {
-        return '<hr style="border:none;margin:1.2em 0;"><div style="text-align:center;margin:-1.4em 0 1.2em;font-size:var(--font-12);color:var(--color-placeholder);letter-spacing:4px;position:relative;z-index:1;background:var(--card-bg,var(--color-white));width:fit-content;padding:0 12px;margin-left:auto;margin-right:auto;">' + icon + '</div>';
-      });
-  }
-
   var parseMarkdownSource = null;
+
+  function escapeHTML(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   function setMarkdownParser(parser) {
     parseMarkdownSource = typeof parser === 'function' ? parser : null;
   }
 
-  function protectCodeSegments(text, protectedParts) {
-    var source = String(text || '');
+  function createTokenState(source) {
     var prefix = '\uE000mynote-md-' + Math.random().toString(36).slice(2) + '-';
-    while (source.indexOf(prefix) >= 0) prefix = '\uE000mynote-md-' + Math.random().toString(36).slice(2) + '-';
-    function stash(value, calloutValue) {
-      var token = prefix + protectedParts.length + '\uE001';
-      protectedParts.push({ token: token, value: value, calloutValue: calloutValue });
+    while (String(source || '').indexOf(prefix) >= 0) prefix = '\uE000mynote-md-' + Math.random().toString(36).slice(2) + '-';
+    var parts = [];
+    function stash(value, type, calloutValue) {
+      var token = prefix + parts.length + '\uE001';
+      parts.push({ token: token, value: String(value == null ? '' : value), type: type || 'generated', calloutValue: calloutValue });
       return token;
     }
+    function restore(text, mode) {
+      var restored = String(text || '');
+      parts.forEach(function (part) {
+        if (mode === 'code' && part.type !== 'code') return;
+        var value = mode === 'callout' && part.type === 'code' && typeof part.calloutValue === 'string'
+          ? part.calloutValue : part.value;
+        restored = restored.split(part.token).join(value);
+      });
+      return restored;
+    }
+    return { parts: parts, stash: stash, restore: restore };
+  }
 
-    // Fence code blocks as complete source slices before looking for inline code.
+  function protectCodeSegments(text, state) {
+    var source = String(text || '');
+    // Extract fenced code as complete slices before scanning inline backticks.
     var fenced = '';
     var offset = 0;
     while (offset < source.length) {
@@ -82,34 +73,27 @@
       var fenceSource = source.slice(offset, blockEnd);
       var calloutFenceSource = fenceSource;
       if (quoteDepth) {
-        calloutFenceSource = fenceSource.replace(/(^|\n)( {0,3}(?:>\s*)+)/g, function (line, newline, prefixText) {
+        calloutFenceSource = fenceSource.replace(/(^|\n)( {0,3}(?:>\s*)+)/g, function (whole, newlineText, prefixText) {
           var stripped = prefixText;
           for (var depth = 0; depth < quoteDepth; depth++) stripped = stripped.replace(/^ {0,3}>[ \t]?/, '');
-          return newline + stripped;
+          return newlineText + stripped;
         });
       }
-      var fenceToken = stash(fenceSource, calloutFenceSource);
+      var fenceToken = state.stash(fenceSource, 'code', calloutFenceSource);
       fenced += quoteDepth ? line.match(/^ {0,3}/)[0] + opening[1] + fenceToken : fenceToken;
       offset = blockEnd;
     }
 
-    // Protect matching backtick runs, including multiline spans, but leave escaped ticks alone.
+    // Protect matching inline backtick runs (including multiline spans); escaped ticks stay literal.
     var inline = '';
     var i = 0;
     while (i < fenced.length) {
-      if (fenced.charAt(i) !== '`') {
-        inline += fenced.charAt(i++);
-        continue;
-      }
+      if (fenced.charAt(i) !== '`') { inline += fenced.charAt(i++); continue; }
       var slashCount = 0;
       for (var back = i - 1; back >= 0 && fenced.charAt(back) === '\\'; back--) slashCount++;
       var runEnd = i + 1;
       while (fenced.charAt(runEnd) === '`') runEnd++;
-      if (slashCount % 2) {
-        inline += fenced.slice(i, runEnd);
-        i = runEnd;
-        continue;
-      }
+      if (slashCount % 2) { inline += fenced.slice(i, runEnd); i = runEnd; continue; }
       var runLength = runEnd - i;
       var search = runEnd;
       var closingStart = -1;
@@ -121,73 +105,253 @@
         if (closeRunEnd - tick === runLength) { closingStart = tick; break; }
         search = closeRunEnd;
       }
-      if (closingStart < 0) {
-        inline += fenced.slice(i, runEnd);
-        i = runEnd;
-      } else {
+      if (closingStart < 0) { inline += fenced.slice(i, runEnd); i = runEnd; }
+      else {
         var spanEnd = closingStart + runLength;
-        inline += stash(fenced.slice(i, spanEnd));
+        inline += state.stash(fenced.slice(i, spanEnd), 'code');
         i = spanEnd;
       }
     }
     return inline;
   }
 
-  function restoreProtected(text, protectedParts, forCallout) {
-    var restored = String(text || '');
-    protectedParts.forEach(function (part) {
-      var value = forCallout && typeof part.calloutValue === 'string' ? part.calloutValue : part.value;
-      restored = restored.split(part.token).join(value);
+  function protectRawHtmlAndLinkTargets(text, state) {
+    var source = String(text || '');
+    // Keep URL punctuation and raw HTML attributes out of custom syntax scans.
+    source = source.replace(/\]\(([^)\n]*)\)/g, function (whole, target) {
+      return '](' + state.stash(target, 'opaque') + ')';
     });
-    return restored;
+    source = source.replace(/<\/?[A-Za-z][^<>]*>/g, function (tag) {
+      return state.stash(tag, 'opaque');
+    });
+    return source;
+  }
+
+  var CALLOUT_ICONS = {
+    note: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-note-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+    warning: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-warning-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    tip: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-tip-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+    important: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-important-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+    caution: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-caution-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+  var CALLOUT_STYLE = {
+    note: 'note', info: 'note', todo: 'note', abstract: 'note', quote: 'note',
+    tip: 'tip', success: 'tip', example: 'tip', question: 'warning', warning: 'warning',
+    important: 'important', failure: 'important', bug: 'important', caution: 'caution', danger: 'caution'
+  };
+  var CALLOUT_TITLE = {
+    note: '笔记', info: '信息', todo: '待办', abstract: '摘要', quote: '引用',
+    tip: '提示', success: '成功', example: '示例', question: '问题', warning: '注意',
+    important: '重要', failure: '失败', bug: '问题', caution: '小心', danger: '危险'
+  };
+
+  function preprocessCallouts(text, state) {
+    return String(text || '').replace(/^ {0,3}>[ \t]*\[!(\w+)\]([+-]?)(?:[ \t]+([^\r\n]*))?[ \t]*(?:\r?\n(?: {0,3}>[^\r\n]*(?:\r?\n|$))*)?/gm,
+      function (whole, rawType, folding, customTitle) {
+        var rawLines = whole.split(/\r?\n/);
+        var bodyLines = rawLines.slice(1).map(function (line) { return line.replace(/^ {0,3}>[ \t]?/, ''); });
+        var bodyText = state.restore(bodyLines.join('\n').trim(), 'callout');
+        var type = String(rawType || '').toLowerCase();
+        var style = CALLOUT_STYLE[type] || 'note';
+        var title = customTitle && customTitle.trim() ? customTitle.trim() : (CALLOUT_TITLE[type] || rawType);
+        title = escapeHTML(state.restore(title, 'callout'));
+        var bodyHtml = bodyText ? (parseMarkdownSource ? parseMarkdownSource(bodyText) : escapeHTML(bodyText).replace(/\n/g, '<br>')) : '';
+        var header = '<span class="callout-icon" aria-hidden="true">' + CALLOUT_ICONS[style] + '</span><span class="callout-title">' + title + '</span>';
+        var markup;
+        if (folding === '+' || folding === '-') {
+          markup = '<details class="callout callout-' + style + ' callout-collapsible"' + (folding === '+' ? ' open' : '') + '><summary class="callout-header">' + header + '</summary><div class="callout-body">' + (bodyHtml || '') + '</div></details>';
+        } else {
+          markup = '<aside class="callout callout-' + style + '"><div class="callout-header">' + header + '</div><div class="callout-body">' + (bodyHtml || '') + '</div></aside>';
+        }
+        return state.stash(markup, 'generated');
+      });
+  }
+
+  function footnoteId(label) {
+    return 'fn-' + encodeURIComponent(String(label || '').trim()).replace(/%/g, '_').replace(/[^A-Za-z0-9_-]/g, '_');
+  }
+
+  function preprocessFootnotes(text, state) {
+    var lines = String(text || '').split('\n');
+    var kept = [];
+    var definitions = Object.create(null);
+    var order = [];
+    for (var i = 0; i < lines.length; i++) {
+      var match = lines[i].match(/^ {0,3}\[\^([^\]\s]+)\]:[ \t]*(.*)$/);
+      if (!match) { kept.push(lines[i]); continue; }
+      var key = match[1].toLowerCase();
+      var body = [match[2]];
+      var originalLines = [lines[i]];
+      while (i + 1 < lines.length) {
+        var continuation = lines[i + 1].match(/^(?: {2,}|\t)(.*)$/);
+        if (!continuation) break;
+        i++;
+        body.push(continuation[1]);
+        originalLines.push(lines[i]);
+      }
+      if (!definitions[key]) {
+        definitions[key] = { label: match[1], body: body.join('\n').trim(), original: originalLines.join('\n'), refs: [] };
+        order.push(definitions[key]);
+      }
+    }
+    var source = kept.join('\n');
+    source = source.replace(/\[\^([^\]\s]+)\]/g, function (whole, label) {
+      var entry = definitions[label.toLowerCase()];
+      if (!entry) return whole;
+      var number = order.indexOf(entry) + 1;
+      var refIndex = entry.refs.length + 1;
+      var target = footnoteId(entry.label);
+      var refId = target + '-ref-' + refIndex;
+      entry.refs.push(refId);
+      return state.stash('<sup class="footnote-ref"><a href="#' + target + '" id="' + refId + '" aria-label="脚注 ' + number + '">' + number + '</a></sup>', 'generated');
+    });
+    var items = [];
+    var unused = [];
+    order.forEach(function (entry, index) {
+      if (!entry.refs.length) { unused.push(entry.original); return; }
+      var target = footnoteId(entry.label);
+      var bodyHtml = parseMarkdownSource ? parseMarkdownSource(entry.body) : escapeHTML(entry.body).replace(/\n/g, '<br>');
+      var backs = entry.refs.map(function (refId) {
+        return '<a class="footnote-backref" href="#' + refId + '" aria-label="返回脚注引用">↩</a>';
+      }).join(' ');
+      items.push('<li id="' + target + '">' + bodyHtml + '<span class="footnote-backlinks"> ' + backs + '</span></li>');
+    });
+    if (items.length) source += '\n\n' + state.stash('<section class="footnotes" aria-label="脚注"><ol>' + items.join('') + '</ol></section>', 'generated');
+    if (unused.length) source += '\n\n' + unused.join('\n');
+    return source;
+  }
+
+  function isEscapedAt(text, index) {
+    var slashes = 0;
+    for (var i = index - 1; i >= 0 && text.charAt(i) === '\\'; i--) slashes++;
+    return slashes % 2 === 1;
+  }
+
+  function looksLikeMathExpression(expression) {
+    var value = String(expression || '').trim();
+    if (!value) return false;
+    if (/^[A-Za-z]$/.test(value)) return true;
+    return /(?:\\[A-Za-z]+|[0-9]|[=+\-*/^_{}<>]|[\u03b1-\u03c9\u0391-\u03a9])/.test(value);
+  }
+
+  function renderMath(expression, displayMode) {
+    var tex = String(expression || '').trim();
+    var rendered;
+    try {
+      if (w.katex && typeof w.katex.renderToString === 'function') {
+        rendered = w.katex.renderToString(tex, {
+          displayMode: !!displayMode,
+          output: 'htmlAndMathml',
+          throwOnError: false,
+          trust: false,
+          strict: 'ignore',
+          maxExpand: 100,
+          maxSize: 20
+        });
+      } else {
+        rendered = '<code class="math-source">' + escapeHTML(tex) + '</code>';
+      }
+    } catch (error) {
+      rendered = '<code class="math-source">' + escapeHTML(tex) + '</code>';
+    }
+    return displayMode ? '<div class="math-block" role="math">' + rendered + '</div>' : '<span class="math-inline" role="math">' + rendered + '</span>';
+  }
+
+  function preprocessMath(text, state) {
+    var source = String(text || '');
+    // Display formulas on separate lines, then any remaining $$...$$ display spans.
+    source = source.replace(/(^|\n)[ \t]*\$\$[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*\$\$[ \t]*(?=\r?\n|$)/g,
+      function (whole, lineStart, expression) { return lineStart + state.stash(renderMath(expression, true), 'generated'); });
+    source = source.replace(/\$\$([\s\S]+?)\$\$/g, function (whole, expression, offset, full) {
+      if (isEscapedAt(full, offset)) return whole;
+      return state.stash(renderMath(expression, true), 'generated');
+    });
+    source = source.replace(/\$([^$\r\n]+?)\$/g, function (whole, expression, offset, full) {
+      if (isEscapedAt(full, offset) || full.charAt(offset - 1) === '$' || full.charAt(offset + whole.length) === '$') return whole;
+      if (!looksLikeMathExpression(expression)) return whole;
+      return state.stash(renderMath(expression, false), 'generated');
+    });
+    return source;
+  }
+
+  function preprocessInlineExtensions(text, state) {
+    var source = String(text || '');
+    function html(markup) { return state.stash(markup, 'generated'); }
+    source = source.replace(/~~([^~\n]+)~~/g, function (whole, value) {
+      return html('<del class="mynote-strikethrough">' + value + '</del>');
+    });
+    source = source.replace(/==([^=\n]+)==/g, function (whole, value) {
+      return html('<span class="mynote-highlight">' + value + '</span>');
+    });
+    source = source.replace(/\^\(([^()\n]+)\)\^/g, function (whole, value) {
+      return html('<sup>' + escapeHTML(value) + '</sup>');
+    });
+    source = source.replace(/\^([A-Za-z0-9][A-Za-z0-9,+-]*)\^/g, function (whole, value) {
+      return html('<sup>' + escapeHTML(value) + '</sup>');
+    });
+    source = source.replace(/~\(([^()\n]+)\)~/g, function (whole, value) {
+      return html('<sub>' + escapeHTML(value) + '</sub>');
+    });
+    source = source.replace(/(^|[^~])~([A-Za-z0-9][A-Za-z0-9,+-]*)~(?!~)/g, function (whole, before, value) {
+      return before + html('<sub>' + escapeHTML(value) + '</sub>');
+    });
+    source = source.replace(/\[\[([^\]\r\n|]+)(?:\|([^\]\r\n]+))?\]\]/g, function (whole, rawTarget, rawLabel) {
+      var target = rawTarget.trim();
+      if (!target) return whole;
+      var label = rawLabel == null ? target : rawLabel.trim();
+      return html('<a class="mynote-wiki-link" href="#" data-note-title="' + escapeHTML(target) + '" title="打开笔记：' + escapeHTML(target) + '">' + escapeHTML(label || target) + '</a>');
+    });
+    return source;
   }
 
   function preprocessExtendedMarkdown(text) {
     if (!text || typeof text !== 'string') return text;
-    var protectedParts = [];
-    var source = protectCodeSegments(text, protectedParts);
-    source = preprocessExtendedMarkdownUnprotected(source);
-    source = source.replace(/^ {0,3}>[ \t]*\[!(\w+)\][^\n]*(?:\n {0,3}>[^\n]*)*/gm, function (match, type) {
-      var lines = match.split('\n');
-      lines[0] = lines[0].replace(/^ {0,3}>[ \t]*\[!\w+\][ \t]?/, '');
-      var bodyText = lines.map(function (line, index) {
-        return index === 0 ? line : line.replace(/^ {0,3}>\s?/, '');
-      }).join('\n').trim();
-      bodyText = restoreProtected(bodyText, protectedParts, true);
-      var t = type.toLowerCase();
-      var icons = {
-        note:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-note-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-        warning:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-warning-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-        tip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-tip-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-        important:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-important-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
-        caution:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-caution-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-      };
-      var titles = { note:'笔记', warning:'注意', tip:'提示', important:'重要', caution:'小心' };
-      var bodyHtml = bodyText && parseMarkdownSource ? parseMarkdownSource(bodyText) : bodyText;
-      return '<aside class="callout callout-' + t + '"><div class="callout-header"><span class="callout-icon">' + (icons[t] || '\u2139\uFE0F') + '</span><span class="callout-title">' + (titles[t] || type) + '</span></div><div class="callout-body">' + (bodyHtml || '') + '</div></aside>';
-    });
-    return restoreProtected(source, protectedParts);
+    var state = createTokenState(text);
+    var source = protectCodeSegments(text, state);
+    source = protectRawHtmlAndLinkTargets(source, state);
+    source = preprocessCallouts(source, state);
+    source = preprocessMath(source, state);
+    source = preprocessFootnotes(source, state);
+    source = preprocessInlineExtensions(source, state);
+    return state.restore(source);
+  }
+
+  function hasMathSyntax(text) {
+    var source = String(text || '');
+    if (/\$\$[\s\S]+?\$\$/.test(source)) return true;
+    var pattern = /\$([^$\r\n]+)\$/g;
+    var match;
+    while ((match = pattern.exec(source))) {
+      if (!isEscapedAt(source, match.index) && looksLikeMathExpression(match[1])) return true;
+    }
+    return false;
   }
 
   function looksLikeMarkdown(text) {
     var s = String(text || '').trim();
     if (!s) return false;
-    return /(^|\n)#{1,6}\s|(^|\n)[-*+]\s|(^|\n)\d+\.\s|(^|\n)>\s|`{1,3}|\*\*[^*]+\*\*|(^|[^*])\*[^*\n]+\*($|[^*])|__[^_]+__|~~[^~]+~~|!\[[^\]]*\]\([^\)]+\)|\[[^\]]+\]\([^\)]+\)|(^|\n)---+(\n|$)|==[^=]+==|!!|\?\?|@@|->.*?<-|\$[^$]+\$|^\|.+\||:[a-z_+:-]+:|^---.+---$/m.test(s);
+    var commonMarkdown = /(^|\n)#{1,6}\s|(^|\n)[-*+]\s|(^|\n)\d+\.\s|(^|\n)>\s|`{1,3}|\*\*[^*]+\*\*|(^|[^*])\*[^*\n]+\*($|[^*])|__[^_]+__|~~[^~]+~~|!\[[^\]]*\]\([^)]+\)|\[[^\]]+\]\([^)]+\)|(^|\n)---+(\n|$)|==[^=]+==|\[\[[^\]]+\]\]|\[\^[^\]]+\]|\^\([^\n]+\)\^|\^[A-Za-z0-9][A-Za-z0-9,+-]*\^|~\([^\n]+\)~|(^|[^~])~[A-Za-z0-9][A-Za-z0-9,+-]*~(?!~)/m.test(s);
+    return commonMarkdown || hasMathSyntax(s);
   }
 
   function looksLikeCiaoMarkdown(text) {
     if (!text || !text.trim()) return false;
-    if (looksLikeMarkdown(text)) return true;
-    return /==[^=]+==|!![^\n]+|\?\?[^\n]+|@@[^\n]+|~~[^~]+~~|#[\u4e00-\u9fa5\w-]+/.test(text);
+    return looksLikeMarkdown(text);
   }
 
   function stripMarkdownForPreview(text) {
     return String(text || '')
+      .replace(/^\[\^[^\]]+\]:.*(?:\n[ \t]+.*)*$/gm, '')
+      .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+      .replace(/\[\[([^\]]+)\]\]/g, '$1')
+      .replace(/\[\^([^\]]+)\]/g, '')
+      .replace(/\$\$([\s\S]*?)\$\$/g, '$1')
+      .replace(/\^\(([^()\n]+)\)\^/g, '$1')
+      .replace(/\^([A-Za-z0-9][A-Za-z0-9,+-]*)\^/g, '$1')
+      .replace(/~\(([^()\n]+)\)~/g, '$1')
+      .replace(/(^|[^~])~([A-Za-z0-9][A-Za-z0-9,+-]*)~(?!~)/g, '$1$2')
       .replace(/==([^=]+)==/g, '$1')
-      .replace(/!!([^\n]+)/g, '\uD83D\uDCA1 $1')
-      .replace(/\?\?([^\n]+)/g, '\u2753 $1')
-      .replace(/@@([^\n]+)/g, '\uD83D\uDC64 $1')
-      .replace(/```[\s\S]*?```/g, ' \u4EE3\u7801\u5757 ')
+      .replace(/```[\s\S]*?```/g, ' 代码块 ')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, '$1')
       .replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '$1')
@@ -200,9 +364,9 @@
       .replace(/\*([^*]+)\*/g, '$1')
       .replace(/_([^_]+)_/g, '$1')
       .replace(/~~([^~]+)~~/g, '$1')
-      .replace(/->(.+?)<-/g, '$1')
-      .replace(/\$([^$]{1,30})\$/g, '$1')
-      .replace(/^---(.+?)---$/gm, '$1')
+      .replace(/\$([^$\n]+)\$/g, function (whole, value, offset, full) {
+        return !isEscapedAt(full, offset) && looksLikeMathExpression(value) ? value : whole;
+      })
       .replace(/\n+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -213,16 +377,18 @@
       var raw = String(text || '');
       if (!raw.trim()) return '';
       var html;
-      if (window.marked) html = marked.parse(raw);
+      if (w.marked) html = w.marked.parse(raw);
       else {
         var processed = preprocessExtendedMarkdown(raw);
-        html = processed.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+        html = processed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
       }
-      if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') return window.DOMPurify.sanitize(html, { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type'] });
-      return '<p>' + String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'; // fail closed
-    } catch(e) {
-      console.warn('[此刻] renderMarkdownHtml error', e);
-      var safe = String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      if (w.DOMPurify && typeof w.DOMPurify.sanitize === 'function') {
+        return w.DOMPurify.sanitize(html, { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type', 'open'] });
+      }
+      return '<p>' + raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>') + '</p>'; // fail closed
+    } catch (error) {
+      console.warn('[此刻] renderMarkdownHtml error', error);
+      var safe = String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
       return '<p>' + safe + '</p>';
     }
   }

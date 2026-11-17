@@ -84,7 +84,7 @@
    *  - 结果首元素是块级标签 → 换成块级预览 div（guards 为真时按失焦路径的规则跳过残缺语法）
    *  - 否则按内联处理：把 SPAN/MARK/DEL 设为不可编辑，并把 markdown 源码存进 mdtext
    * 返回 'block' | 'inline' | 'skip'，需要补空段落时通过 opts.ensureTrailing(div) 回调。 */
-  var BLOCK_TAGS = { DIV: 1, HR: 1, BLOCKQUOTE: 1, TABLE: 1, PRE: 1, UL: 1, OL: 1 };
+  var BLOCK_TAGS = { DIV: 1, HR: 1, ASIDE: 1, DETAILS: 1, BLOCKQUOTE: 1, TABLE: 1, PRE: 1, UL: 1, OL: 1 };
 
   function renderSingleParagraph(p, text, opts) {
     opts = opts || {};

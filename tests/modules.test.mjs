@@ -17,6 +17,31 @@ test('构建脚本清单：Moment.html 引用的本地脚本全部存在', () =>
   }
 });
 
+test('Service Worker 预缓存覆盖入口脚本、样式、Worker 与全部 KaTeX 字体', () => {
+  const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+  const block = sw.match(/const PRECACHE = \[([\s\S]*?)\];/);
+  assert.ok(block, '缺少静态预缓存清单');
+  const precache = new Set([...block[1].matchAll(/'([^']+)'/g)].map(m => m[1].replace(/^\.\//, '')));
+  const normalize = ref => ref.replace(/^\.\//, '');
+  for (const page of ['Moment.html', 'index.html']) {
+    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
+    const refs = [...html.matchAll(/(?:src|href)="([^"]+)"/g)].map(m => m[1]).filter(ref => !/^https?:/.test(ref));
+    for (const ref of refs) {
+      const key = normalize(ref);
+      assert.ok(precache.has(key), `${page} 本地资源未预缓存: ${ref}`);
+      assert.ok(fs.existsSync(path.join(ROOT, ref.split('?')[0])), `本地资源不存在: ${ref}`);
+    }
+  }
+  assert.ok(precache.has('src/services/zip.worker.js'), 'ZIP Worker 未预缓存');
+  const katexCss = fs.readFileSync(path.join(ROOT, 'vendor/katex.min.css'), 'utf8');
+  const fontRefs = [...katexCss.matchAll(/url\((?:['"])?([^)'"\s]+\.woff2)(?:['"])?\)/g)].map(m => 'vendor/' + m[1].replace(/^\.\//, ''));
+  assert.ok(fontRefs.length >= 20, `KaTeX 字体路径数量异常: ${fontRefs.length}`);
+  for (const ref of fontRefs) {
+    assert.ok(precache.has(ref), `KaTeX 字体未预缓存: ${ref}`);
+    assert.ok(fs.existsSync(path.join(ROOT, ref)), `KaTeX 字体不存在: ${ref}`);
+  }
+});
+
 test('核心模块可在浏览器环境桩下完成注册', () => {
   const env = makeEnv();
   for (const f of ['src/app-config.js', 'src/constants.js', 'src/utils/id.js', 'src/utils/time.js',
@@ -60,6 +85,17 @@ test('斜体斜杠命令生成的单星号 Markdown 可在重载时识别', () =
   assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('*斜体文字*'), true);
   assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('普通 *带星号但不成对'), false);
   assert.equal(env.win.MynoteMd.looksLikeCiaoMarkdown('**粗体文字**'), true);
+});
+
+test('停用的自定义标记在预处理与摘要中原样保留，不再触发 Markdown 渲染', () => {
+  const env = makeEnv();
+  load(env, 'src/editor/editor.md.js');
+  const legacy = '!!提示 ??问题 @@提及 #标签 $标签$ $blue:标签$ ->居中<- ---装饰线--- :smile:';
+  assert.equal(env.win.MynoteMd.preprocessExtendedMarkdown(legacy), legacy);
+  assert.equal(env.win.MynoteMd.stripMarkdownForPreview(legacy), legacy);
+  assert.equal(env.win.MynoteMd.looksLikeMarkdown(legacy), false);
+  assert.equal(env.win.MynoteMd.looksLikeMarkdown('$x^2 + y^2$'), true);
+  assert.equal(env.win.MynoteMd.looksLikeMarkdown('$$\\frac{1}{2}$$'), true);
 });
 
 test('Markdown 渲染在 DOMPurify 缺失时失败关闭', () => {

@@ -321,13 +321,7 @@
           inline_link: ['[', '](url)'],
           inline_code: ['`', '`'],
           inline_strike: ['~~', '~~'],
-          inline_highlight: ['==', '=='],
-          inline_tip: ['!!', ''],
-          inline_question: ['??', ''],
-          inline_mention: ['@@', ''],
-          inline_hashtag: ['#', ''],
-          inline_centered: ['->', '<-'],
-          inline_tag: ['$', '$']
+          inline_highlight: ['==', '==']
         };
         var pair = INLINE_MAP[type] || ['', ''];
         var wrappedText = pair[0] + inlineText + pair[1];
@@ -391,8 +385,8 @@
         return;
       }
       var level = cmd.level || 1;
-      // 这 5 类在插入时统一降级为普通段落：在构造时就定值，避免“先写再覆盖”的死值
-      var forcedParagraph = type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'decorative_divider' || type === 'callout';
+      // 这 4 类在插入时统一降级为普通段落。
+      var forcedParagraph = type === 'code_block' || type === 'unordered_list' || type === 'ordered_list' || type === 'callout';
       var newBlock = {
         id: blkId,
         type: forcedParagraph ? 'paragraph' : type,
@@ -406,7 +400,6 @@
         ...(type === 'code_block' ? { children: [{ text: '```\n' + cleanedText + '\n```' }] } : {}),
         ...(type === 'unordered_list' ? { children: [{ text: '- ' + (cleanedText || '列表项') }] } : {}),
         ...(type === 'ordered_list' ? { children: [{ text: '1. ' + (cleanedText || '列表项') }] } : {}),
-        ...(type === 'decorative_divider' ? { children: [{ text: '---🌟---' }] } : {}),
         ...(type === 'callout' ? { children: [{ text: '> [!NOTE]\n> 提示内容' }] } : {}),
         ...(type === 'imgTextCard' ? { children: [{ text: '点击输入文字' }], attrs: { imgUrl: '' } } : {}),
         ...(type === 'imageTextRow' ? { children: [{ text: '点击输入说明文字' }], attrs: { imgUrl: '' } } : {})
@@ -414,7 +407,7 @@
       if (type === 'callout') {
         newBlock.children[0].text = cleanedText || newBlock.children[0].text;
       }
-      var needsTrailingParagraph = ['divider', 'musicCard', 'image', 'gallery', 'decorative_divider', 'callout', 'imgTextCard', 'imageTextRow', 'todo'].includes(type);
+      var needsTrailingParagraph = ['divider', 'musicCard', 'image', 'gallery', 'callout', 'imgTextCard', 'imageTextRow', 'todo'].includes(type);
       // 如果原块后面已经是空段落，不需要再加 trailing
       var nextBlock = doc[idx + 1];
       if (nextBlock && nextBlock.type === 'paragraph' && !(nextBlock.children && nextBlock.children[0] && nextBlock.children[0].text)) {
