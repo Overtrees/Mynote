@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light" data-device="ios">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>此刻 · 液态玻璃预览</title>
+  <link rel="stylesheet" href="./src/styles/tokens.css">
+  <link rel="stylesheet" href="./src/styles/base.css">
+  <style>
+    html[data-theme="light"] {
+      color-scheme: light;
+      --primary-bg: #edf1f7;
+      --text-main: #182133;
+      --text-secondary: #68758a;
+      --glass-overlay-bg: rgba(255,255,255,.84);
+      --glass-overlay-border: rgba(255,255,255,.62);
+      --glass-overlay-filter: blur(28px) saturate(1.8);
+      --glass-content-bg: rgba(255,255,255,.4);
+      --glass-content-border: rgba(255,255,255,.62);
+      --glass-content-filter: blur(24px) saturate(1.7);
+      --glass-control-bg: rgba(255,255,255,.55);
+      --glass-control-border: rgba(255,255,255,.62);
+      --glass-control-filter: blur(12px) saturate(1.5);
+      --glass-bg: var(--glass-content-bg);
+      --glass-border: var(--glass-content-border);
+      --glass-filter: var(--glass-content-filter);
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --primary-bg: #090d16;
+      --text-main: #f7f8fb;
+      --text-secondary: #abb4c4;
+      --glass-overlay-bg: rgba(13,18,31,.94);
+      --glass-overlay-border: rgba(255,255,255,.22);
+      --glass-overlay-filter: blur(28px) saturate(1.35);
+      --glass-content-bg: rgba(13,18,31,.72);
+      --glass-content-border: rgba(255,255,255,.22);
+      --glass-content-filter: blur(24px) saturate(1.35);
+      --glass-control-bg: rgba(24,30,44,.84);
+      --glass-control-border: rgba(255,255,255,.2);
+      --glass-control-filter: blur(12px) saturate(1.25);
+      --glass-bg: var(--glass-content-bg);
+      --glass-border: var(--glass-content-border);
+      --glass-filter: var(--glass-content-filter);
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      min-height: 100vh;
+      padding: 26px 20px 48px;
+      background:
+        radial-gradient(ellipse at 14% 13%, rgba(61,146,255,.18), transparent 28rem),
+        radial-gradient(ellipse at 88% 28%, rgba(239,95,178,.14), transparent 30rem),
+        var(--primary-bg);
+      color: var(--text-main);
+      transition: background-color .25s ease, color .25s ease;
+    }
+    .preview-wrap { width: min(100%, 1360px); margin: 0 auto; }
+    .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin: 0 auto 22px; }
+    .eyebrow { margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(23px, 4vw, 36px); line-height: 1.14; letter-spacing: -.04em; }
+    .intro p { max-width: 570px; margin: 8px 0 0; color: var(--text-secondary); font-size: 14px; line-height: 1.6; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    .control-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .control-btn {
+      min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid rgba(127,137,154,.26);
+      background: rgba(255,255,255,.55); color: var(--text-main); font: 600 13px/1 var(--font-family-base);
+      cursor: pointer; transition: transform .16s ease, background .2s ease, border-color .2s ease;
+    }
+    html[data-theme="dark"] .control-btn { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); }
+    .control-btn:hover { transform: translateY(-1px); }
+    .control-btn[aria-pressed="true"] { background: #182133; color: white; border-color: #182133; }
+    html[data-theme="dark"] .control-btn[aria-pressed="true"] { background: #f0f3fa; color: #111827; border-color: #f0f3fa; }
+    .screen-meta { display:flex; align-items:center; gap:8px; margin: 0 2px 10px; color:var(--text-secondary); font-size:12px; }
+    .status-dot { width:7px; height:7px; border-radius:50%; background:#34c759;  }
+    .device-stage { display:flex; justify-content:center; }
+    .screen {
+      position: relative; isolation: isolate; overflow: hidden;
+      width: min(100%, 393px); min-height: min(760px, calc(100vh - 190px));
+      border: 1px solid rgba(255,255,255,.55); border-radius: 38px;
+      background: var(--primary-bg);
+      transition: width .25s ease, border-radius .25s ease, min-height .25s ease;
+    }
+    .scene {
+      position: absolute; inset: 0; z-index: -1; overflow: hidden;
+      background:
+        radial-gradient(ellipse 34% 27% at 18% 24%, rgba(55,147,255,.82), transparent 75%),
+        radial-gradient(ellipse 38% 30% at 80% 33%, rgba(244,93,173,.66), transparent 73%),
+        radial-gradient(ellipse 38% 31% at 45% 75%, rgba(65,207,190,.62), transparent 72%),
+        radial-gradient(ellipse 31% 25% at 88% 83%, rgba(255,190,86,.62), transparent 75%),
+        linear-gradient(145deg, #b9d9ff 0%, #e1c5f6 46%, #a8eee5 100%);
+      filter: saturate(1.1);
+    }
+    html[data-theme="dark"] .scene {
+      background:
+        radial-gradient(ellipse 36% 26% at 16% 24%, rgba(49,121,236,.75), transparent 74%),
+        radial-gradient(ellipse 38% 31% at 82% 34%, rgba(185,57,142,.62), transparent 73%),
+        radial-gradient(ellipse 38% 33% at 43% 77%, rgba(35,151,144,.55), transparent 72%),
+        radial-gradient(ellipse 29% 25% at 88% 82%, rgba(201,134,42,.53), transparent 75%),
+        linear-gradient(145deg, #1a3868 0%, #3b275b 46%, #154c50 100%);
+    }
+    .screen-inner { position:relative; z-index:1; padding: max(22px, env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); }
+    .screen-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+    .brand { display:flex; align-items:center; gap:10px; color:var(--text-main); font-size:14px; font-weight:750;  }
+    .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:13px; background:rgba(255,255,255,.2); border:1px solid rgba(255,255,255,.35); font-size:16px; }
+    .action-btn { width:42px; height:42px; padding:0; border-radius:50%; font-size:17px; }
+    .screen-title { margin:0 0 4px; font-size:25px; font-weight:780; letter-spacing:-.04em;  }
+    .screen-subtitle { margin:0 0 20px; color:var(--text-secondary); font-size:13px; }
+    .glass-composer {
+      position:relative; overflow:hidden; display:flex; align-items:center; gap:12px; min-height:76px;
+      padding:14px 16px; border-radius:25px; background:var(--glass-bg); color:var(--text-main);
+      border:1px solid var(--glass-content-border); backdrop-filter:var(--glass-content-filter); -webkit-backdrop-filter:var(--glass-content-filter);
+      margin-bottom:26px;
+    }
+    .composer-icon { display:grid; place-items:center; width:36px; height:36px; border-radius:13px; background:rgba(255,255,255,.25); font-size:18px; }
+    .composer-copy strong { display:block; margin-bottom:3px; font-size:14px; }
+    .composer-copy span { color:var(--text-secondary); font-size:12px; }
+    .section-heading { display:flex; align-items:center; justify-content:space-between; margin:22px 2px 10px; color:var(--text-main); font-size:12px; font-weight:750; letter-spacing:.06em;  }
+    .section-heading span:last-child { color:var(--text-secondary); font-size:11px; font-weight:600; letter-spacing:0; }
+    .list-group { display:flex; flex-direction:column; gap:9px; margin-bottom:18px; }
+    .list-item { min-height:76px; padding:14px 16px; background:var(--glass-content-bg); border:1px solid var(--glass-content-border); }
+    .item-title { font-size:14px; font-weight:700; }
+    .item-meta { margin-top:5px; font-size:11px; }
+    .note-icon { display:grid; place-items:center; flex:0 0 34px; height:34px; border-radius:12px; background:rgba(255,255,255,.2); font-size:15px; }
+    .item-left { flex:1; }
+    .feature-card { position:relative; overflow:hidden; padding:16px; border-radius:26px; background:var(--glass-bg); color:var(--text-main); border:1px solid var(--glass-content-border); backdrop-filter:var(--glass-content-filter); -webkit-backdrop-filter:var(--glass-content-filter);  }
+    .feature-card h2 { margin:0 0 7px; font-size:14px; }
+    .feature-card p { margin:0; color:var(--text-secondary); font-size:11px; line-height:1.55; }
+    .feature-chip { display:inline-flex; align-items:center; gap:5px; margin-top:12px; padding:6px 9px; border:1px solid var(--glass-control-border); border-radius:999px; background:var(--glass-control-bg); font-size:10px; font-weight:650; }
+    .bottom-nav { display:flex; justify-content:space-around; gap:10px; margin:22px 0 0; padding:12px 9px; border-radius:23px; background:var(--glass-content-bg); border:1px solid var(--glass-content-border); backdrop-filter:var(--glass-content-filter); -webkit-backdrop-filter:var(--glass-content-filter); color:var(--text-secondary); font-size:10px; text-align:center; }
+    .bottom-nav b { display:block; margin-bottom:4px; color:var(--text-main); font-size:15px; font-weight:500; }
+    .footnote { max-width:760px; margin:16px auto 0; color:var(--text-secondary); font-size:11px; line-height:1.55; text-align:center; }
+    html[data-device="android"] .screen { width:min(100%,412px); border-radius:30px; }
+    html[data-device="pc"] .screen { width:min(100%,1200px); min-height:690px; border-radius:24px; }
+    html[data-device="pc"] .screen-inner { padding:32px 36px 26px; }
+    html[data-device="pc"] .screen-head { margin-bottom:30px; }
+    html[data-device="pc"] .screen-title { font-size:30px; }
+    html[data-device="pc"] .screen-layout { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(260px,.75fr); gap:22px; align-items:start; }
+    html[data-device="pc"] .section-heading:first-child { margin-top:2px; }
+    html[data-device="pc"] .list-item { min-height:84px; }
+    html[data-device="pc"] .feature-card { padding:22px; }
+    html[data-device="pc"] .feature-card h2 { font-size:16px; }
+    html[data-device="pc"] .feature-card p { font-size:13px; }
+    html[data-device="pc"] .bottom-nav { max-width:430px; margin:26px auto 0; }
+    @media (max-width:600px) {
+      body { padding:16px 12px 34px; }
+      .intro { align-items:flex-start; flex-direction:column; gap:8px; margin-bottom:14px; }
+      .intro p { font-size:12px; }
+      .controls { margin-bottom:12px; }
+      .control-btn { min-height:36px; padding:0 11px; font-size:12px; }
+      .screen { min-height:680px; }
+      .footnote { font-size:10px; }
+    }
+    @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+      .glass-composer,.feature-card,.bottom-nav,.list-item { backdrop-filter:none!important; -webkit-backdrop-filter:none!important; background:var(--primary-bg)!important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview-wrap">
+    <header class="intro">
+      <div>
+        <div class="eyebrow">MATERIAL STUDY · 02</div>
+        <h1>此刻 · 液态玻璃预览</h1>
+        <p>同一套简洁玻璃表面，在 iOS、Android 与 PC 尺寸下查看；切换主题，对照透明度与背景模糊。</p>
+      </div>
+    </header>
+    <nav class="controls" aria-label="预览控制">
+      <div class="control-group" aria-label="设备尺寸">
+        <button class="control-btn" data-device-button="ios" aria-pressed="true">iOS · 393</button>
+        <button class="control-btn" data-device-button="android" aria-pressed="false">Android · 412</button>
+        <button class="control-btn" data-device-button="pc" aria-pressed="false">PC · 1200</button>
+      </div>
+      <div class="control-group" aria-label="主题">
+        <button class="control-btn" data-theme-button="light" aria-pressed="true">浅色</button>
+        <button class="control-btn" data-theme-button="dark" aria-pressed="false">深色</button>
+      </div>
+    </nav>
+    <div class="screen-meta"><i class="status-dot"></i><span id="mode-label">iOS 尺寸模拟 · 393 × 852</span><span>·</span><span>可滚动查看</span></div>
+    <div class="device-stage">
+      <section class="screen" aria-label="玻璃效果应用预览">
+        <div class="scene" aria-hidden="true"></div>
+        <div class="screen-inner">
+          <div class="screen-head">
+            <div class="brand"><span class="brand-mark">✳</span><span>此刻 <span style="font-weight:500;opacity:.7">Mynote</span></span></div>
+            <button class="action-btn" aria-label="搜索">⌕</button>
+          </div>
+          <h2 class="screen-title">记录此刻</h2>
+          <p class="screen-subtitle">让灵感，轻轻落在透明的表面。</p>
+          <div class="glass-composer">
+            <span class="composer-icon">＋</span>
+            <span class="composer-copy"><strong>新建笔记</strong><span>现在，点击记录你的瞬间</span></span>
+          </div>
+          <div class="screen-layout">
+            <div>
+              <div class="section-heading"><span>置顶</span><span>PINNED</span></div>
+              <div class="list-group">
+                <article class="list-item"><span class="note-icon">✦</span><div class="item-left"><div class="item-title">装修踩坑清单</div><div class="item-meta">昨天 · 还有 3 条待办</div></div></article>
+              </div>
+              <div class="section-heading"><span>今天</span><span>RECENT</span></div>
+              <div class="list-group">
+                <article class="list-item"><span class="note-icon">◉</span><div class="item-left"><div class="item-title">周末看展记录</div><div class="item-meta">下午 4:20 · UCCA 的「非物质再现」</div></div></article>
+                <article class="list-item"><span class="note-icon">↗</span><div class="item-left"><div class="item-title">好用的工具网站</div><div class="item-meta">11/14 · 几个日常高频用到的小工具</div></div></article>
+                <article class="list-item"><span class="note-icon">▤</span><div class="item-left"><div class="item-title">读书笔记｜设计的觉醒</div><div class="item-meta">11/10 · 断断续续读了一个月</div></div></article>
+              </div>
+            </div>
+            <aside>
+              <div class="section-heading"><span>材质细节</span><span>GLASS</span></div>
+              <article class="feature-card">
+                <h2>半透明与背景模糊</h2>
+                <p>玻璃表面只保留背景模糊、适度饱和度与细描边，不添加反光、高光或投影；内容保持清晰可读。</p>
+                <span class="feature-chip">◌ 36px backdrop blur</span>
+                <span class="feature-chip">✧ iOS / WebKit 前缀</span>
+              </article>
+              <nav class="bottom-nav" aria-label="示例导航"><span><b>⌂</b>笔记</span><span><b>⌕</b>搜索</span><span><b>◌</b>收藏</span><span><b>⚙</b>设置</span></nav>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </div>
+    <p class="footnote">彩色光斑仅为材质演示底景，不代表应用页面背景；无 backdrop-filter 的浏览器会退化为较实的底色。iOS / Android 为视口尺寸模拟，实际系统渲染仍需真机复核。</p>
+  </main>
+  <script>
+    const root = document.documentElement;
+    const labels = { ios: 'iOS 尺寸模拟 · 393 × 852', android: 'Android 尺寸模拟 · 412 × 915', pc: 'PC 桌面尺寸模拟 · 1200 × 690' };
+    for (const button of document.querySelectorAll('[data-device-button]')) {
+      button.addEventListener('click', () => {
+        const device = button.dataset.deviceButton;
+        root.dataset.device = device;
+        document.querySelectorAll('[data-device-button]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+        document.getElementById('mode-label').textContent = labels[device];
+      });
+    }
+    for (const button of document.querySelectorAll('[data-theme-button]')) {
+      button.addEventListener('click', () => {
+        const theme = button.dataset.themeButton;
+        root.dataset.theme = theme;
+        document.querySelectorAll('[data-theme-button]').forEach(b => b.setAttribute('aria-pressed', String(b === button)));
+      });
+    }
+  </script>
+</body>
+</html>

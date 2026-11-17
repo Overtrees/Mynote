@@ -1,5 +1,5 @@
 /* 此刻 Service Worker：同源静态资源 stale-while-revalidate；不碰跨域 API。 */
-const CACHE = 'mynote-2.2.2';
+const CACHE = 'mynote-2.2.3';
 const CORE = [
   './',
   './index.html',

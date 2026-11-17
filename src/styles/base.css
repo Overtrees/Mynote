@@ -218,7 +218,7 @@
     @media (prefers-color-scheme: dark) {
         :root {
             --glass-overlay-bg: rgba(28, 28, 30, 0.98);
-            --glass-content-bg: rgba(28, 28, 30, 0.96);
+            --glass-content-bg: rgba(32, 32, 36, 0.96);
             --glass-control-bg: rgba(44, 44, 46, 0.98);
         }
     }
@@ -238,7 +238,7 @@
     @media (prefers-color-scheme: dark) {
         :root {
             --glass-overlay-bg: rgba(28, 28, 30, 0.99);
-            --glass-content-bg: rgba(28, 28, 30, 0.97);
+            --glass-content-bg: rgba(32, 32, 36, 0.97);
             --glass-control-bg: rgba(44, 44, 46, 0.99);
         }
     }

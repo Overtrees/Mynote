@@ -210,7 +210,7 @@
     --glass-overlay-border: rgba(255, 255, 255, 0.2);
     --glass-overlay-filter: blur(28px) saturate(1.35);
     --glass-content-bg: #202024;
-    --glass-content-border: rgba(255, 255, 255, 0.18);
+    --glass-content-border: rgba(255, 255, 255, 0.16);
     --glass-content-filter: blur(24px) saturate(1.35);
     --glass-control-bg: #38383c;
     --glass-control-border: rgba(255, 255, 255, 0.24);

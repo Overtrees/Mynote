@@ -255,17 +255,95 @@ const menuLabels = await (async () => {
   await page.locator('.editor-fab.right').click();
   const menu = page.locator('button').filter({ hasText: '撤销' });
   await menu.waitFor({ state: 'visible' });
-  const labels = await page.locator('.editor-fab.right').evaluate(button => {
-    const menu = button.parentElement;
-    return [...document.querySelectorAll('button')].filter(b => {
-      const t = b.innerText || '';
-      return ['撤销','重做','添加附件','更换背景色'].some(x => t.includes(x));
-    }).map(b => b.innerText.trim().replace(/\s+/g, ' '));
-  });
+    const labels = await page.locator('.editor-fab.right').evaluate(button => {
+      const menu = button.parentElement;
+      return [...document.querySelectorAll('button')].filter(b => {
+        const t = b.innerText || '';
+        return ['撤销','重做','添加附件','导出笔记','更换背景色'].some(x => t.includes(x));
+      }).map(b => b.innerText.trim().replace(/\s+/g, ' '));
+    });
   await page.locator('.editor-fab.right').click();
   return labels;
 })();
-check('编辑器菜单四项入口可见', menuLabels.length === 4 && ['撤销','重做','添加附件','更换背景色'].every(x => menuLabels.some(t => t.includes(x))), JSON.stringify(menuLabels));
+check('编辑器菜单五项入口可见', menuLabels.length === 5 && ['撤销','重做','添加附件','导出笔记','更换背景色'].every(x => menuLabels.some(t => t.includes(x))), JSON.stringify(menuLabels));
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+const exportDialog = page.getByRole('dialog', { name: '导出笔记' });
+await exportDialog.waitFor({ state: 'visible' });
+const exportFormats = await exportDialog.locator('[data-export-format]').evaluateAll(elements => elements.map(element => element.getAttribute('aria-label')));
+check('导出入口打开浮层并显示三种格式', exportFormats.join('|') === '导出为 Markdown|导出为 HTML|导出为 PDF', exportFormats.join(', '));
+const exportButtonUX = await exportDialog.locator('[data-export-format="markdown"]').evaluate(button => ({ minHeight: parseFloat(getComputedStyle(button).minHeight), transition: getComputedStyle(button).transitionDuration }));
+check('格式选项具备触控尺寸与点击动画', exportButtonUX.minHeight >= 44 && exportButtonUX.transition.includes('0.15s'), JSON.stringify(exportButtonUX));
+await page.waitForFunction(() => document.activeElement?.getAttribute('data-export-format') === 'markdown');
+await page.keyboard.press('Shift+Tab');
+const exportBackFocus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
+await page.keyboard.press('Shift+Tab');
+const exportReverseWrap = await page.evaluate(() => document.activeElement?.getAttribute('data-export-format'));
+await page.keyboard.press('Tab');
+const exportForwardWrap = await page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
+check('格式浮层键盘焦点可循环', exportBackFocus === '返回更多菜单' && exportReverseWrap === 'pdf' && exportForwardWrap === '返回更多菜单', JSON.stringify({ exportBackFocus, exportReverseWrap, exportForwardWrap }));
+await page.mouse.click(20, 450);
+await exportDialog.waitFor({ state: 'hidden' });
+check('点击浮层外部可关闭格式面板', true);
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('button', { name: '返回更多菜单' }).click();
+await page.locator('button').filter({ hasText: '撤销' }).waitFor({ state: 'visible' });
+check('格式浮层返回键可回到更多菜单', true);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(240);
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+await page.keyboard.press('Escape');
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'hidden' });
+check('格式浮层支持 Escape 关闭', true);
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+const markdownDownloadPromise = page.waitForEvent('download');
+await page.getByRole('button', { name: '导出为 Markdown' }).click();
+const markdownDownload = await markdownDownloadPromise;
+check('Markdown 导出触发文件下载', markdownDownload.suggestedFilename().endsWith('.md'), markdownDownload.suggestedFilename());
+await page.waitForTimeout(260);
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+const htmlDownloadPromise = page.waitForEvent('download');
+await page.getByRole('button', { name: '导出为 HTML' }).click();
+const htmlDownload = await htmlDownloadPromise;
+check('HTML 导出触发文件下载', htmlDownload.suggestedFilename().endsWith('.html'), htmlDownload.suggestedFilename());
+await page.waitForTimeout(260);
+
+await page.evaluate(() => {
+  window.__nativeOpenForPdfTest = window.open;
+  window.__pdfPrintCalled = false;
+  window.open = function (...args) {
+    const popup = window.__nativeOpenForPdfTest.apply(window, args);
+    if (popup) {
+      popup.print = function () { window.__pdfPrintCalled = true; };
+      window.__pdfPrintPopup = popup;
+    }
+    return popup;
+  };
+});
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+const pdfPopupPromise = page.waitForEvent('popup');
+await page.getByRole('button', { name: '导出为 PDF' }).click();
+const pdfPopup = await pdfPopupPromise;
+await page.waitForFunction(() => window.__pdfPrintCalled === true);
+const pdfPreviewText = await pdfPopup.locator('main').innerText();
+check('PDF 打开包含笔记内容的打印页面', pdfPreviewText.includes('长文') && pdfPreviewText.includes('第59段'), pdfPreviewText.slice(0, 60).replace(/\s+/g, ' '));
+await pdfPopup.close();
+await page.evaluate(() => { window.open = window.__nativeOpenForPdfTest; });
+await page.waitForTimeout(260);
 
 await page.locator('.editor-body').click();
 await page.keyboard.press('Control+End');
@@ -444,13 +522,32 @@ await page.locator('.editor-body .itc-text').click();
 await page.locator('.image-text-sheet-content').waitFor();
 const fullImageText = await page.locator('.image-text-sheet-content').innerText();
 check('点击图文说明区打开底部面板并显示完整长文本', fullImageText === longImageText, `字数=${fullImageText.length}`);
+const dialogHasFocus = await page.locator('.image-text-sheet').evaluate(el => document.activeElement === el);
+check('打开全文面板后焦点进入对话框', dialogHasFocus);
+await page.keyboard.press('Tab');
+check('阅读模式 Tab 从对话框进入面板操作按钮', await page.locator('.image-text-sheet-action').evaluate(el => document.activeElement === el));
+await page.keyboard.press('Shift+Tab');
+check('阅读模式 Shift+Tab 不会离开面板', await page.locator('.image-text-sheet').evaluate(el => el.contains(document.activeElement)));
 await page.locator('.image-text-sheet-action').click();
+check('进入编辑后焦点落在文本编辑框', await page.locator('.image-text-sheet-editor').evaluate(el => document.activeElement === el));
+await page.keyboard.press('Tab');
+check('编辑模式 Tab 到面板操作按钮', await page.locator('.image-text-sheet-action').evaluate(el => document.activeElement === el));
+await page.keyboard.press('Tab');
+check('编辑模式 Tab 在面板内循环到文本编辑框', await page.locator('.image-text-sheet-editor').evaluate(el => document.activeElement === el));
+await page.keyboard.press('Shift+Tab');
+check('编辑模式 Shift+Tab 在面板内循环到操作按钮', await page.locator('.image-text-sheet-action').evaluate(el => document.activeElement === el));
 await page.locator('.image-text-sheet-editor').fill('面板内编辑已同步');
 const updatedImageText = await page.$eval('.editor-body .itc-text', el => el.textContent);
 check('全文面板显式编辑后同步回图文卡', updatedImageText === '面板内编辑已同步', updatedImageText);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
 check('图文全文面板支持 Escape 关闭', await page.locator('.image-text-sheet').count() === 0);
+check('Escape 关闭后焦点恢复到触发文本区', await page.locator('.editor-body .itc-text').evaluate(el => document.activeElement === el));
+await page.locator('.editor-body .itc-text').click();
+await page.locator('.image-text-sheet').waitFor();
+await page.locator('.image-text-sheet-backdrop').click({ position: { x: 10, y: 10 } });
+await page.waitForTimeout(300);
+check('点击背景关闭后焦点恢复到触发文本区', await page.locator('.image-text-sheet').count() === 0 && await page.locator('.editor-body .itc-text').evaluate(el => document.activeElement === el));
 
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 

@@ -114,6 +114,8 @@ test('小标签、搜索、列表卡片和 Markdown 预览具备高对比度/键
 });
 
 test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', () => {
+  assert.match(read('src/styles/tokens.css'), /@media \(prefers-color-scheme: dark\)[\s\S]*--glass-content-border:\s*rgba\(255, 255, 255, 0\.16\);/);
+  assert.match(read('src/styles/base.css'), /--glass-overlay-bg:\s*rgba\(28, 28, 30, 0\.98\)[\s\S]*--glass-content-bg:\s*rgba\(32, 32, 36, 0\.96\)/);
   assert.doesNotMatch(css, /brightness\s*\(/i);
   assert.doesNotMatch(css, /contrast\s*\(/i);
   assert.doesNotMatch(css, /glass-edge|glass-caustic/i);

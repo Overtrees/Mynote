@@ -73,7 +73,10 @@ function Editor({
   }, [memo.id]);
   const [showMenu, setShowMenu] = useState(false);
   const [menuClosing, setMenuClosing] = useState(false);
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exportPanelClosing, setExportPanelClosing] = useState(false);
   var menuCloseTimerRef = useRef(null);
+  var exportPanelTimerRef = useRef(null);
   var openEditorMenu = useCallback(function () {
     clearTimeout(menuCloseTimerRef.current);
     setMenuClosing(true);
@@ -95,17 +98,85 @@ function Editor({
   var toggleEditorMenu = useCallback(function () {
     if (showMenu && !menuClosing) closeEditorMenu();else openEditorMenu();
   }, [showMenu, menuClosing, closeEditorMenu, openEditorMenu]);
+  var openExportPanel = useCallback(function () {
+    clearTimeout(exportPanelTimerRef.current);
+    closeEditorMenu();
+    exportPanelTimerRef.current = setTimeout(function () {
+      setExportPanelClosing(true);
+      setShowExportPanel(true);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { setExportPanelClosing(false); });
+      });
+    }, 220);
+  }, [closeEditorMenu]);
+  var closeExportPanel = useCallback(function () {
+    clearTimeout(exportPanelTimerRef.current);
+    setExportPanelClosing(true);
+    exportPanelTimerRef.current = setTimeout(function () {
+      setShowExportPanel(false);
+      setExportPanelClosing(false);
+      var trigger = document.querySelector('.editor-fab.right');
+      if (trigger) trigger.focus({ preventScroll: true });
+    }, 220);
+  }, []);
   useEffect(() => {
-    return () => clearTimeout(menuCloseTimerRef.current);
+    return () => {
+      clearTimeout(menuCloseTimerRef.current);
+      clearTimeout(exportPanelTimerRef.current);
+    };
   }, []);
   useEffect(() => {
     if (!showMenu) return;
     const closeMenu = () => closeEditorMenu();
+    const onKeyDown = e => { if (e.key === 'Escape') closeMenu(); };
     window.addEventListener('scroll', closeMenu, {
       passive: true
     });
-    return () => window.removeEventListener('scroll', closeMenu);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('scroll', closeMenu);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [showMenu, closeEditorMenu]);
+  useEffect(() => {
+    if (!showExportPanel) return;
+    const closePanel = () => closeExportPanel();
+    const onKeyDown = e => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePanel();
+        var trigger = document.querySelector('.editor-fab.right');
+        if (trigger) trigger.focus();
+        return;
+      }
+      if (e.key === 'Tab') {
+        var panel = document.querySelector('.editor-export-panel');
+        var buttons = panel && panel.querySelectorAll('button:not([disabled])');
+        if (!buttons || !buttons.length) return;
+        var first = buttons[0];
+        var last = buttons[buttons.length - 1];
+        var active = document.activeElement;
+        if (e.shiftKey && (active === first || !panel.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !panel.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener('scroll', closePanel, { passive: true });
+    document.addEventListener('keydown', onKeyDown);
+    var focusFrame = requestAnimationFrame(function () {
+      var firstChoice = document.querySelector('[data-export-format]');
+      if (firstChoice && firstChoice.focus) firstChoice.focus({ preventScroll: true });
+    });
+    return () => {
+      window.removeEventListener('scroll', closePanel);
+      document.removeEventListener('keydown', onKeyDown);
+      cancelAnimationFrame(focusFrame);
+    };
+  }, [showExportPanel, closeExportPanel]);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
@@ -506,7 +577,7 @@ function Editor({
     if (!block) return;
     var selector = textArea.classList.contains('itc-text') ? '.itc-text' : '.itr-text';
     recordUndoPoint();
-    setImageTextSheet({ blockId: block.dataset.blockid, selector: selector, text: textArea.textContent || '' });
+    setImageTextSheet({ blockId: block.dataset.blockid, selector: selector, text: textArea.textContent || '', triggerElement: textArea });
   }, [recordUndoPoint]);
   var handleImageTextChange = useCallback(function (value) {
     var activeSheet = imageTextSheet;
@@ -890,6 +961,70 @@ function Editor({
     closeEditorMenu();
     if (fileInputRef.current) fileInputRef.current.click();
   }, [closeEditorMenu]);
+  var handleExportFormat = useCallback(function (format) {
+    closeExportPanel();
+    var exporter = window.MynoteEditorExport;
+    if (!exporter) {
+      if (window.MynoteErrors) window.MynoteErrors.addWarn('导出模块暂不可用，请刷新后重试。', new Error('MynoteEditorExport missing'));
+      return;
+    }
+    var doc = docRef.current || [];
+    if (editorBodyRef.current) {
+      setEditorDocRef(doc);
+      doc = parseEditorDOM(editorBodyRef.current);
+      docRef.current = doc;
+      setEditorDocRef(doc);
+    }
+    var noteTitle = titleValueRef.current.trim() || '无标题';
+    var html = null;
+    if (format === 'pdf') {
+      html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {});
+      var printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        if (window.MynoteErrors) window.MynoteErrors.addWarn('浏览器阻止了 PDF 导出窗口，请允许弹出窗口后重试。', new Error('PDF print window blocked'));
+        return;
+      }
+      try {
+        printWindow.document.open();
+        printWindow.document.write(html);
+        printWindow.document.close();
+        var printAfterImages = function () {
+          if (printWindow.closed) return;
+          printWindow.focus();
+          printWindow.print();
+        };
+        var images = Array.prototype.slice.call(printWindow.document.images || []);
+        Promise.all(images.map(function (image) {
+          if (image.complete) return Promise.resolve();
+          return new Promise(function (resolve) {
+            var timer = setTimeout(resolve, 2500);
+            image.onload = image.onerror = function () { clearTimeout(timer); resolve(); };
+          });
+        })).then(function () { setTimeout(printAfterImages, 120); });
+      } catch (err) {
+        if (window.MynoteErrors) window.MynoteErrors.addWarn('无法启动 PDF 打印，请重试。', err);
+      }
+      return;
+    }
+    if (format === 'html') html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {});
+    var content = format === 'html' ? html : exporter.toMarkdown(doc, noteTitle, filesRef.current || {});
+    var mime = format === 'html' ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
+    var extension = format === 'html' ? 'html' : 'md';
+    try {
+      var blob = new Blob([content], { type: mime });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = exporter.toFilename(noteTitle, extension);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    } catch (err) {
+      if (window.MynoteErrors) window.MynoteErrors.addWarn('导出失败，请重试。', err);
+    }
+  }, [closeExportPanel]);
   var handleFilesSelected = useCallback(async function (e) {
     var filesArr = Array.from(e.target.files);
     e.target.value = '';
@@ -2010,6 +2145,8 @@ function Editor({
       border: "0.5px solid var(--glass-overlay-border)",
       borderRadius: "var(--radius-22)",
       overflow: "hidden",
+      overflowY: "auto",
+      maxHeight: "calc(100dvh - env(safe-area-inset-top) - 64px)",
       opacity: menuClosing ? 0 : 1,
       transform: menuClosing ? "translateY(-10px) scale(0.92)" : "translateY(0) scale(1)",
       transformOrigin: "85% -18px",
@@ -2214,7 +2351,61 @@ function Editor({
       color: "var(--color-placeholder-strong)",
       paddingLeft: 4
     }
-  }, "\u203A")), /*#__PURE__*/React.createElement("button", {
+  }, "\u203A")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px 7px 7px",
+      marginTop: 3,
+      borderTop: "0.5px solid var(--glass-overlay-border)"
+    }
+  }, React.createElement("button", {
+    type: "button",
+    className: "editor-export-entry",
+    "aria-label": "导出笔记",
+    onClick: openExportPanel,
+    style: {
+      width: "100%",
+      minHeight: 54,
+      border: "none",
+      background: "transparent",
+      borderRadius: "var(--radius-17)",
+      display: "flex",
+      alignItems: "center",
+      gap: 11,
+      padding: "8px 10px",
+      color: "var(--text-main)",
+      fontFamily: "inherit",
+      cursor: "pointer",
+      textAlign: "left"
+    }
+  }, React.createElement("span", {
+    style: {
+      width: 24,
+      height: 24,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flex: "none",
+      color: "var(--color-accent)"
+    },
+    "aria-hidden": "true"
+  }, React.createElement("svg", {
+    viewBox: "0 0 24 24",
+    width: "20",
+    height: "20",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: "2.2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, React.createElement("path", { d: "M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3" }))), React.createElement("span", {
+    style: { minWidth: 0, flex: 1 }
+  }, React.createElement("span", {
+    style: { display: "block", fontSize: "var(--font-15)", fontWeight: 650, letterSpacing: "-0.1px" }
+  }, "导出笔记"), React.createElement("span", {
+    style: { display: "block", marginTop: 2, color: "var(--text-secondary)", fontSize: "var(--font-11)" }
+  }, "Markdown · HTML · PDF")), React.createElement("span", {
+    style: { fontSize: "var(--font-19)", color: "var(--color-placeholder-strong)", paddingLeft: 4 }
+  }, "\u203A"))), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       closeEditorMenu();
       setTimeout(() => setShowColorPicker(true), 220);
@@ -2301,7 +2492,79 @@ function Editor({
       color: "var(--color-placeholder-strong)",
       paddingLeft: 4
     }
-  }, "\u203A"))))), /*#__PURE__*/React.createElement("div", {
+  }, "\u203A"))))), showExportPanel && React.createElement(React.Fragment, null, React.createElement("div", {
+    onPointerDown: closeExportPanel,
+    style: { position: "fixed", inset: 0, zIndex: 3001, background: "transparent" }
+  }), React.createElement("div", {
+    role: "dialog",
+    className: "editor-export-panel",
+    "aria-label": "导出笔记",
+    "aria-modal": "true",
+    onPointerDown: function (e) { e.stopPropagation(); },
+    style: {
+      position: "fixed",
+      zIndex: 3002,
+      right: 16,
+      top: "calc(env(safe-area-inset-top) + 7px + 46px + 6px)",
+      width: 246,
+      maxWidth: "calc(100vw - 32px)",
+      background: "var(--glass-overlay-bg)",
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: "0.5px solid var(--glass-overlay-border)",
+      borderRadius: "var(--radius-22)",
+      overflow: "hidden",
+      opacity: exportPanelClosing ? 0 : 1,
+      transform: exportPanelClosing ? "translateY(-10px) scale(0.94)" : "translateY(0) scale(1)",
+      transformOrigin: "85% -18px",
+      transition: "opacity 180ms ease, transform 220ms cubic-bezier(0.34,1.56,0.64,1)",
+      willChange: "opacity, transform"
+    }
+  }, React.createElement("div", {
+    style: { padding: 7 }
+  }, React.createElement("div", {
+    style: { minHeight: 46, display: "flex", alignItems: "center", gap: 8, padding: "0 4px 5px", borderBottom: "0.5px solid var(--glass-overlay-border)" }
+  }, React.createElement("button", {
+    type: "button",
+    className: "editor-export-back",
+    "aria-label": "返回更多菜单",
+    onClick: function () { closeExportPanel(); setTimeout(openEditorMenu, 220); },
+    style: { width: 38, height: 38, flex: "none", display: "grid", placeItems: "center", border: "none", borderRadius: "var(--radius-999)", background: "var(--glass-control-bg)", color: "var(--text-main)", cursor: "pointer" }
+  }, React.createElement("svg", {
+    viewBox: "0 0 24 24", width: "19", height: "19", fill: "none", stroke: "currentColor", strokeWidth: "2.2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true"
+  }, React.createElement("path", { d: "M15 18l-6-6 6-6M9 12h11" }))), React.createElement("div", {
+    style: { flex: 1, textAlign: "center", paddingRight: 38, color: "var(--text-main)", fontSize: "var(--font-15)", fontWeight: 650 }
+  }, "导出笔记")), React.createElement("div", {
+    style: { display: "grid", gap: 3, paddingTop: 6 }
+  }, [
+    { format: "markdown", label: "Markdown", detail: "保存为 .md 文件", badge: "MD" },
+    { format: "html", label: "HTML", detail: "保存为独立网页", badge: "<>" },
+    { format: "pdf", label: "PDF", detail: "打印或存储为 PDF", badge: "PDF" }
+  ].map(function (option, index) {
+    return React.createElement("button", {
+      key: option.format,
+      type: "button",
+      className: "editor-export-choice",
+      "data-export-format": option.format,
+      "aria-label": "导出为 " + option.label,
+      onClick: function () { handleExportFormat(option.format); },
+      style: { width: "100%", minHeight: 54, display: "flex", alignItems: "center", gap: 11, padding: "6px 9px", border: "none", borderRadius: "var(--radius-14)", background: "transparent", color: "var(--text-main)", fontFamily: "inherit", textAlign: "left", cursor: "pointer" }
+    }, React.createElement("span", {
+      "aria-hidden": "true",
+      style: { width: 34, height: 34, flex: "none", display: "grid", placeItems: "center", borderRadius: "var(--radius-10)", background: "var(--glass-control-bg)", border: "0.5px solid var(--glass-control-border)", color: "var(--color-accent)", fontSize: option.badge.length > 2 ? "var(--font-9)" : "var(--font-11)", fontWeight: 700, letterSpacing: "-0.2px" }
+    }, option.badge), React.createElement("span", {
+      style: { minWidth: 0, flex: 1 }
+    }, React.createElement("span", {
+      style: { display: "block", fontSize: "var(--font-14)", fontWeight: 650 }
+    }, option.label), React.createElement("span", {
+      style: { display: "block", marginTop: 2, color: "var(--text-secondary)", fontSize: "var(--font-11)" }
+    }, option.detail)), React.createElement("span", {
+      "aria-hidden": "true",
+      style: { paddingLeft: 4, color: "var(--color-placeholder-strong)", fontSize: "var(--font-19)" }
+    }, "\u203A"));
+  })), React.createElement("div", {
+    style: { margin: "5px 4px 2px", padding: "9px 5px 2px", borderTop: "0.5px solid var(--glass-overlay-border)", color: "var(--text-secondary)", fontSize: "var(--font-10)", lineHeight: 1.45 }
+  }, "PDF 会打开浏览器打印窗口，可在其中存储为 PDF。")))), /*#__PURE__*/React.createElement("div", {
     ref: editorWrapperRef,
     style: {
       paddingLeft: 16,
@@ -2367,6 +2630,7 @@ function Editor({
     onClose: () => setShowColorPicker(false)
   }), imageTextSheet && /*#__PURE__*/React.createElement(ImageTextSheet, {
     text: imageTextSheet.text,
+    triggerElement: imageTextSheet.triggerElement,
     onChange: handleImageTextChange,
     onClose: function () { setImageTextSheet(null); }
   }), lightboxSrc && /*#__PURE__*/React.createElement('div', {
