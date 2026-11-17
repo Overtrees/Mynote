@@ -3,6 +3,14 @@
   var R = w.React;
   var useState = R.useState;
 
+  function getPageTransitionMs() {
+    try {
+      if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+      var duration = parseFloat(w.getComputedStyle(w.document.documentElement).getPropertyValue('--motion-page-transition'));
+      return isFinite(duration) ? duration : 280;
+    } catch (_) { return 280; }
+  }
+
   function SettingsView(_ref) {
     var onClose = _ref.onClose, onOpenBackup = _ref.onOpenBackup;
     var _closing = R.useState(false);
@@ -26,11 +34,11 @@
     ];
 
     return R.createElement('div', { style:{ background:'var(--primary-bg)', minHeight:'100vh' } },
-      R.createElement('button', { className:'editor-fab left', onPointerDown:function(e){e.stopPropagation();setClosing(true);setTimeout(function(){onClose();},320);} },
+      R.createElement('button', { className:'editor-fab left', onPointerDown:function(e){e.stopPropagation();setClosing(true);setTimeout(function(){onClose();},getPageTransitionMs());} },
         R.createElement('svg', { xmlns:'http://www.w3.org/2000/svg', viewBox:'0 0 24 24', width:22, height:22, fill:'none', stroke:'currentColor', strokeWidth:'2.5', strokeLinecap:'round', strokeLinejoin:'round' },
           R.createElement('path', { d:'M15 18l-6-6 6-6' }))),
       R.createElement('div', { className:'page-title compact', style:{ visibility:'visible', opacity:1, pointerEvents:'none' } }, '\u8BBE\u7F6E'),
-      R.createElement('div', { style: closing ? { animation:'slideOutToRight 0.28s cubic-bezier(0.22,0.61,0.36,1) forwards' } : { animation:'slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both' } },
+      R.createElement('div', { style: closing ? { animation:'slideOutToRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) forwards' } : { animation:'slideInFromRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) both' } },
         R.createElement('div', { style:{ padding:'126px 20px calc(40px + env(safe-area-inset-bottom))' } },
           R.createElement('div', { className:'section-header', style:{ paddingTop:4 } }, '\u5916\u89C2'),
           R.createElement('div', { className:'list-group' },

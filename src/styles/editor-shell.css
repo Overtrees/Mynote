@@ -116,3 +116,46 @@
       .editor-export-choice:active,
       .editor-export-back:active { transform: none; }
     }
+
+
+/* 大屏采用翻开书页的双栏阅读/编辑节奏；低高度窄屏保持单栏。 */
+@media (min-width: 768px) and (min-height: 600px), (min-width: 1100px) {
+  .editor-spread {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1440px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .editor-spread > .editor-body {
+    column-count: 2;
+    column-gap: clamp(34px, 4.8vw, 72px);
+    column-rule: 1px solid var(--border-color);
+    column-fill: balance;
+    orphans: 3;
+    widows: 3;
+  }
+  .editor-spread > .editor-body > .atomic,
+  .editor-spread > .editor-body > .img-text-card,
+  .editor-spread > .editor-body > .img-text-row,
+  .editor-spread > .editor-body > .link-card-block,
+  .editor-spread > .editor-body > .link-card-err,
+  .editor-spread > .editor-body > .attachment-file {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .editor-spread > .editor-body > .atomic[data-type="image"],
+  .editor-spread > .editor-body > .atomic[data-type="gallery"],
+  .editor-spread > .editor-body > .img-text-card,
+  .editor-spread > .editor-body > .img-text-row,
+  .editor-spread > .editor-body > [data-type="musicCard"] {
+    column-span: all;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1099px) {
+  .editor-spread > .editor-body {
+    column-count: 1;
+    column-rule: none;
+  }
+}

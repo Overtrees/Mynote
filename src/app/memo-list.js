@@ -458,7 +458,7 @@ function MemoList() {
     });
   }
   if (editingMemo) return /*#__PURE__*/React.createElement(Editor, { memo: editingMemo ? Object.assign({}, editingMemo, { __isNewNote: isNewNoteRef.current }) : null, onClose: closeEditor, onSave: saveMemo, autoFocus: newEditorAutoFocusId === editingMemo.id });
-  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { className: "page-title compact", style: { visibility: isCompact ? 'visible' : 'hidden', opacity: isCompact ? 1 : 0, pointerEvents: 'auto', cursor: 'pointer', width: 'fit-content', margin: '0 auto' }, onClick: () => setView('settings') }, "\u6B64\u523B"), /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both" } }, /*#__PURE__*/React.createElement("header", {
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", { className: "page-title compact", style: { visibility: isCompact ? 'visible' : 'hidden', opacity: isCompact ? 1 : 0, pointerEvents: 'auto', cursor: 'pointer', width: 'fit-content', margin: '0 auto' }, onClick: () => setView('settings') }, "\u6B64\u523B"), /*#__PURE__*/React.createElement("div", { style: { position: "relative", backgroundColor: "var(--primary-bg)", animation: "slideInFromRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) both" } }, /*#__PURE__*/React.createElement("header", {
     className: "main-header"
   }, /*#__PURE__*/React.createElement("div", {
     className: "header-actions"
@@ -536,7 +536,7 @@ function MemoList() {
       border: "0.5px solid var(--glass-overlay-border)",
       opacity: isCompact ? 0 : 1,
       visibility: isCompact ? "hidden" : "visible",
-      transition: "opacity 280ms ease"
+      transition: "opacity var(--motion-page-transition) ease"
     }
   }, /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 24 24",
@@ -590,7 +590,7 @@ function MemoList() {
       pointerEvents: "auto",
       opacity: isCompact ? 0 : 1,
       visibility: isCompact ? "hidden" : "visible",
-      transition: "opacity 280ms ease",
+      transition: "opacity var(--motion-page-transition) ease",
       color: "var(--glass-label-color)",
       fontFamily: "inherit"
     }

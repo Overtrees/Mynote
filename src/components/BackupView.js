@@ -12,10 +12,17 @@ const BackupView = ({
   onClose
 }) => {
   const [closing, setClosing] = useState(false);
+  const getPageTransitionMs = useCallback(function () {
+    try {
+      if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+      var duration = parseFloat(w.getComputedStyle(w.document.documentElement).getPropertyValue('--motion-page-transition'));
+      return Number.isFinite(duration) ? duration : 280;
+    } catch (_) { return 280; }
+  }, []);
   const handleClose = useCallback(function () {
     setClosing(true);
-    setTimeout(() => onClose(), 320);
-  }, [onClose]);
+    setTimeout(() => onClose(), getPageTransitionMs());
+  }, [onClose, getPageTransitionMs]);
   const [googleToken, setGoogleToken] = useState(null); // access tokens stay memory-only
   const [showRestoreSheet, setShowRestoreSheet] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
@@ -524,7 +531,7 @@ const BackupView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      animation: closing ? 'slideOutToRight 0.28s cubic-bezier(0.22,0.61,0.36,1) forwards' : 'slideInFromRight 0.28s cubic-bezier(0.22,0.61,0.36,1) both'
+      animation: closing ? 'slideOutToRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) forwards' : 'slideInFromRight var(--motion-page-transition) cubic-bezier(0.22,0.61,0.36,1) both'
     }
   }, /*#__PURE__*/React.createElement("div", {
     className: "backup-hero"

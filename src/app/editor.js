@@ -977,9 +977,10 @@ function Editor({
     }
     var noteTitle = titleValueRef.current.trim() || '无标题';
     var editorSnapshot = exporter.captureEditorSnapshot(editorBodyRef.current);
+    var exportOptions = { avatarUrl: avatarUrl };
     var html = null;
     if (format === 'pdf') {
-      html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot);
+      html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot, exportOptions);
       var printWindow = window.open('', '_blank');
       if (!printWindow) {
         if (window.MynoteErrors) window.MynoteErrors.addWarn('浏览器阻止了 PDF 导出窗口，请允许弹出窗口后重试。', new Error('PDF print window blocked'));
@@ -1007,7 +1008,7 @@ function Editor({
       }
       return;
     }
-    if (format === 'html') html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot);
+    if (format === 'html') html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot, exportOptions);
     var content = format === 'html' ? html : exporter.toMarkdown(doc, noteTitle, filesRef.current || {}, editorSnapshot);
     var mime = format === 'html' ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
     var extension = format === 'html' ? 'html' : 'md';
@@ -2567,6 +2568,7 @@ function Editor({
     style: { margin: "5px 4px 2px", padding: "9px 5px 2px", borderTop: "0.5px solid var(--glass-overlay-border)", color: "var(--text-secondary)", fontSize: "var(--font-10)", lineHeight: 1.45 }
   }, "PDF 会打开浏览器打印窗口，可在其中存储为 PDF。")))), /*#__PURE__*/React.createElement("div", {
     ref: editorWrapperRef,
+    className: "editor-spread",
     style: {
       paddingLeft: 16,
       paddingRight: 16,

@@ -132,3 +132,22 @@ test('HTML 快照导出只嵌入一份编辑器样式表', () => {
   });
   assert.equal((html.match(/\.img-text-card\{display:grid\}/g) || []).length, 1);
 });
+
+test('HTML/PDF 共用编辑器式页眉并安全带入头像', () => {
+  const { win } = makeAppEnv();
+  const html = win.MynoteEditorExport.toHTMLDocument(
+    [{ id: 'p', type: 'paragraph', children: [{ text: '正文' }] }],
+    '导出标题',
+    {},
+    { html: '<p>正文</p>', cssText: '' },
+    { avatarUrl: 'data:image/png;base64,AA==' }
+  );
+
+  assert.match(html, /class="mynote-export-header"/);
+  assert.match(html, /class="mynote-export-avatar"><img src="data:image\/png;base64,AA==" alt="头像"><\/div>/);
+  assert.match(html, /class="note-title">导出标题<\/h1>/);
+  assert.match(html, /class="mynote-export-control mynote-export-back"/);
+  assert.match(html, /class="mynote-export-control mynote-export-more"/);
+  assert.match(html, /mynote-export-identity \.note-title/);
+  assert.match(html, /@media print/);
+});

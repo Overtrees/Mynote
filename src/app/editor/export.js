@@ -316,23 +316,45 @@
     return Array.isArray(doc) ? doc.map(function (node) { return renderBlock(node || {}, files || {}); }).join('\n') : '';
   }
 
+  function exportHeaderMarkup(title, options) {
+    var avatar = safeImageUrl(options && options.avatarUrl);
+    var avatarMarkup = avatar
+      ? '<img src="' + escapeHTML(avatar) + '" alt="头像">'
+      : '<span class="mynote-export-avatar-fallback" aria-hidden="true">此刻</span>';
+    return '<header class="mynote-export-header" aria-label="笔记页眉">' +
+      '<span class="mynote-export-control mynote-export-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>' +
+      '<div class="mynote-export-identity"><div class="mynote-export-avatar">' + avatarMarkup + '</div><h1 class="note-title">' + escapeHTML(title) + '</h1></div>' +
+      '<span class="mynote-export-control mynote-export-more" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></span>' +
+      '</header>';
+  }
+
   function snapshotStyles(snapshot, includeEditorCss) {
     var shouldIncludeCss = includeEditorCss !== false;
     var supplied = snapshot && typeof snapshot.cssText === 'string' ? snapshot.cssText : (shouldIncludeCss ? collectStyleText() : '');
     return (shouldIncludeCss ? (supplied || '') : '') + '\n' +
       '.mynote-export-shell{box-sizing:border-box;width:min(100%,1120px);margin:0 auto;padding:24px 16px 40px;color:var(--text-main,CanvasText)}' +
-      '.note-title{box-sizing:border-box;width:min(100%,72ch);margin:0 auto 18px;padding:0 0 10px;border-bottom:1px solid var(--border-color,rgba(0,0,0,.12));color:var(--text-main,CanvasText);font:700 24px/1.3 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:-.02em;overflow-wrap:anywhere}' +
+      '.mynote-export-header{box-sizing:border-box;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px;width:min(100%,1120px);margin:0 auto 28px;padding:12px 0 0}' +
+      '.mynote-export-control{box-sizing:border-box;display:grid;place-items:center;width:42px;height:42px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);color:var(--text-secondary,GrayText)}' +
+      '.mynote-export-identity{display:flex;min-width:0;flex-direction:column;align-items:center;gap:12px}' +
+      '.mynote-export-avatar{box-sizing:border-box;width:64px;height:64px;overflow:hidden;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);display:grid;place-items:center}' +
+      '.mynote-export-avatar img{display:block;width:100%;height:100%;object-fit:cover}' +
+      '.mynote-export-avatar-fallback{font:600 var(--font-12,12px)/1 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:.04em;color:var(--glass-label-color,var(--text-secondary,GrayText))}' +
+      '.mynote-export-identity .note-title{box-sizing:border-box;width:fit-content;max-width:100%;margin:0;padding:11px 20px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:999px;background:var(--glass-control-bg,Canvas);color:var(--text-main,CanvasText);font:650 var(--font-16,16px)/1.25 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:-.02em;text-align:center;overflow-wrap:anywhere}' +
+      '@media(max-width:560px){.mynote-export-shell{padding:18px 14px 32px}.mynote-export-header{margin-bottom:24px}.mynote-export-avatar{width:56px;height:56px}.mynote-export-identity{gap:10px}.mynote-export-identity .note-title{font-size:var(--font-16,16px);padding:10px 16px}}' +
       '.mynote-export-shell .editor-body{box-sizing:border-box;min-height:0;padding:4px 0;color:var(--text-main,CanvasText);font:var(--md-font-body,16px)/var(--md-line-height,1.75) var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);overflow-wrap:anywhere}' +
       '.mynote-export-shell .editor-body>*:first-child{margin-top:0}' +
       '.mynote-export-shell .editor-body>*:last-child{margin-bottom:0}' +
       '@page{size:auto;margin:16mm}' +
-      '@media print{html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{padding:0}.mynote-export-shell{width:100%;max-width:none;margin:0;padding:0}.mynote-export-shell .editor-body{min-height:0}.note-title{break-after:avoid}}';
+      '@media print{html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{padding:0}.mynote-export-shell{width:100%;max-width:none;margin:0;padding:0}.mynote-export-header{break-inside:avoid;margin-bottom:22px;padding-top:0}.mynote-export-shell .editor-body{min-height:0}.note-title{break-after:avoid}}';
   }
 
-  function visualSnapshotMarkup(doc, title, files, snapshot) {
+  function visualSnapshotMarkup(doc, title, files, snapshot, options) {
     var name = String(title || '无标题').trim() || '无标题';
     var content = snapshotMarkup(doc, files, snapshot);
-    return '<main class="mynote-export-shell"><h1 class="note-title">' + escapeHTML(name) + '</h1><div class="editor-body">' + content + '</div></main>';
+    var header = options && options.includeChrome
+      ? exportHeaderMarkup(name, options)
+      : '<h1 class="note-title">' + escapeHTML(name) + '</h1>';
+    return '<main class="mynote-export-shell">' + header + '<div class="editor-body">' + content + '</div></main>';
   }
 
   function toMarkdown(doc, title, files, snapshot) {
@@ -351,9 +373,10 @@
     ].join('');
   }
 
-  function toHTMLDocument(doc, title, files, snapshot) {
+  function toHTMLDocument(doc, title, files, snapshot, options) {
     var name = String(title || '无标题').trim() || '无标题';
-    var body = visualSnapshotMarkup(doc, name, files, snapshot);
+    var exportOptions = Object.assign({}, options || {}, { includeChrome: true });
+    var body = visualSnapshotMarkup(doc, name, files, snapshot, exportOptions);
     var appCss = snapshot && typeof snapshot.cssText === 'string' ? snapshot.cssText : collectStyleText();
     var css = (appCss || fallbackStyles()) + '\n' + snapshotStyles(snapshot, false).replace(/<\/style/gi, '<\\/style');
     return '<!doctype html>\n<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>' + escapeHTML(name) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>';
