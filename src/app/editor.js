@@ -2520,6 +2520,10 @@ function Editor({
       top: "calc(env(safe-area-inset-top) + 7px + 46px + 6px)",
       width: 246,
       maxWidth: "calc(100vw - 32px)",
+      maxHeight: "calc(100dvh - env(safe-area-inset-top) - 7px - 46px - 6px - 8px)",
+      boxSizing: "border-box",
+      display: "flex",
+      flexDirection: "column",
       background: "var(--glass-overlay-bg)",
       backdropFilter: "var(--glass-overlay-filter)",
       WebkitBackdropFilter: "var(--glass-overlay-filter)",
@@ -2533,9 +2537,9 @@ function Editor({
       willChange: "opacity, transform"
     }
   }, React.createElement("div", {
-    style: { padding: 7 }
+    style: { padding: 7, minHeight: 0, display: "flex", flexDirection: "column", flex: "1 1 auto" }
   }, React.createElement("div", {
-    style: { minHeight: 46, display: "flex", alignItems: "center", gap: 8, padding: "0 4px 5px", borderBottom: "0.5px solid var(--glass-overlay-border)" }
+    style: { minHeight: 46, flex: "none", display: "flex", alignItems: "center", gap: 8, padding: "0 4px 5px", borderBottom: "0.5px solid var(--glass-overlay-border)" }
   }, React.createElement("button", {
     type: "button",
     className: "editor-export-back",
@@ -2547,7 +2551,7 @@ function Editor({
   }, React.createElement("path", { d: "M15 18l-6-6 6-6M9 12h11" }))), React.createElement("div", {
     style: { flex: 1, textAlign: "center", paddingRight: 38, color: "var(--text-main)", fontSize: "var(--font-15)", fontWeight: 650 }
   }, "导出笔记")), React.createElement("div", {
-    style: { display: "grid", gap: 3, paddingTop: 6 }
+    style: { minHeight: 0, flex: "1 1 auto", display: "grid", gap: 3, paddingTop: 6, overflowY: "auto", overscrollBehavior: "contain", scrollbarGutter: "stable" }
   }, [
     { format: "markdown", label: "Markdown", detail: "保存为 .md 文件", badge: "MD" },
     { format: "html", label: "HTML", detail: "保存为独立网页", badge: "<>" },
@@ -2575,7 +2579,7 @@ function Editor({
       style: { paddingLeft: 4, color: "var(--color-placeholder-strong)", fontSize: "var(--font-19)" }
     }, "\u203A"));
   })), React.createElement("div", {
-    style: { margin: "5px 4px 2px", padding: "9px 5px 2px", borderTop: "0.5px solid var(--glass-overlay-border)", color: "var(--text-secondary)", fontSize: "var(--font-10)", lineHeight: 1.45 }
+    style: { flex: "none", margin: "5px 4px 2px", padding: "9px 5px 2px", borderTop: "0.5px solid var(--glass-overlay-border)", color: "var(--text-secondary)", fontSize: "var(--font-10)", lineHeight: 1.45 }
   }, "PDF 会打开浏览器打印窗口，可在其中存储为 PDF。")))), /*#__PURE__*/React.createElement("div", {
     ref: editorWrapperRef,
     className: "editor-spread",

@@ -2,7 +2,7 @@
 (function (w) {
   'use strict';
 
-  function preprocessExtendedMarkdown(text) {
+  function preprocessExtendedMarkdownUnprotected(text) {
     if (!text || typeof text !== 'string') return text;
     return text
       .replace(/~~([^~]+)~~/g, '<del style="background:var(--fill-hover);padding:0 2px;">$1</del>')
@@ -11,23 +11,6 @@
       .replace(/\?\?([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-warning-12);color:var(--color-tip);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> $1</span></span>')
       .replace(/@@([^\n]+)/g, '<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:0.8em;background:var(--fill-success-12);color:var(--color-success);padding:0 10px;border-radius:var(--radius-999);font-weight:600;line-height:1.8;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> $1</span></span>')
       .replace(/(^|\s)#([\u4e00-\u9fa5\w-]+)/g, '$1<span style="display:inline-flex;align-items:center;color:var(--color-accent);background:var(--fill-accent-08);padding:0 10px;border-radius:var(--radius-999);font-size:0.8em;font-weight:600;line-height:1.8;">#$2</span>')
-      /* ---- callout > [!NOTE] / [!WARNING] / [!TIP] ---- */
-      .replace(/^>\s*\[!(\w+)\]\s*([\s\S]*?)(?=\n\s*\n|\n>\s*\[|\n*$(?!\n))/gm, function(m, type, body) {
-        var t = type.toLowerCase();
-        var cls = 'callout callout-' + t;
-        var icons = {
-          note:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-note-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
-          warning:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-warning-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-          tip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-tip-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
-          important:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-important-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
-          caution:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-caution-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
-        };
-        var titles = { note:'笔记', warning:'注意', tip:'提示', important:'重要', caution:'小心' };
-        var icon = icons[t] || '\u2139\uFE0F';
-        var title = titles[t] || type;
-        var bodyText = body.replace(/^>\s*/gm, '').trim();
-        return '<div class="' + cls + '"><div class="callout-header"><span class="callout-icon">' + icon + '</span><span class="callout-title">' + title + '</span></div><div class="callout-body">' + bodyText + '</div></div>';
-      })
       /* ---- emoji shortcodes ---- */
       .replace(/:([a-z_+-]+):/g, function(m, name) {
         var map = { smile:'\uD83D\uDE0A', heart:'\u2764\uFE0F', rocket:'\uD83D\uDE80', fire:'\uD83D\uDD25', check:'\u2705', x:'\u274C', warning:'\u26A0\uFE0F', info:'\u2139\uFE0F', question:'\u2753', thumbsup:'\uD83D\uDC4D', thumbsdown:'\uD83D\uDC4E', ok:'\uD83D\uDC4C', wave:'\uD83D\uDC4B', clap:'\uD83D\uDC4F', pray:'\uD83D\uDE4F', star:'\u2B50', sparkles:'\u2728', bookmark:'\uD83D\uDD16', link:'\uD83D\uDD17', gear:'\u2699\uFE0F', lock:'\uD83D\uDD12', unlock:'\uD83D\uDD13', mail:'\uD83D\uDCE7', phone:'\uD83D\uDCDE', calendar:'\uD83D\uDCC5', clock:'\uD83D\uDD50', memo:'\uD83D\uDCDD', pushpin:'\uD83D\uDCCC', paperclip:'\uD83D\uDCCE', file:'\uD83D\uDCC4', folder:'\uD83D\uDCC1', image:'\uD83D\uDDBC\uFE0F', music:'\uD83C\uDFB5', video:'\uD83C\uDFAC', bulb:'\uD83D\uDCA1', book:'\uD83D\uDCD6', chart:'\uD83D\uDCCA', code:'\uD83D\uDCBB', database:'\uD83D\uDEE4\uFE0F', globe:'\uD83C\uDF10', bug:'\uD83D\uDC1B', flask:'\uD83E\uDDEA', robot:'\uD83E\uDD16', party:'\uD83C\uDF89', gift:'\uD83C\uDF81', trophy:'\uD83C\uDFC6', medal:'\uD83E\uDD47', zap:'\u26A1', rain:'\uD83C\uDF27\uFE0F', sun:'\u2600\uFE0F', moon:'\uD83C\uDF19', cloud:'\u2601\uFE0F', snow:'\u2744\uFE0F' };
@@ -46,6 +29,144 @@
       .replace(/^---(.+?)---$/gm, function(m, icon) {
         return '<hr style="border:none;margin:1.2em 0;"><div style="text-align:center;margin:-1.4em 0 1.2em;font-size:var(--font-12);color:var(--color-placeholder);letter-spacing:4px;position:relative;z-index:1;background:var(--card-bg,var(--color-white));width:fit-content;padding:0 12px;margin-left:auto;margin-right:auto;">' + icon + '</div>';
       });
+  }
+
+  var parseMarkdownSource = null;
+
+  function setMarkdownParser(parser) {
+    parseMarkdownSource = typeof parser === 'function' ? parser : null;
+  }
+
+  function protectCodeSegments(text, protectedParts) {
+    var source = String(text || '');
+    var prefix = '\uE000mynote-md-' + Math.random().toString(36).slice(2) + '-';
+    while (source.indexOf(prefix) >= 0) prefix = '\uE000mynote-md-' + Math.random().toString(36).slice(2) + '-';
+    function stash(value, calloutValue) {
+      var token = prefix + protectedParts.length + '\uE001';
+      protectedParts.push({ token: token, value: value, calloutValue: calloutValue });
+      return token;
+    }
+
+    // Fence code blocks as complete source slices before looking for inline code.
+    var fenced = '';
+    var offset = 0;
+    while (offset < source.length) {
+      var newline = source.indexOf('\n', offset);
+      var end = newline < 0 ? source.length : newline + 1;
+      var line = source.slice(offset, newline < 0 ? source.length : newline).replace(/\r$/, '');
+      var opening = line.match(/^ {0,3}((?:>\s*)*)(`{3,}|~{3,})/);
+      if (!opening) {
+        fenced += source.slice(offset, end);
+        offset = end;
+        continue;
+      }
+      var fenceChar = opening[2].charAt(0);
+      var fenceLength = opening[2].length;
+      var quoteDepth = (opening[1].match(/>/g) || []).length;
+      var blockEnd = end;
+      var closed = false;
+      while (blockEnd < source.length) {
+        var closeNewline = source.indexOf('\n', blockEnd);
+        var closeEnd = closeNewline < 0 ? source.length : closeNewline + 1;
+        var closeLine = source.slice(blockEnd, closeNewline < 0 ? source.length : closeNewline).replace(/\r$/, '');
+        var normalizedClose = closeLine.replace(/^ {0,3}(?:>\s*)*/, '');
+        var closing = normalizedClose.match(/^(`+|~+)[ \t]*$/);
+        var closeQuoteDepth = ((closeLine.match(/^ {0,3}(?:>\s*)*/) || [''])[0].match(/>/g) || []).length;
+        blockEnd = closeEnd;
+        if (closing && closing[1].charAt(0) === fenceChar && closing[1].length >= fenceLength && closeQuoteDepth >= quoteDepth) {
+          closed = true;
+          break;
+        }
+      }
+      if (!closed) blockEnd = source.length;
+      var fenceSource = source.slice(offset, blockEnd);
+      var calloutFenceSource = fenceSource;
+      if (quoteDepth) {
+        calloutFenceSource = fenceSource.replace(/(^|\n)( {0,3}(?:>\s*)+)/g, function (line, newline, prefixText) {
+          var stripped = prefixText;
+          for (var depth = 0; depth < quoteDepth; depth++) stripped = stripped.replace(/^ {0,3}>[ \t]?/, '');
+          return newline + stripped;
+        });
+      }
+      var fenceToken = stash(fenceSource, calloutFenceSource);
+      fenced += quoteDepth ? line.match(/^ {0,3}/)[0] + opening[1] + fenceToken : fenceToken;
+      offset = blockEnd;
+    }
+
+    // Protect matching backtick runs, including multiline spans, but leave escaped ticks alone.
+    var inline = '';
+    var i = 0;
+    while (i < fenced.length) {
+      if (fenced.charAt(i) !== '`') {
+        inline += fenced.charAt(i++);
+        continue;
+      }
+      var slashCount = 0;
+      for (var back = i - 1; back >= 0 && fenced.charAt(back) === '\\'; back--) slashCount++;
+      var runEnd = i + 1;
+      while (fenced.charAt(runEnd) === '`') runEnd++;
+      if (slashCount % 2) {
+        inline += fenced.slice(i, runEnd);
+        i = runEnd;
+        continue;
+      }
+      var runLength = runEnd - i;
+      var search = runEnd;
+      var closingStart = -1;
+      while (search < fenced.length) {
+        var tick = fenced.indexOf('`', search);
+        if (tick < 0) break;
+        var closeRunEnd = tick + 1;
+        while (fenced.charAt(closeRunEnd) === '`') closeRunEnd++;
+        if (closeRunEnd - tick === runLength) { closingStart = tick; break; }
+        search = closeRunEnd;
+      }
+      if (closingStart < 0) {
+        inline += fenced.slice(i, runEnd);
+        i = runEnd;
+      } else {
+        var spanEnd = closingStart + runLength;
+        inline += stash(fenced.slice(i, spanEnd));
+        i = spanEnd;
+      }
+    }
+    return inline;
+  }
+
+  function restoreProtected(text, protectedParts, forCallout) {
+    var restored = String(text || '');
+    protectedParts.forEach(function (part) {
+      var value = forCallout && typeof part.calloutValue === 'string' ? part.calloutValue : part.value;
+      restored = restored.split(part.token).join(value);
+    });
+    return restored;
+  }
+
+  function preprocessExtendedMarkdown(text) {
+    if (!text || typeof text !== 'string') return text;
+    var protectedParts = [];
+    var source = protectCodeSegments(text, protectedParts);
+    source = preprocessExtendedMarkdownUnprotected(source);
+    source = source.replace(/^ {0,3}>[ \t]*\[!(\w+)\][^\n]*(?:\n {0,3}>[^\n]*)*/gm, function (match, type) {
+      var lines = match.split('\n');
+      lines[0] = lines[0].replace(/^ {0,3}>[ \t]*\[!\w+\][ \t]?/, '');
+      var bodyText = lines.map(function (line, index) {
+        return index === 0 ? line : line.replace(/^ {0,3}>\s?/, '');
+      }).join('\n').trim();
+      bodyText = restoreProtected(bodyText, protectedParts, true);
+      var t = type.toLowerCase();
+      var icons = {
+        note:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-note-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+        warning:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-warning-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        tip:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-tip-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+        important:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-important-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+        caution:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--md-callout-caution-icon)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+      };
+      var titles = { note:'笔记', warning:'注意', tip:'提示', important:'重要', caution:'小心' };
+      var bodyHtml = bodyText && parseMarkdownSource ? parseMarkdownSource(bodyText) : bodyText;
+      return '<aside class="callout callout-' + t + '"><div class="callout-header"><span class="callout-icon">' + (icons[t] || '\u2139\uFE0F') + '</span><span class="callout-title">' + (titles[t] || type) + '</span></div><div class="callout-body">' + (bodyHtml || '') + '</div></aside>';
+    });
+    return restoreProtected(source, protectedParts);
   }
 
   function looksLikeMarkdown(text) {
@@ -91,8 +212,12 @@
     try {
       var raw = String(text || '');
       if (!raw.trim()) return '';
-      var processed = preprocessExtendedMarkdown(raw);
-      var html = window.marked ? marked.parse(processed) : processed.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      var html;
+      if (window.marked) html = marked.parse(raw);
+      else {
+        var processed = preprocessExtendedMarkdown(raw);
+        html = processed.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+      }
       if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') return window.DOMPurify.sanitize(html, { ADD_TAGS: ['input'], ADD_ATTR: ['checked', 'type'] });
       return '<p>' + String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>') + '</p>'; // fail closed
     } catch(e) {
@@ -111,6 +236,7 @@
 
   w.MynoteMd = {
     preprocessExtendedMarkdown: preprocessExtendedMarkdown,
+    setMarkdownParser: setMarkdownParser,
     looksLikeMarkdown: looksLikeMarkdown,
     looksLikeCiaoMarkdown: looksLikeCiaoMarkdown,
     stripMarkdownForPreview: stripMarkdownForPreview,

@@ -27,6 +27,32 @@ try {
   await page.goto(`http://127.0.0.1:${port}/Moment.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.list-item', { timeout: 30000 });
   await page.waitForTimeout(400); // Ignore the app's initial slide-in transform during overflow measurements.
+  const markdownPipeline = await page.evaluate(() => {
+    const code = "const literal = '~~strike~~ ==highlight== !!idea ??question @@name :smile: #tag $blue:x$ ->center<-';";
+    const source = '```js\n' + code + '\n```\n\n~~~txt\n' + code + '\n~~~\n\nInline: `' + code + '`';
+    const host = document.createElement('div');
+    host.innerHTML = window.MynoteMd.renderMarkdownHtml(source);
+    const codeNodes = [...host.querySelectorAll('pre code, p code')];
+    const calloutHost = document.createElement('div');
+    calloutHost.innerHTML = window.MynoteMd.renderMarkdownHtml('> [!NOTE]\n> **粗体文字** 与 [安全链接](https://example.com)\n> - 列表一\n> - 列表二');
+    const callout = calloutHost.querySelector('.callout');
+    const codeCalloutHost = document.createElement('div');
+    codeCalloutHost.innerHTML = window.MynoteMd.renderMarkdownHtml('> [!TIP]\n> ```js\n> const nested = \'~~keep~~ ==keep==\';\n> ```');
+    return {
+      codeCount: codeNodes.length,
+      codeText: codeNodes.map(node => node.textContent),
+      codeMarkup: codeNodes.map(node => node.innerHTML),
+      calloutBody: callout?.querySelector('.callout-body')?.innerHTML || '',
+      calloutStrong: !!callout?.querySelector('.callout-body strong'),
+      calloutLink: callout?.querySelector('.callout-body a')?.getAttribute('href') || '',
+      calloutItems: callout?.querySelectorAll('.callout-body li').length || 0,
+      calloutFence: codeCalloutHost.querySelector('.callout-body pre code')?.textContent || ''
+    };
+  });
+  const expectedCode = "const literal = '~~strike~~ ==highlight== !!idea ??question @@name :smile: #tag $blue:x$ ->center<-';";
+  check('反引号/波浪号围栏与行内代码中的扩展标记逐字保留', markdownPipeline.codeCount === 3 && markdownPipeline.codeText[0] === expectedCode + '\n' && markdownPipeline.codeText[1] === expectedCode + '\n' && markdownPipeline.codeText[2] === expectedCode && markdownPipeline.codeMarkup.every(markup => !/<(?:del|span|svg)\b/i.test(markup)), JSON.stringify(markdownPipeline.codeText));
+  check('提示块正文继续解析加粗、链接与 Markdown 列表', markdownPipeline.calloutStrong && markdownPipeline.calloutLink === 'https://example.com' && markdownPipeline.calloutItems === 2, markdownPipeline.calloutBody.replace(/\s+/g, ' ').slice(0, 180));
+  check('提示块内部围栏代码保留扩展标记字面量', markdownPipeline.calloutFence === "const nested = '~~keep~~ ==keep==';\n", JSON.stringify(markdownPipeline.calloutFence));
   const resultsByTheme = {};
   for (const width of [360, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });

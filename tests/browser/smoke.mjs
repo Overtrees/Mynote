@@ -275,6 +275,33 @@ const exportFormats = await exportDialog.locator('[data-export-format]').evaluat
 check('导出入口打开浮层并显示三种格式', exportFormats.join('|') === '导出为 Markdown|导出为 HTML|导出为 PDF', exportFormats.join(', '));
 const exportButtonUX = await exportDialog.locator('[data-export-format="markdown"]').evaluate(button => ({ minHeight: parseFloat(getComputedStyle(button).minHeight), transition: getComputedStyle(button).transitionDuration }));
 check('格式选项具备触控尺寸与点击动画', exportButtonUX.minHeight >= 44 && exportButtonUX.transition.includes('0.15s'), JSON.stringify(exportButtonUX));
+await page.setViewportSize({ width: 430, height: 240 });
+await page.waitForTimeout(100);
+const shortExportPanel = await exportDialog.evaluate(dialog => {
+  const rect = dialog.getBoundingClientRect();
+  const style = getComputedStyle(dialog);
+  const sections = dialog.children[0]?.children || [];
+  const options = sections[1];
+  const footer = sections[2];
+  const title = sections[0];
+  const titleRect = title?.getBoundingClientRect();
+  const footerRect = footer?.getBoundingClientRect();
+  return {
+    bottom: rect.bottom,
+    viewportHeight: window.innerHeight,
+    maxHeight: style.maxHeight,
+    maxHeightPx: parseFloat(style.maxHeight),
+    optionsOverflowY: options ? getComputedStyle(options).overflowY : '',
+    optionsClientHeight: options?.clientHeight || 0,
+    optionsScrollHeight: options?.scrollHeight || 0,
+    titleVisible: !!titleRect && titleRect.top >= 0 && titleRect.bottom <= window.innerHeight,
+    footerVisible: !!footerRect && footerRect.top >= 0 && footerRect.bottom <= window.innerHeight
+  };
+});
+check('极矮视口下导出面板不越界且限制最大高度', shortExportPanel.bottom <= shortExportPanel.viewportHeight && shortExportPanel.maxHeightPx < shortExportPanel.viewportHeight, JSON.stringify(shortExportPanel));
+check('极矮视口下格式选项区域可内部滚动且标题/说明可见', /auto|scroll/.test(shortExportPanel.optionsOverflowY) && shortExportPanel.optionsScrollHeight > shortExportPanel.optionsClientHeight && shortExportPanel.titleVisible && shortExportPanel.footerVisible, JSON.stringify(shortExportPanel));
+await page.setViewportSize({ width: 430, height: 900 });
+await page.waitForTimeout(100);
 await page.waitForFunction(() => document.activeElement?.getAttribute('data-export-format') === 'markdown');
 await page.keyboard.press('Shift+Tab');
 const exportBackFocus = await page.evaluate(() => document.activeElement?.getAttribute('aria-label'));
