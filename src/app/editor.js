@@ -109,6 +109,7 @@ function Editor({
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [imageTextSheet, setImageTextSheet] = useState(null);
   const [bgColor, setBgColor] = useState(null);
   const [hasTyped, setHasTyped] = useState(false);
   var fileInputRef = useRef(null);
@@ -503,6 +504,28 @@ function Editor({
   var recordUndoPoint = History.recordUndoPoint;
   var undo = History.undo;
   var redo = History.redo;
+  var openImageTextSheet = useCallback(function (textArea) {
+    var block = textArea && textArea.closest && textArea.closest('[data-blockid]');
+    if (!block) return;
+    var selector = textArea.classList.contains('itc-text') ? '.itc-text' : '.itr-text';
+    recordUndoPoint();
+    setImageTextSheet({ blockId: block.dataset.blockid, selector: selector, text: textArea.textContent || '' });
+  }, [recordUndoPoint]);
+  var handleImageTextChange = useCallback(function (value) {
+    var activeSheet = imageTextSheet;
+    if (!activeSheet || value === activeSheet.text) return;
+    setImageTextSheet(function (current) { return current ? Object.assign({}, current, { text: value }) : current; });
+    var body = editorBodyRef.current;
+    var block = body && Array.prototype.find.call(body.children, function (child) { return child.dataset.blockid === activeSheet.blockId; });
+    var caption = block && block.querySelector(activeSheet.selector);
+    if (!caption) return;
+    caption.textContent = value;
+    setEditorDocRef(docRef.current);
+    docRef.current = parseEditorDOM(body);
+    setEditorDocRef(docRef.current);
+    recordUndoPoint();
+    triggerAutoSave();
+  }, [imageTextSheet, recordUndoPoint, triggerAutoSave]);
   var Slash = window.MynoteEditorHooks.useSlash({
     editorBodyRef: editorBodyRef,
     docRef: docRef,
@@ -1216,6 +1239,12 @@ function Editor({
       window.open(focusedMusicLink.dataset.url, '_blank', 'noopener,noreferrer');
       return;
     }
+    var imageTextArea = e.target && e.target.closest && e.target.closest('.itc-text, .itr-text');
+    if (imageTextArea && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      openImageTextSheet(imageTextArea);
+      return;
+    }
     if (showSlash) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
@@ -1311,7 +1340,7 @@ function Editor({
         triggerAutoSave();
       }
     }
-  }, [triggerAutoSave, showSlash, slashCommands, slashSelectedIndex, applySlashCommand]);
+  }, [triggerAutoSave, showSlash, slashCommands, slashSelectedIndex, applySlashCommand, openImageTextSheet]);
   var handleEditorPaste = useCallback(function (e) {
     var text = e.clipboardData && e.clipboardData.getData('text/plain');
     if (!text) return;
@@ -1529,6 +1558,7 @@ function Editor({
     setSlashQuery: setSlashQuery,
     setSlashTargetBlockId: setSlashTargetBlockId,
     setLightboxSrc: setLightboxSrc,
+    openImageTextSheet: openImageTextSheet,
     pendingImageBlockRef: pendingImageBlockRef,
     fileInputRef: fileInputRef,
     heightMap: heightMap,
@@ -2333,6 +2363,10 @@ function Editor({
       setShowColorPicker(false);
     },
     onClose: () => setShowColorPicker(false)
+  }), imageTextSheet && /*#__PURE__*/React.createElement(ImageTextSheet, {
+    text: imageTextSheet.text,
+    onChange: handleImageTextChange,
+    onClose: function () { setImageTextSheet(null); }
   }), lightboxSrc && /*#__PURE__*/React.createElement('div', {
     onClick: function () { setLightboxSrc(null); },
     style: { position: 'fixed', inset: 0, zIndex: 10000, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, cursor: 'zoom-out' }

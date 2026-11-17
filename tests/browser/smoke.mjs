@@ -435,6 +435,23 @@ const todoSaved = await page.evaluate(async () => {
 });
 check('待办支持空格键切换、焦点保持与状态保存', firstToggle.checked && firstToggle.aria === 'true' && firstToggle.focused && !todoSaved.checked && todoSaved.ariaChecked === 'false' && todoSaved.text.includes('AUDIT_TASK') && todoSaved.savedChecked === false, JSON.stringify({ firstToggle, secondToggle: todoSaved }));
 
+const longImageText = '图文卡说明文字用于验证完整阅读面板。'.repeat(18);
+await page.evaluate(text => {
+  const body = document.querySelector('.editor-body');
+  body.innerHTML = window.MynoteEditor.renderDocToEditorHTML([{ id: 'smoke-image-text', type: 'imgTextCard', children: [{ text }] }], {});
+}, longImageText);
+await page.locator('.editor-body .itc-text').click();
+await page.locator('.image-text-sheet-content').waitFor();
+const fullImageText = await page.locator('.image-text-sheet-content').innerText();
+check('点击图文说明区打开底部面板并显示完整长文本', fullImageText === longImageText, `字数=${fullImageText.length}`);
+await page.locator('.image-text-sheet-action').click();
+await page.locator('.image-text-sheet-editor').fill('面板内编辑已同步');
+const updatedImageText = await page.$eval('.editor-body .itc-text', el => el.textContent);
+check('全文面板显式编辑后同步回图文卡', updatedImageText === '面板内编辑已同步', updatedImageText);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(300);
+check('图文全文面板支持 Escape 关闭', await page.locator('.image-text-sheet').count() === 0);
+
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

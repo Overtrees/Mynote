@@ -17,10 +17,83 @@ await page.route('**/meta?*', async route => {
     return;
   }
   await new Promise(resolve => setTimeout(resolve, 900));
-  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Regression Song', subtitle: 'Regression Artist', source: 'Mock', type: 'music' }) });
+  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Regression Song', subtitle: 'Regression Artist', source: 'Mock', type: 'music', cover: 'https://example.test/music-cover.png' }) });
 });
+await page.route('**/img*', async route => route.fulfill({
+  status: 200,
+  contentType: 'image/png',
+  body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+}));
 const results = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`); };
+
+const measureMusicCover = async () => page.evaluate(() => {
+  const card = document.querySelector('.editor-body a.music-card-link[href*="mobile-race-regression"]');
+  const cover = card && card.querySelector('.lkc-cover');
+  const image = cover && cover.querySelector('img');
+  if (!cover || !image) return null;
+  const rect = cover.getBoundingClientRect();
+  const imageRect = image.getBoundingClientRect();
+  const imageStyle = getComputedStyle(image);
+  return {
+    width: rect.width,
+    height: rect.height,
+    ratio: rect.width / rect.height,
+    fill: rect.width / card.clientWidth,
+    imageWidth: imageRect.width,
+    imageHeight: imageRect.height,
+    imageMargin: imageStyle.margin,
+    imageBorderRadius: imageStyle.borderRadius,
+    objectFit: imageStyle.objectFit
+  };
+});
+
+const measureRenderedCoverLayouts = async width => {
+  await page.setViewportSize({ width, height: 844 });
+  return page.evaluate(() => {
+    const host = document.createElement('div');
+    host.className = 'editor-body';
+    host.style.cssText = 'position:fixed;left:16px;top:0;width:calc(100vw - 32px);visibility:hidden;pointer-events:none;z-index:-1;';
+    const originalProxyImg = window.proxyImg;
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    try {
+      window.proxyImg = url => url;
+      host.innerHTML = window.MynoteEditor.renderDocToEditorHTML([
+        { id: 'cover-layout-music', type: 'musicCard', url: 'https://open.spotify.com/track/layout-check', status: 'ready', meta: { title: 'Square artwork', source: 'Mock', cover: png } },
+        { id: 'cover-layout-link', type: 'link-card', url: 'https://example.test/article', meta: { title: 'Panoramic link', source: 'Example', cover: png } },
+        { id: 'cover-layout-loading', type: 'musicCard', url: 'https://open.spotify.com/track/layout-loading', status: 'loading' }
+      ], {});
+    } finally {
+      window.proxyImg = originalProxyImg;
+    }
+    document.body.appendChild(host);
+    const measure = (selector, hasImage) => {
+      const element = host.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      const card = element.parentElement;
+      const result = { width: rect.width, height: rect.height, ratio: rect.width / rect.height, fill: rect.width / card.clientWidth };
+      if (hasImage) {
+        const image = element.querySelector('img');
+        const imageRect = image.getBoundingClientRect();
+        const style = getComputedStyle(image);
+        result.imageWidth = imageRect.width;
+        result.imageHeight = imageRect.height;
+        result.imageMargin = style.margin;
+        result.imageBorderRadius = style.borderRadius;
+        result.objectFit = style.objectFit;
+      }
+      return result;
+    };
+    const result = {
+      music: measure('.music-card-link .lkc-cover', true),
+      link: measure('.link-card-block[data-blockid="cover-layout-link"] > .lkc-cover', true),
+      loading: measure('.link-card-skeleton[data-type="musicCard"] .link-card-skeleton-cover', false)
+    };
+    host.remove();
+    return result;
+  });
+};
 
 await page.goto(BASE, { waitUntil: 'commit' });
 await page.waitForSelector('.list-item');
@@ -70,8 +143,15 @@ check('retargeted paste uses the remembered capsule despite selection loss', ret
 check('paste + immediate Enter creates exactly one loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton'), JSON.stringify(immediate.cards));
 check('slash search closes and no stray slash remains', immediate.slashRows === 0 && !/(^|\n)\s*\/\s*(\n|$)/.test(immediate.bodyText), `rows=${immediate.slashRows}`);
 await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
-const resolved = await page.evaluate(() => [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText })));
-check('async completion preserves one resolved music card', resolved.length === 1 && resolved[0].text.includes('Regression Song'), JSON.stringify(resolved));
+const resolved = await page.evaluate(() => [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText, hasCover: !!el.querySelector('.lkc-cover img') })));
+check('async completion preserves one resolved music card with artwork', resolved.length === 1 && resolved[0].text.includes('Regression Song') && resolved[0].hasCover, JSON.stringify(resolved));
+const mobileMusicLayout = await measureMusicCover();
+await page.setViewportSize({ width: 1280, height: 844 });
+const desktopMusicLayout = await measureMusicCover();
+await page.setViewportSize({ width: 390, height: 844 });
+const isPanoramicAndFilled = layout => !!layout && Math.abs(layout.ratio - 2.4) < 0.02 && layout.fill >= 0.99 && Math.abs(layout.imageWidth - layout.width) <= 1 && Math.abs(layout.imageHeight - layout.height) <= 1 && layout.imageMargin === '0px' && layout.imageBorderRadius === '0px' && layout.objectFit === 'cover';
+check('inserted music cover fills the panoramic banner on narrow viewport', isPanoramicAndFilled(mobileMusicLayout), JSON.stringify(mobileMusicLayout));
+check('inserted music cover fills the panoramic banner on desktop viewport', isPanoramicAndFilled(desktopMusicLayout), JSON.stringify(desktopMusicLayout));
 await page.waitForTimeout(1500); // allow autosave/debounce to commit before closing.
 await page.locator('.editor-fab.left').click();
 await page.waitForSelector('.list-item');
@@ -79,10 +159,10 @@ await page.locator('.list-item').nth(2).click();
 await page.locator('.editor-body').waitFor();
 await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
 const reopened = await page.evaluate(() => ({
-  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText })),
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText, hasCover: !!el.querySelector('.lkc-cover img') })),
   straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
 }));
-check('reopen retains exactly one resolved card with no slash placeholder', reopened.cards.length === 1 && reopened.cards[0].text.includes('Regression Song') && !reopened.straySlash, JSON.stringify(reopened));
+check('reopen retains exactly one resolved card with artwork and no slash placeholder', reopened.cards.length === 1 && reopened.cards[0].text.includes('Regression Song') && reopened.cards[0].hasCover && !reopened.straySlash, JSON.stringify(reopened));
 // A second memo exercises failed metadata resolution and persistence independently.
 await page.locator('.editor-fab.left').click();
 await page.waitForSelector('.list-item');
@@ -118,6 +198,13 @@ const failedReopen = await page.evaluate(() => ({
   straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
 }));
 check('failed card survives reopen once with no pending/loading/stray slash', failedReopen.cards.length === 1 && failedReopen.pending === 0 && !failedReopen.straySlash, JSON.stringify(failedReopen));
+const coverLayoutsMobile = await measureRenderedCoverLayouts(390);
+const coverLayoutsDesktop = await measureRenderedCoverLayouts(1280);
+const isPanoramic = layout => !!layout && Math.abs(layout.ratio - 2.4) < 0.02 && layout.fill >= 0.99;
+for (const [name, layouts] of [['narrow', coverLayoutsMobile], ['desktop', coverLayoutsDesktop]]) {
+  check(`rendered music cover and loading skeleton remain panoramic (${name})`, isPanoramic(layouts.music) && isPanoramic(layouts.loading) && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
+  check(`ordinary link cover remains panoramic (${name})`, isPanoramic(layouts.link) && layouts.link.imageMargin === '0px' && layouts.link.imageBorderRadius === '0px' && layouts.link.objectFit === 'cover', JSON.stringify(layouts.link));
+}
 check('no browser JavaScript errors', failures.length === 0, failures.join(' | '));
 await browser.close();
 if (results.some(result => !result.ok)) process.exitCode = 1;

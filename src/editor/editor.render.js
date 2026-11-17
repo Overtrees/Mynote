@@ -57,13 +57,13 @@
           var imgFid = node.attrs && node.attrs.fileId;
           var imgSrc = imgFid && files && files[imgFid] && files[imgFid].url || '';
           var imgHtml = imgSrc ? '<img src="' + safeImageUrl(imgSrc) + '" style="width:100%;max-height:468px;object-fit:cover;display:block;">' : '<div style="height:160px;background:var(--fill-subtle);display:flex;align-items:center;justify-content:center;color:var(--color-placeholder);font-size:var(--font-13);">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
-          return '<div class="img-text-card" data-blockid="' + escapeHTML(node.id) + '" data-type="imgTextCard" contenteditable="false"><div class="itc-img-wrap">' + imgHtml + '</div><div class="itc-text" contenteditable="true">' + text + '</div></div>';
+          return '<div class="img-text-card" data-blockid="' + escapeHTML(node.id) + '" data-type="imgTextCard" contenteditable="false"><div class="itc-img-wrap">' + imgHtml + '</div><div class="itc-text" contenteditable="false" role="button" tabindex="0" aria-label="查看完整文本">' + text + '</div></div>';
         case 'imageTextRow':
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
           var rFid = node.attrs && node.attrs.fileId;
           var rImg = rFid && files && files[rFid] && files[rFid].url || '';
           var rHtml = rImg ? '<img src="' + safeImageUrl(rImg) + '" style="width:100%;height:100%;object-fit:cover;display:block">' : '<div class="itr-placeholder">\uD83D\uDCF7</div>';
-          return '<div class="img-text-row" data-blockid="' + escapeHTML(node.id) + '" data-type="imageTextRow" contenteditable="false"><div class="itr-img">' + rHtml + '</div><div class="itr-text" contenteditable="true">' + text + '</div></div>';
+          return '<div class="img-text-row" data-blockid="' + escapeHTML(node.id) + '" data-type="imageTextRow" contenteditable="false"><div class="itr-img">' + rHtml + '</div><div class="itr-text" contenteditable="false" role="button" tabindex="0" aria-label="查看完整文本">' + text + '</div></div>';
         case 'gallery':
           var gItems = node.attrs && node.attrs.items || [];
           var gHtml = gItems.length > 0

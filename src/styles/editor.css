@@ -26,17 +26,22 @@
 .markdown-render .task-list-item:hover { background: var(--fill-hover); }
 .markdown-render .task-list-item:active { background: var(--fill-hover-strong); }
 .markdown-render .task-list-item input[type="checkbox"] {
-    appearance: none; -webkit-appearance: none; width: 22px; height: 22px; flex: 0 0 22px;
-    display: grid; place-content: center; margin: 0; cursor: pointer;
-    border: 1.75px solid var(--md-checkbox-border); border-radius: 50%; background: transparent;
+    appearance: none; -webkit-appearance: none; box-sizing: border-box; width: 44px; height: 44px; flex: 0 0 44px;
+    position: relative; display: grid; place-content: center; margin: 0; padding: 0; cursor: pointer;
+    border: 0; border-radius: 50%; background: transparent;
     transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.markdown-render .task-list-item input[type="checkbox"]::before {
+    content: ""; grid-area: 1 / 1; box-sizing: border-box; width: 22px; height: 22px;
+    border: 1.75px solid var(--md-checkbox-border); border-radius: 50%; background: transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
 .markdown-render .task-list-item input[type="checkbox"]::after {
-    content: ""; width: 5px; height: 9px; margin-top: -2px;
+    content: ""; grid-area: 1 / 1; justify-self: center; align-self: center; width: 5px; height: 9px; margin-top: -2px;
     border: solid var(--md-checkbox-check); border-width: 0 2px 2px 0;
     transform: rotate(45deg) scale(0.75); opacity: 0; transition: opacity 0.12s ease, transform 0.12s ease;
 }
-.markdown-render .task-list-item input[type="checkbox"]:checked { background: var(--md-checkbox-checked); border-color: var(--md-checkbox-checked); }
+.markdown-render .task-list-item input[type="checkbox"]:checked::before { background: var(--md-checkbox-checked); border-color: var(--md-checkbox-checked); }
 .markdown-render .task-list-item input[type="checkbox"]:checked::after { opacity: 1; transform: rotate(45deg) scale(1); }
 .markdown-render .task-list-item input[type="checkbox"]:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 3px; }
 .markdown-render li.task-list-item-checked { color: var(--md-text-muted); text-decoration: line-through; }
@@ -59,14 +64,15 @@
 .editor-body .img-text-card { border-radius: var(--radius-22); corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-bg); border: 0.5px solid var(--glass-border); box-shadow: var(--shadow-float-soft); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
 .editor-body .img-text-card .itc-img-wrap { width: 100%; line-height: 0; max-height: 468px; overflow: hidden; }
 .editor-body .img-text-card .itc-img-wrap img { width: 100%; height: auto; display: block; }
-.editor-body .img-text-card .itc-text { padding: 12px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; max-width: 100%; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
-.editor-body .img-text-card .itc-text:empty::before { content: '点击输入文字'; color: var(--color-placeholder); }
+.editor-body .img-text-card .itc-text { padding: 12px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; max-width: 100%; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; cursor: pointer; }
+.editor-body .img-text-card .itc-text:empty::before { content: '点击查看完整文本'; color: var(--color-placeholder); }
 .editor-body .img-text-row { display: flex; gap: 10px; border-radius: var(--radius-22); corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-bg); border: 0.5px solid var(--glass-border); min-height: 181px; max-height: 196px; backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
 .editor-body .img-text-row .itr-img { flex: 0 0 50%; min-width: 0; background: var(--fill-subtle); display: flex; align-items: center; justify-content: center; }
 .editor-body .img-text-row .itr-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .editor-body .img-text-row .itr-placeholder { font-size: var(--font-24); opacity: 0.3; }
-.editor-body .img-text-row .itr-text { flex: 1; padding: 10px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; }
-.editor-body .img-text-row .itr-text:empty::before { content: '点击输入说明文字'; color: var(--color-placeholder); }
+.editor-body .img-text-row .itr-text { flex: 1; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; padding: 10px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; cursor: pointer; }
+.editor-body .img-text-row .itr-text:empty::before { content: '点击查看完整文本'; color: var(--color-placeholder); }
+.editor-body .itc-text:focus-visible, .editor-body .itr-text:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: -3px; }
 
 /* Shared reading rhythm: preview and contentEditable use the same Markdown scale. */
 .markdown-render, .editor-body {
@@ -214,8 +220,7 @@
     justify-content: center;
     width: 46px;
     height: 46px;
-    border-radius: var(--radius-23);
-    corner-shape: squircle;
+    border-radius: 50%;
     background: var(--glass-bg);
     backdrop-filter: var(--glass-filter);
     -webkit-backdrop-filter: var(--glass-filter);

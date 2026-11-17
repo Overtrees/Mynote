@@ -26,6 +26,7 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   await page.goto(`http://127.0.0.1:${port}/Moments.html`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.list-item', { timeout: 30000 });
+  await page.waitForTimeout(400); // Ignore the app's initial slide-in transform during overflow measurements.
   const resultsByTheme = {};
   for (const width of [360, 390, 1280]) {
     await page.setViewportSize({ width, height: 844 });
@@ -40,6 +41,16 @@ try {
         preview.style.backgroundColor = 'var(--card-bg)';
         const editor = make('editor-body', '<h1>标题一</h1><h2>标题二</h2><h3>标题三</h3><h4>标题四</h4><p>正文 <a href="#">编辑态链接</a></p><blockquote>引用样式</blockquote><div data-type="todo" class="editor-todo"><input class="todo-checkbox" type="checkbox" contenteditable="false" aria-label="任务" aria-checked="false"><span class="todo-text">任务</span></div>');
         editor.style.backgroundColor = 'var(--card-bg)';
+        let readingLayout = null;
+        if (window.innerWidth >= 900) {
+          const reading = make('editor-body', '<p>桌面文字阅读宽度测量</p><div class="img-text-card" data-type="imgTextCard"><div class="itc-img-wrap">图片</div><div class="itc-text">说明</div></div><a class="link-card-block music-card-link" href="#"><div class="lkc-cover"></div><div class="lkc-body">音乐</div></a>');
+          reading.style.cssText = 'width:100%;padding:0;margin:0;';
+          const bodyRect = reading.getBoundingClientRect();
+          const textRect = reading.querySelector('p').getBoundingClientRect();
+          const imageRect = reading.querySelector('.img-text-card').getBoundingClientRect();
+          const musicRect = reading.querySelector('.music-card-link').getBoundingClientRect();
+          readingLayout = { bodyWidth: bodyRect.width, bodyCenter: bodyRect.left + bodyRect.width / 2, textWidth: textRect.width, textCenter: textRect.left + textRect.width / 2, imageWidth: imageRect.width, musicWidth: musicRect.width };
+        }
         const style = (el, prop) => getComputedStyle(el)[prop];
         const ratio = (fg, bg) => { const rgb = c => c.match(/[\d.]+/g).slice(0,3).map(Number).map(v => {v/=255; return v<=.04045?v/12.92:((v+.055)/1.055)**2.4}); const a=rgb(fg),b=rgb(bg), lum=x=>.2126*x[0]+.7152*x[1]+.0722*x[2]; const l1=lum(a),l2=lum(b); return (Math.max(l1,l2)+.05)/(Math.min(l1,l2)+.05); };
         const link = preview.querySelector('p a'), codeLink=preview.querySelector('code a'), code=preview.querySelector('code'), table=preview.querySelector('table'), pre=preview.querySelector('pre'), task=editor.querySelector('[data-type="todo"]'), checkbox=editor.querySelector('input.todo-checkbox'), editorLink=editor.querySelector('p a'), previewTask=preview.querySelector('.task-list-item'), previewCheckbox=previewTask.querySelector('input[type=checkbox]');
@@ -48,7 +59,8 @@ try {
         editorLink.focus({ focusVisible: true });
         const editorLinkFocus = [style(editorLink,'textDecorationLine'), style(editorLink,'outlineStyle'), style(editorLink,'outlineWidth')];
         checkbox.focus({ focusVisible: true });
-        const previewTaskTouch = [parseFloat(style(previewTask,'minHeight')), parseFloat(style(previewCheckbox,'width'))];
+        const previewCheckboxIcon = getComputedStyle(previewCheckbox, '::before');
+        const previewTaskTouch = [parseFloat(style(previewTask,'minHeight')), parseFloat(style(previewCheckbox,'width')), parseFloat(style(previewCheckbox,'height')), parseFloat(previewCheckboxIcon.width), parseFloat(previewCheckboxIcon.height)];
         return {
           headings: ['h1','h2','h3','h4'].map(tag => [style(preview.querySelector(tag),'fontSize'), style(editor.querySelector(tag),'fontSize')]),
           linkContrast: ratio(style(link,'color'), baseBg),
@@ -58,7 +70,7 @@ try {
           calloutIconContrast: [...preview.querySelectorAll('.callout')].map(box => { const surface=composite(style(box,'backgroundColor'),baseBg); const stroke=getComputedStyle(box.querySelector('.callout-icon svg')).stroke; return [box.className,ratio(stroke,surface)]; }),
           quoteContrast: ratio(style(preview.querySelector('blockquote'),'color'), composite(style(preview.querySelector('blockquote'),'backgroundColor'),baseBg)),
           tableHeaderContrast: ratio(style(table.querySelector('th'),'color'), baseBg),
-          editorLinkFocus, previewTaskTouch,
+          editorLinkFocus, previewTaskTouch, readingLayout,
           quoteRadius: style(preview.querySelector('blockquote'),'borderRadius'), calloutRadius: style(preview.querySelector('.callout'),'borderRadius'),
           table: { client: table.clientWidth, scroll: table.scrollWidth, max: style(table,'maxWidth'), overflow: style(table,'overflowX') },
           pre: { client: pre.clientWidth, scroll: pre.scrollWidth, overflow: style(pre,'overflowX') },
@@ -79,8 +91,9 @@ try {
     check(`${width}px ${scheme} 编辑态链接有下划线和可见键盘焦点`, r.editorLinkFocus[0].includes('underline') && r.editorLinkFocus[1]==='solid' && parseFloat(r.editorLinkFocus[2])>=3, JSON.stringify(r.editorLinkFocus));
     check(`${width}px ${scheme} 宽表格与代码块可内部滚动`, r.table.client<=width && r.table.scroll>=r.table.client && r.table.overflow==='auto' && r.pre.scroll>r.pre.client && r.pre.overflow==='auto' && r.page.scroll<=r.page.client+1, JSON.stringify({table:r.table,pre:r.pre,page:r.page}));
     check(`${width}px ${scheme} 编辑态待办复选框与键盘焦点可见`, r.checkboxType==='checkbox' && r.checkboxAria==='false' && parseFloat(r.checkboxWidth)>=44 && parseFloat(r.checkboxHeight)>=44 && r.checkboxOutline==='solid' && parseFloat(r.checkboxOutlineWidth)>=3, JSON.stringify({type:r.checkboxType,aria:r.checkboxAria,width:r.checkboxWidth,height:r.checkboxHeight,outline:r.checkboxOutline,outlineWidth:r.checkboxOutlineWidth}));
-    check(`${width}px ${scheme} 预览任务项触控高度不小于44px`, r.previewTaskTouch[0]>=44, JSON.stringify(r.previewTaskTouch));
+    check(`${width}px ${scheme} 预览任务项与复选框触控区不小于44px且圆形图标保持22px`, r.previewTaskTouch[0]>=44 && r.previewTaskTouch[1]>=44 && r.previewTaskTouch[2]>=44 && r.previewTaskTouch[3]===22 && r.previewTaskTouch[4]===22, JSON.stringify(r.previewTaskTouch));
     check(`${width}px ${scheme} 引用与提示块使用非胶囊圆角`, parseFloat(r.quoteRadius)<50 && parseFloat(r.calloutRadius)<50, `引用 ${r.quoteRadius}；提示 ${r.calloutRadius}`);
+    if (width >= 900) check('桌面普通文字居中限宽，图文卡与音乐卡保持全宽', r.readingLayout.textWidth < r.readingLayout.bodyWidth && Math.abs(r.readingLayout.textCenter-r.readingLayout.bodyCenter)<=1 && r.readingLayout.imageWidth >= r.readingLayout.bodyWidth-2 && r.readingLayout.musicWidth >= r.readingLayout.bodyWidth-2, JSON.stringify(r.readingLayout));
   }
   check('桌面和手机宽度均不横向撑开页面', [resultsByTheme['360:light'],resultsByTheme['390:light'],resultsByTheme['1280:light']].every(r=>r.page.scroll<=r.page.client+1), '360px、390px 与 1280px');
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

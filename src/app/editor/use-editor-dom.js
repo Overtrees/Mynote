@@ -31,6 +31,7 @@
     var setSlashQuery = opts.setSlashQuery;
     var setSlashTargetBlockId = opts.setSlashTargetBlockId;
     var setLightboxSrc = opts.setLightboxSrc;
+    var openImageTextSheet = opts.openImageTextSheet;
     var pendingImageBlockRef = opts.pendingImageBlockRef;
     var fileInputRef = opts.fileInputRef;
     var heightMap = opts.heightMap;
@@ -54,6 +55,17 @@
       }
     }
     if (showMenu) closeEditorMenu();
+    /* ---- 点击图文说明区 → 阅读完整文字 ---- */
+    var textClickTarget = e.target;
+    if (textClickTarget === editorBodyRef.current && Number.isFinite(e.clientX) && Number.isFinite(e.clientY)) {
+      textClickTarget = document.elementFromPoint(e.clientX, e.clientY) || textClickTarget;
+    }
+    var textArea = textClickTarget && textClickTarget.closest && textClickTarget.closest('.itc-text, .itr-text');
+    if (textArea && openImageTextSheet) {
+      e.preventDefault();
+      openImageTextSheet(textArea);
+      return;
+    }
     /* ---- 点击已渲染块（表格/代码块/Callout）→ 回到编辑态 ---- */
     var mdBlock = e.target.closest('.md-preview.block[data-mdtext]');
     if (mdBlock && !e.target.closest('a, button, input, [contenteditable="true"]')) {
