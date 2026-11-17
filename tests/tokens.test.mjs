@@ -134,3 +134,27 @@ test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', ()
   const preview = read('glass-preview.html');
   assert.doesNotMatch(preview, /box-shadow|text-shadow|brightness\s*\(|contrast\s*\(|glass-edge|glass-caustic/i);
 });
+
+
+test('首页横屏与宽屏看板使用三列方形笔记卡和 26px 圆角', () => {
+  const home = read('src/styles/base.css');
+  assert.match(home, /@media \(min-width: 768px\), \(orientation: landscape\) and \(max-height: 560px\)/);
+  assert.match(home, /\.container\s*\{\s*display:\s*grid;/);
+  assert.match(home, /\.container \.list-group\s*\{\s*display:\s*contents;/);
+  assert.match(home, /\.container > div:not\(\.empty-tip\),[\s\S]*?\.container \.card-expand-wrapper\s*\{\s*display:\s*contents;/);
+  assert.match(home, /\.container \.section-header,[\s\S]*?\.container \.gap-16\s*\{\s*display:\s*none;/);
+  assert.match(home, /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(home, /aspect-ratio:\s*1\s*\/\s*1/);
+  assert.match(home, /border-radius:\s*var\(--radius-26\)/);
+  assert.match(read('src/styles/tokens.css'), /--radius-26:\s*26px/);
+  assert.match(home, /\.container \.img-card \{ display: flex; flex-direction: column; \}/);
+});
+
+
+test('HTML、PDF 与 Markdown 导出统一消费当前编辑器 DOM/CSS 快照', () => {
+  const editor = read('src/app/editor.js');
+  assert.match(editor, /captureEditorSnapshot\(editorBodyRef\.current\)/);
+  assert.match(editor, /format === 'pdf'[\s\S]*?toHTMLDocument\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot\)/);
+  assert.match(editor, /format === 'html'[\s\S]*?toHTMLDocument\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot\)/);
+  assert.match(editor, /toMarkdown\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot\)/);
+});

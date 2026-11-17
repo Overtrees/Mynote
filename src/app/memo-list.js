@@ -632,6 +632,7 @@ function MemoList() {
   }, group.label), group.imageMemos.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "list-group"
   }, group.imageMemos.length > 2 && !expandedBlocks.has(`${group.label}-img`) ? /*#__PURE__*/React.createElement("div", {
+    className: "card-expand-wrapper",
     onClick: () => toggleBlock(`${group.label}-img`)
   }, /*#__PURE__*/React.createElement(ImageCard, {
     memo: group.imageMemos[0],
@@ -655,6 +656,7 @@ function MemoList() {
   }), group.textMemos.length > 0 && /*#__PURE__*/React.createElement("div", {
     className: "list-group"
   }, group.textMemos.length > 2 && !expandedBlocks.has(`${group.label}-txt`) ? /*#__PURE__*/React.createElement("div", {
+    className: "card-expand-wrapper",
     onClick: () => toggleBlock(`${group.label}-txt`)
   }, /*#__PURE__*/React.createElement(SwipeRow, {
     memo: group.textMemos[0],

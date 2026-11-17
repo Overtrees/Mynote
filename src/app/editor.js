@@ -976,9 +976,10 @@ function Editor({
       setEditorDocRef(doc);
     }
     var noteTitle = titleValueRef.current.trim() || '无标题';
+    var editorSnapshot = exporter.captureEditorSnapshot(editorBodyRef.current);
     var html = null;
     if (format === 'pdf') {
-      html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {});
+      html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot);
       var printWindow = window.open('', '_blank');
       if (!printWindow) {
         if (window.MynoteErrors) window.MynoteErrors.addWarn('浏览器阻止了 PDF 导出窗口，请允许弹出窗口后重试。', new Error('PDF print window blocked'));
@@ -1006,8 +1007,8 @@ function Editor({
       }
       return;
     }
-    if (format === 'html') html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {});
-    var content = format === 'html' ? html : exporter.toMarkdown(doc, noteTitle, filesRef.current || {});
+    if (format === 'html') html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot);
+    var content = format === 'html' ? html : exporter.toMarkdown(doc, noteTitle, filesRef.current || {}, editorSnapshot);
     var mime = format === 'html' ? 'text/html;charset=utf-8' : 'text/markdown;charset=utf-8';
     var extension = format === 'html' ? 'html' : 'md';
     try {
