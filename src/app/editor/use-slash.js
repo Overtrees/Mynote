@@ -485,16 +485,6 @@
         }, 80);
       });
       triggerAutoSave();
-      // 初始化 todo 圆点图片：replaceWith 插入的 <img data:image> 可能未立即渲染
-      if (type === 'todo') {
-        requestAnimationFrame(function () {
-          var todoImg = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + blkId + '"] .todo-checkbox img');
-          if (todoImg && todoImg.complete === false) {
-            var src = todoImg.src;
-            todoImg.src = src;
-          }
-        });
-      }
     }, [slashTargetBlockId, triggerAutoSave, files, recordUndoPoint, editorBodyRef, docRef]);
 
     // 最近使用持久化

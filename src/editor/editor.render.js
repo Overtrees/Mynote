@@ -47,10 +47,7 @@
         case 'todo':
           checked = node.attrs && node.attrs.checked || false;
           text = esc(node.children && node.children[0] ? node.children[0].text : '');
-          var chk = checked
-            ? ((w.MynoteTodoIcons || {}).checked || '')
-            : ((w.MynoteTodoIcons || {}).unchecked || '');
-          return '<div data-blockid="' + escapeHTML(node.id) + '" data-type="todo" style="display:flex;align-items:center;gap:6px;margin:0.2em 0;padding:4px 12px;background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);border-radius:var(--radius-999)"><span class="todo-checkbox" contenteditable="false" data-checked="' + (checked ? 'true' : 'false') + '">' + (chk ? '<img src="' + chk + '" alt="">' : '') + '</span><span>' + text + '</span></div>';
+          return '<div data-blockid="' + escapeHTML(node.id) + '" data-type="todo" class="editor-todo' + (checked ? ' is-checked' : '') + '"><input class="todo-checkbox" type="checkbox" contenteditable="false" aria-checked="' + (checked ? 'true' : 'false') + '" aria-label="' + text + '" data-checked="' + (checked ? 'true' : 'false') + '"' + (checked ? ' checked' : '') + '><span class="todo-text">' + text + '</span></div>';
         case 'attachment':
         case 'link-card':
         case 'musicCard':
@@ -173,7 +170,7 @@
         continue;
       }
       if (type === 'todo') {
-        var cb = el.querySelector('.todo-checkbox'), checked = cb ? cb.dataset.checked === 'true' : false;
+        var cb = el.querySelector('.todo-checkbox'), checked = cb ? cb.checked : false;
         var rawTodo = el.textContent || '';
         if (prev && prev.type === 'todo' && prev.children && prev.children[0] && prev.children[0].text === rawTodo && prev.attrs && prev.attrs.checked === checked) { doc.push(prev); continue; }
         doc.push({ id:id, type:type, attrs:{checked:checked}, children:[{text:rawTodo}] });

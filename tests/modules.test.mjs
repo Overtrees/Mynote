@@ -80,6 +80,21 @@ test('文档渲染在 DOMPurify 缺失时转义不可信属性', () => {
   assert.match(html, /&lt;p/);
 });
 
+test('编辑器待办输出可访问语义与稳定状态类', () => {
+  const env = makeEnv();
+  load(env, 'src/utils/svg.js');
+  env.win.DOMPurify = { sanitize: html => html };
+  load(env, 'src/editor/editor.render.js');
+  const html = env.win.MynoteEditor.renderDocToEditorHTML([
+    { id: 'todo-open', type: 'todo', attrs: { checked: false }, children: [{ text: '未完成 <任务>' }] },
+    { id: 'todo-done', type: 'todo', attrs: { checked: true }, children: [{ text: '已完成' }] }
+  ], {});
+  assert.match(html, /<input class=\"todo-checkbox\" type=\"checkbox\" contenteditable=\"false\" aria-checked=\"false\"/);
+  assert.match(html, /aria-label=\"未完成 &lt;任务&gt;\"/);
+  assert.match(html, /class=\"editor-todo is-checked\"/);
+  assert.match(html, /aria-checked=\"true\"[^>]* checked/);
+});
+
 test('编辑器解析保留 H1/H2/H3、引用块与分割线类型', () => {
   const env = makeEnv();
   load(env, 'src/editor/editor.render.js');

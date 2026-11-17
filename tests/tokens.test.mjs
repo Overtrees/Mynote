@@ -30,6 +30,17 @@ test('全局令牌定义完整且没有悬空引用', () => {
   }
 });
 
+test('Markdown 共享排版、明暗语义色与焦点状态均有定义', () => {
+  for (const token of ['--md-font-body', '--md-line-height', '--md-heading-h1', '--md-heading-h2', '--md-heading-h3', '--md-heading-h4', '--md-link-color', '--md-focus-ring', '--md-quote-bg', '--md-checkbox-border', '--md-checkbox-checked', '--md-callout-note-bg', '--md-callout-warning-bg', '--md-callout-tip-bg', '--md-callout-important-bg', '--md-callout-caution-bg', '--md-text-muted', '--md-callout-note-icon', '--md-callout-warning-icon', '--md-callout-tip-icon', '--md-callout-important-icon', '--md-callout-caution-icon']) {
+    assert.match(css, new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*:'));
+  }
+  assert.match(css, /@media \(prefers-color-scheme: dark\)[\s\S]*--md-link-color:\s*#72b7ff/);
+  assert.match(css, /\.markdown-render h1, \.editor-body h1/);
+  assert.match(css, /\.markdown-render blockquote, \.editor-body blockquote/);
+  assert.match(css, /\.markdown-render a:focus-visible/);
+  assert.match(css, /\.markdown-render \.task-list-item input\[type=\"checkbox\"\]:focus-visible/);
+});
+
 test('CSS 与 JS 不再保留裸玻璃滤镜、数字字号与数字圆角', () => {
   assert.doesNotMatch(css, /blur\(40px\) saturate\(2\.5\)/);
   const js = walkJs('src').map(read).join('\n');

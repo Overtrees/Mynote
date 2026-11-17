@@ -120,7 +120,10 @@ const extra = await page.evaluate(async () => {
   const C = window.MynoteIdb, db = await C.getDB();
   const out = {};
   const todoHtml = window.MynoteEditor.renderDocToEditorHTML([{ id: 't1', type: 'todo', attrs: { checked: true }, children: [{ text: 'x' }] }], {});
-  out.todoIcon = todoHtml.includes(window.MynoteTodoIcons.checked);
+  const todoHost = document.createElement('div');
+  todoHost.innerHTML = todoHtml;
+  const todoInput = todoHost.querySelector('input.todo-checkbox');
+  out.todoIcon = !!todoInput && todoInput.type === 'checkbox' && todoInput.checked && todoInput.getAttribute('aria-checked') === 'true';
   const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
   await C.saveAttachmentToDB(db, { id: 'att_cn_1', name: '中文 名字(1).png', type: 'image/png', url: png, thumb: null });
   const zipData = { 'memos.json': fflate.strToU8('{"version":2,"memos":[]}') };
@@ -135,7 +138,7 @@ const extra = await page.evaluate(async () => {
   await C.saveMemosToDB(db, [{ id: 'm_long', title: '长文', doc: longDoc, updatedAt: Date.now() }]);
   return out;
 });
-check('待办勾选图标来自统一常量', extra.todoIcon);
+check('待办复选框具备原生输入与无障碍状态', extra.todoIcon);
 check('附件导出只写 id', extra.hasIdKey, extra.hasIdKey ? '' : '未找到 attachments/att_cn_1');
 check('附件导出→导入往返保留 id/中文名/MIME', extra.roundTripOk);
 
@@ -410,10 +413,16 @@ const dividerSaved = await storedBlockForLast('hr');
 check('分割线命令保存后保留分割线', dividerSaved?.type === 'divider', JSON.stringify(dividerSaved));
 await applyExactSlash('待办');
 const todo = page.locator('.editor-body [data-type="todo"]').last();
-await todo.click({ position: { x: 60, y: 12 } });
+await todo.click({ position: { x: 80, y: 12 } });
 await page.keyboard.type('AUDIT_TASK');
 await page.waitForTimeout(800);
-await todo.locator('.todo-checkbox').click();
+const todoCheckbox = todo.locator('input.todo-checkbox');
+await todoCheckbox.focus();
+await page.evaluate(() => { window.__todoEvents = []; const host = document.querySelector('.editor-body'); for (const type of ['keydown','keyup','click','change']) host?.addEventListener(type, e => { if (e.target.matches?.('.todo-checkbox')) window.__todoEvents.push([type,e.key || '',e.target.checked,e.defaultPrevented]); }, true); });
+await todoCheckbox.press('Space');
+await page.waitForTimeout(800);
+const firstToggle = await todoCheckbox.evaluate(el => ({ checked: el.checked, aria: el.getAttribute('aria-checked'), focused: document.activeElement === el }));
+await todoCheckbox.press('Space');
 await page.waitForTimeout(800);
 const todoSaved = await page.evaluate(async () => {
   const node = [...document.querySelectorAll('.editor-body [data-type="todo"]')].at(-1);
@@ -421,9 +430,10 @@ const todoSaved = await page.evaluate(async () => {
   const memos = await MynoteIdb.loadMemosFromDB(await MynoteIdb.getDB());
   const memo = memos.find(m => Array.isArray(m.doc) && m.doc.some(b => b.id === id));
   const block = memo?.doc.find(b => b.id === id);
-  return { checked: node?.querySelector('.todo-checkbox')?.dataset.checked === 'true', text: block?.children?.[0]?.text || '', savedChecked: block?.attrs?.checked };
+  const checkbox = node?.querySelector('input.todo-checkbox');
+  return { checked: checkbox?.dataset.checked === 'true', actualChecked: checkbox?.checked, ariaChecked: checkbox?.getAttribute('aria-checked'), keyboardFocus: document.activeElement === checkbox, events: window.__todoEvents, text: block?.children?.[0]?.text || '', savedChecked: block?.attrs?.checked };
 });
-check('待办可编辑、勾选并保存状态', todoSaved.checked && todoSaved.text.includes('AUDIT_TASK') && todoSaved.savedChecked === true, JSON.stringify(todoSaved));
+check('待办支持空格键切换、焦点保持与状态保存', firstToggle.checked && firstToggle.aria === 'true' && firstToggle.focused && !todoSaved.checked && todoSaved.ariaChecked === 'false' && todoSaved.text.includes('AUDIT_TASK') && todoSaved.savedChecked === false, JSON.stringify({ firstToggle, secondToggle: todoSaved }));
 
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 

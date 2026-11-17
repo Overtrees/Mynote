@@ -314,7 +314,7 @@
     }
   }, [triggerAutoSave, showMenu, files]);
 
-  /* ---- 待办圆点点击：pointerdown 阶段提前拦截光标 ---- */
+  /* ---- 原生待办复选框：同步保存状态，键盘操作保留焦点 ---- */
   var handleTodoClick = useCallback(function (e) {
     var checkbox = e.target.closest('[data-type="todo"] .todo-checkbox');
     if (!checkbox) return;
@@ -322,14 +322,10 @@
     if (!todoBlock) return;
     var todoText = todoBlock.textContent || '';
     if (!todoText.trim()) return;
-    var checked = checkbox.dataset.checked === 'true';
-    var newChecked = !checked;
-    checkbox.dataset.checked = newChecked;
-    // 替换 SVG
-    var iconSrc = newChecked
-      ? ((window.MynoteTodoIcons || {}).checked || '')
-      : ((window.MynoteTodoIcons || {}).unchecked || '');
-    checkbox.innerHTML = iconSrc ? '<img src="' + iconSrc + '" alt="">' : '';
+    var newChecked = checkbox.checked;
+    checkbox.dataset.checked = newChecked ? 'true' : 'false';
+    checkbox.setAttribute('aria-checked', newChecked ? 'true' : 'false');
+    todoBlock.classList.toggle('is-checked', newChecked);
     var block = todoBlock.closest('[data-blockid]');
     if (block) {
       var id = block.dataset.blockid;
@@ -340,7 +336,7 @@
         triggerAutoSave();
         // 光标定位到文字末尾
         var textEl = todoBlock.querySelector('span:last-of-type');
-        if (textEl && textEl !== checkbox && editorBodyRef.current) {
+        if (e.detail !== 0 && textEl && textEl !== checkbox && editorBodyRef.current) {
           editorBodyRef.current.focus();
           var r = document.createRange();
           r.selectNodeContents(textEl);
@@ -350,7 +346,6 @@
         }
       }
     }
-    e.preventDefault();
   }, [triggerAutoSave]);
 
   /* ===== Markdown 自动渲染（blur 时触发，延迟防抖） ===== */
