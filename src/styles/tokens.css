@@ -35,15 +35,22 @@
   --md-callout-important-icon: #8436aa;
   --md-callout-caution-icon: #b3261e;
 
-  /* 玻璃拟态 */
-  --glass-bg: rgba(255, 255, 255, 0.5);
-  --glass-blur: 40px;
+  /* 玻璃拟态：浅色用深色细边缘提升浅背景上的可见度 */
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-blur: 36px;
   --glass-saturate: 2.5;
   --glass-brightness: 1.15;
-  --glass-border: rgba(255, 255, 255, 0.6);
-  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(0, 0, 0, 0.16);
+  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) contrast(105%);
+  --glass-filter-soft: blur(var(--glass-blur));
+  --inset-glass: inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(0, 0, 0, 0.06);
+  --glass-shadow: var(--inset-glass);
+  --glass-highlight: var(--inset-glass);
   --glass-inner-border: inset 0 0 0 0.5px var(--glass-border);
+  --light-x: 30%;
+  --light-y: 30%;
+  --blur-thin: blur(8px) saturate(160%) contrast(105%);
+  --blur-regular: blur(16px) saturate(180%) contrast(105%);
 
   /* 语义色 */
   --color-accent: #007aff;
@@ -186,8 +193,13 @@
     --md-callout-tip-icon: #75e29a;
     --md-callout-important-icon: #d39bed;
     --md-callout-caution-icon: #ff8178;
-    --glass-bg: rgba(20, 20, 24, 0.45);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: rgba(0, 0, 0, 0.4);
+    --glass-border: rgba(255, 255, 255, 0.16);
+    --glass-saturate: 1.5;
+    --glass-brightness: 1.05;
+    --inset-glass: inset 0 1px 1px rgba(255, 255, 255, 0.14), inset 0 -1px 2px rgba(0, 0, 0, 0.45);
+    --glass-shadow: var(--inset-glass);
+    --glass-highlight: var(--inset-glass);
     --fill-subtle: rgba(255, 255, 255, 0.04);
     --fill-subtle-2: rgba(255, 255, 255, 0.03);
     --launch-bg: #000000;

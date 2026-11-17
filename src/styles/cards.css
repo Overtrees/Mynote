@@ -80,8 +80,6 @@
 }
 .link-card-skeleton {
     background: var(--glass-bg);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
     border: 0.5px solid var(--glass-border);
     border-radius: var(--radius-32); overflow: hidden;
     corner-shape: squircle;

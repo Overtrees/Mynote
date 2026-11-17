@@ -187,7 +187,6 @@
         display: inline-flex; align-items: center; gap: 4px;
         background: var(--glass-bg); padding: 4px 10px; border-radius: var(--radius-14);
         font-size: 0.6875rem; color: var(--text-secondary); flex-shrink: 0; white-space: nowrap; cursor: pointer;
-        backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter);
         border: 0.5px solid var(--glass-border);
     }
     .gap-16 { height: 16px; }
@@ -200,3 +199,176 @@
     }
     .markdown-render > *:first-child { margin-top: 0; }
     .markdown-render > *:last-child { margin-bottom: 0; }
+
+
+/* 玻璃材质：为 iOS/WebKit、桌面浏览器和旧 Android WebView 做渐进增强。
+   标准与 -webkit 前缀滤镜已同时保留在各玻璃组件上；不支持任一 backdrop-filter 的环境
+   退化为更实的底色，避免半透明玻璃在无模糊时显得发灰、不可读。 */
+@supports not (backdrop-filter: blur(1px)) and not (-webkit-backdrop-filter: blur(1px)) {
+    :root {
+        --glass-filter: none;
+        --glass-filter-soft: none;
+        --glass-bg: rgba(255, 255, 255, 0.9);
+    }
+    @media (prefers-color-scheme: dark) {
+        :root { --glass-bg: rgba(20, 20, 24, 0.92); }
+    }
+}
+
+/* 液态玻璃借鉴：细边缘反光 + 底缘焦散。仅叠加在已有玻璃表面，内容与交互保持原样。 */
+:root {
+    --glass-edge-core: 0.92;
+    --glass-edge-halo: 0.18;
+    --glass-caustic-alpha: 0.42;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --glass-edge-core: 0.62;
+        --glass-edge-halo: 0.09;
+        --glass-caustic-alpha: 0.22;
+    }
+}
+.action-btn,
+.editor-btn,
+.list-item,
+.img-card,
+.link-card,
+.link-card-error,
+.backup-hero,
+.backup-stat,
+.backup-card,
+.backup-btn,
+.editor-body .attachment-file,
+.editor-body .link-card-block,
+.editor-body .link-card-err,
+.editor-body .img-text-card,
+.editor-body .img-text-row,
+.image-text-sheet,
+.glass-edge {
+    position: relative;
+}
+
+@supports ((-webkit-mask-composite: xor) or (mask-composite: exclude)) {
+    .action-btn::before,
+    .editor-btn::before,
+    .page-title.compact::before,
+    .list-item::before,
+    .img-card::before,
+    .link-card::before,
+    .link-card-error::before,
+    .backup-hero::before,
+    .backup-stat::before,
+    .backup-card::before,
+    .backup-btn::before,
+    .editor-body .attachment-file::before,
+    .editor-body .link-card-block::before,
+    .editor-body .link-card-err::before,
+    .editor-body .img-text-card::before,
+    .editor-body .img-text-row::before,
+    .image-text-sheet::before,
+    .glass-edge::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        padding: 1px;
+        pointer-events: none;
+        z-index: 1;
+        background: radial-gradient(
+            circle at var(--light-x, 30%) var(--light-y, 30%),
+            rgba(255, 255, 255, var(--glass-edge-core)) 0%,
+            rgba(255, 255, 255, var(--glass-edge-halo)) 30%,
+            transparent 70%
+        );
+        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+        mask-composite: exclude;
+    }
+}
+
+.action-btn::after,
+.editor-btn::after,
+.page-title.compact::after,
+.list-item::after,
+.img-card::after,
+.link-card::after,
+.link-card-error::after,
+.backup-hero::after,
+.backup-stat::after,
+.backup-card::after,
+.backup-btn::after,
+.editor-body .attachment-file::after,
+.editor-body .link-card-block::after,
+.editor-body .link-card-err::after,
+.editor-body .img-text-card::after,
+.editor-body .img-text-row::after,
+.image-text-sheet::after,
+.glass-edge::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.8;
+    background: radial-gradient(
+        ellipse 85% 3px at 50% 100%,
+        rgba(255, 255, 255, var(--glass-caustic-alpha)) 0%,
+        transparent 70%
+    );
+}
+
+/* 高对比度与减少透明偏好优先于装饰性光效。 */
+@media (forced-colors: active), (prefers-reduced-transparency: reduce) {
+    .action-btn::before,
+    .action-btn::after,
+    .editor-btn::before,
+    .editor-btn::after,
+    .page-title.compact::before,
+    .page-title.compact::after,
+    .list-item::before,
+    .list-item::after,
+    .img-card::before,
+    .img-card::after,
+    .link-card::before,
+    .link-card::after,
+    .link-card-error::before,
+    .link-card-error::after,
+    .backup-hero::before,
+    .backup-hero::after,
+    .backup-stat::before,
+    .backup-stat::after,
+    .backup-card::before,
+    .backup-card::after,
+    .backup-btn::before,
+    .backup-btn::after,
+    .editor-body .attachment-file::before,
+    .editor-body .attachment-file::after,
+    .editor-body .link-card-block::before,
+    .editor-body .link-card-block::after,
+    .editor-body .link-card-err::before,
+    .editor-body .link-card-err::after,
+    .editor-body .img-text-card::before,
+    .editor-body .img-text-card::after,
+    .editor-body .img-text-row::before,
+    .editor-body .img-text-row::after,
+    .image-text-sheet::before,
+    .image-text-sheet::after,
+    .glass-edge::before,
+    .glass-edge::after {
+        display: none;
+    }
+}
+
+
+@media (prefers-reduced-transparency: reduce) {
+    :root {
+        --glass-filter: none;
+        --glass-filter-soft: none;
+        --glass-bg: rgba(255, 255, 255, 0.94);
+    }
+    @media (prefers-color-scheme: dark) {
+        :root { --glass-bg: rgba(28, 28, 30, 0.96); }
+    }
+}

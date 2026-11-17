@@ -53,7 +53,6 @@
         border: '0.5px solid var(--glass-border)',
         boxShadow: 'var(--shadow-popover)',
         borderRadius: 'var(--radius-22)',
-        boxShadow: 'var(--shadow-modal)',
         padding: '10px 10px',
         maxHeight: 280,
         overflowY: 'auto',
@@ -164,7 +163,7 @@
                 cmd.recent && R.createElement('span', {
                   style: {
                     fontSize: 'var(--font-10)', color: 'var(--text-secondary)',
-                    background: 'var(--glass-bg)', backdropFilter: 'var(--glass-filter)', WebkitBackdropFilter: 'var(--glass-filter)',
+                    background: 'var(--glass-bg)',
                     padding: '1px 6px', borderRadius: 'var(--radius-999)', border: '0.5px solid var(--glass-border)', opacity: 0.85
                   }
                 }, '\u6700\u8FD1')),
