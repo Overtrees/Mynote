@@ -80,3 +80,55 @@ test('首屏字号引导使用全局字号映射', () => {
   loadScript(env, path.join(ROOT, 'src/app/font-boot.js'));
   assert.equal(env.doc.documentElement.style.fontSize, '19px');
 });
+
+test('玻璃表面按 overlay/content/control 分层，并保留无模糊实色回退', () => {
+  for (const layer of ['overlay', 'content', 'control']) {
+    for (const part of ['bg', 'border', 'filter']) {
+      assert.match(css, new RegExp(`--glass-${layer}-${part}\\s*:`));
+    }
+  }
+  assert.match(css, /@supports \(backdrop-filter: blur\(1px\)\) or \(-webkit-backdrop-filter: blur\(1px\)\)[\s\S]*rgba\(255, 255, 255, 0\.84\)/);
+  assert.match(css, /@supports not \(backdrop-filter: blur\(1px\)\) and not \(-webkit-backdrop-filter: blur\(1px\)\)[\s\S]*--glass-content-bg:\s*rgba\(255, 255, 255, 0\.94\)/);
+  assert.match(css, /prefers-reduced-transparency:\s*reduce[\s\S]*--glass-overlay-filter:\s*none/);
+  const env = makeEnv();
+  loadScript(env, path.join(ROOT, 'src/styles/tokens.js'));
+  assert.equal(env.win.MynoteTokens.glass.overlay.background, 'var(--glass-overlay-bg)');
+  assert.equal(env.win.MynoteTokens.glass.content.background, 'var(--glass-content-bg)');
+  assert.equal(env.win.MynoteTokens.glass.control.background, 'var(--glass-control-bg)');
+  assert.equal(env.win.MynoteTokens.glass.label, 'var(--glass-label-color)');
+  assert.equal(env.win.MynoteTokens.glass.focusRing, 'var(--glass-focus-ring)');
+});
+
+test('小标签、搜索、列表卡片和 Markdown 预览具备高对比度/键盘焦点规则', () => {
+  assert.match(css, /\.glass-tag\s*\{[\s\S]*color:\s*var\(--glass-label-accent\)[\s\S]*background:\s*var\(--glass-control-bg\)/);
+  assert.match(css, /\.glass-search-panel:focus-within\s*\{[\s\S]*outline:\s*3px solid var\(--glass-focus-ring\)/);
+  assert.match(css, /\.list-item:focus-visible[\s\S]*\.editor-body \.md-preview:focus-visible/);
+  const blocks = read('src/editor/md-blocks.js');
+  const editor = read('src/app/editor.js');
+  const dom = read('src/app/editor/use-editor-dom.js');
+  assert.match(blocks, /tabIndex\s*=\s*0/);
+  assert.match(blocks, /aria-label.*按回车或空格编辑/);
+  assert.match(editor, /e\.key === 'Enter' \|\| e\.key === ' '/);
+  assert.match(dom, /removeAttribute\('contenteditable'\)/);
+  assert.match(dom, /classList\.remove\('md-preview-inline'\)/);
+});
+
+test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', () => {
+  assert.doesNotMatch(css, /brightness\s*\(/i);
+  assert.doesNotMatch(css, /contrast\s*\(/i);
+  assert.doesNotMatch(css, /glass-edge|glass-caustic/i);
+  assert.doesNotMatch(css, /shimmer/i);
+  assert.doesNotMatch(css, /box-shadow\s*:/i);
+  assert.doesNotMatch(css, /text-shadow\s*:/i);
+  assert.match(css, /--glass-highlight\s*:\s*none;/);
+  const shadowTokens = [...css.matchAll(/(--shadow-[\w-]+)\s*:\s*([^;]+);/g)];
+  assert.ok(shadowTokens.length >= 8, '应保留旧阴影令牌供兼容使用');
+  assert.ok(shadowTokens.every(([, , value]) => value.trim() === 'none'), '所有兼容阴影令牌都应关闭');
+
+  const js = walkJs('src').map(read).join('\n');
+  assert.doesNotMatch(js, /\bboxShadow\s*:/);
+  assert.doesNotMatch(js, /drop-shadow\s*\(/i);
+  assert.doesNotMatch(js, /\btextShadow\s*:/i);
+  const preview = read('glass-preview.html');
+  assert.doesNotMatch(preview, /box-shadow|text-shadow|brightness\s*\(|contrast\s*\(|glass-edge|glass-caustic/i);
+});

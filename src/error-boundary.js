@@ -96,7 +96,7 @@
     container.id = 'cike-error-boundary';
     container.innerHTML =
       '<div class="eb-badge" style="position:fixed;right:16px;bottom:calc(64px + env(safe-area-inset-bottom,0));z-index:99999;cursor:pointer;' +
-        'width:36px;height:36px;border-radius:var(--radius-18);background:var(--color-danger-bright);box-shadow:0 2px 10px var(--fill-danger-35);' +
+        'width:36px;height:36px;border-radius:var(--radius-18);background:var(--color-danger-bright);' +
         'display:flex;align-items:center;justify-content:center;gap:2px;transition:opacity 0.2s;opacity:0;pointer-events:none;">' +
         '<span class="eb-dot" style="display:none;align-items:center;gap:2px;">' +
           '<span style="color:var(--color-white);font-size:var(--font-12);font-weight:700;font-family:var(--font-family-base);line-height:1;">!</span>' +
@@ -107,7 +107,7 @@
         'width:320px;max-height:360px;overflow-y:auto;background:var(--surface-overlay);backdrop-filter:blur(20px);' +
         '-webkit-backdrop-filter:blur(20px);border:0.5px solid var(--color-white-12);border-radius:var(--radius-20);' +
         'padding:14px;font-family:var(--font-family-base);font-size:var(--font-12);color:var(--color-panel-muted);' +
-        'box-shadow:0 4px 24px var(--color-black-30);">' +
+        '">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">' +
           '<span class="eb-title" style="font-weight:700;font-size:var(--font-13);color:var(--color-danger-light);">\u26A0\uFE0F \u8FD0\u884C\u5F02\u5E38</span>' +
           '<span class="eb-clear" style="color:var(--text-secondary);font-size:var(--font-11);cursor:pointer;padding:2px 6px;border-radius:var(--radius-6);">\u6E05\u9664</span>' +

@@ -171,10 +171,10 @@ function renderAtomicHTML(node, files) {
     var html = window.MynoteEditor.renderAtomicHTML(node, files);
     if (!html && node.type === 'musicCard') {
       if (node.status === 'input') {
-        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
+        return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-control-bg);backdrop-filter:var(--glass-control-filter);-webkit-backdrop-filter:var(--glass-control-filter);border:0.5px solid var(--glass-control-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
       }
       if (node.status === 'empty' || (!node.url && !node.meta)) {
-        return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>🎵</span><span>点击粘贴音乐链接</span></div>';
+        return '<div contenteditable="false" data-blockid="' + node.id + '" data-type="musicCard" style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-content-bg);backdrop-filter:var(--glass-content-filter);-webkit-backdrop-filter:var(--glass-content-filter);border:0.5px solid var(--glass-content-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;"><span>🎵</span><span>点击粘贴音乐链接</span></div>';
       }
     }
     return html;

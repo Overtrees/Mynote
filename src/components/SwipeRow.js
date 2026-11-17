@@ -28,21 +28,23 @@
           onClick:function(e){e.stopPropagation();sw.snapClose();onDelete(memo.id);}
         }, typeof w.SvgIcon === 'function' ? w.SvgIcon('delMulti', {width:17,height:17,strokeWidth:2.2,stroke:'var(--color-white)'}) : null,
         '\u5220\u9664')),
-      R.createElement('div', { ref:sw.rowRef, className:'list-item',
+      R.createElement('div', { ref:sw.rowRef, className:'list-item', role:'group', tabIndex:0,
+        'aria-label': (isNewCard ? '\u65B0\u5EFA\u7B14\u8BB0' : (memo.title || '\u65E0\u6807\u9898')) + '\uFF0C\u6309\u56DE\u8F66\u6216\u7A7A\u683C\u6253\u5F00',
         onPointerDown:function(){if(isNewCard)onOpen(memo);},
-        onClick:function(){if(isNewCard)return; sw.gesture.current.opened ? sw.snapClose() : onOpen(memo);}
+        onClick:function(){if(isNewCard)return; sw.gesture.current.opened ? sw.snapClose() : onOpen(memo);},
+        onKeyDown:function(e){if(e.target!==e.currentTarget)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();if(isNewCard)onOpen(memo);else if(sw.gesture.current.opened)sw.snapClose();else onOpen(memo);}}
       },
         R.createElement('div', { className:'item-left' },
           R.createElement('div', { className:'item-title' + (isNewCard?' new-card-title':''), style:{ display:'flex', alignItems:'center', gap:6, width:'100%' } },
             !isNewCard && memo.pinned && R.createElement('span', { className:'pin-dot' }),
             R.createElement('span', { className:'item-title-text' }, isNewCard ? '\u65B0\u5EFA\u7B14\u8BB0' : (memo.title || '\u65E0\u6807\u9898')),
             !isNewCard && tags.length > 0 && R.createElement('div', { style:{ display:'flex', gap:4, flexWrap:'wrap', overflow:'hidden', justifyContent:'flex-end', flex:1, minWidth:0 } },
-              tags.map(function(t){return R.createElement('span', { key:t, style:{fontSize:"var(--font-10)", color:"var(--color-accent)", background:'var(--glass-bg)', padding:'0 5px', borderRadius:"var(--radius-999)", lineHeight:'18px', whiteSpace:'nowrap', border:'0.5px solid var(--glass-border)'} }, t);}))),
+              tags.map(function(t){return R.createElement('span', { key:t, className:'glass-tag', style:{fontSize:"var(--font-10)", padding:'0 5px', borderRadius:"var(--radius-999)", lineHeight:'18px', whiteSpace:'nowrap'} }, t);}))),
           R.createElement('div', { className:'item-meta', style:w.MynoteInlineStyles.centerRow6 },
             R.createElement('span', { style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } },
               (isNewCard ? '\u73B0\u5728' : (typeof w.timeAgo === 'function' ? w.timeAgo(memo.updatedAt) : memo.updatedAt)),
               '\u00A0\u00A0', isNewCard ? '\u70B9\u51FB\u8BB0\u5F55\u4F60\u7684\u77AC\u95F4' : preview),
-            expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
+            expandText && R.createElement('button', { type:'button', className:'expand-btn', 'aria-label':expandText, onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))),
         isNewCard && weather && R.createElement('div', { style:{ display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'center', gap:4, flexShrink:0, paddingLeft:12 } },
           R.createElement('span', { style:{ fontSize:"var(--font-16)", fontWeight:650, color:'var(--text-main)', lineHeight:1.1, letterSpacing:-0.5 } }, weather.temp, '\u00B0'),
           R.createElement('span', { style:{ fontSize:"var(--font-12)", color:'var(--text-secondary)', lineHeight:1.2 } }, cityLabel + (weather.condition ? ' ' + weather.condition : '')))));

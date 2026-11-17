@@ -231,7 +231,7 @@
     if (node.type === 'musicCard') {
       var muUrl = node.url || '', muMeta = node.meta, muStatus = node.status || 'empty';
       if (muStatus === 'input') {
-        return '<div contenteditable="true" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
+        return '<div contenteditable="true" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-control-bg);backdrop-filter:var(--glass-control-filter);-webkit-backdrop-filter:var(--glass-control-filter);border:0.5px solid var(--glass-control-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';
       }
       if (muUrl && muMeta && muMeta.title) {
         var muCover = muMeta.cover ? (typeof w.proxyImg === 'function' ? w.proxyImg(muMeta.cover) : muMeta.cover) : '';
@@ -248,7 +248,7 @@
       }
       var fallbackTag = muUrl ? 'a' : 'div';
       var fallbackAttrs = muUrl ? ' href="' + safeHttpUrl(muUrl) + '" target="_blank" rel="noopener noreferrer"' : '';
-      return '<' + fallbackTag + ' contenteditable="false"' + fallbackAttrs + (muUrl ? ' aria-label="打开音乐链接"' : '') + ' class="' + (muUrl ? 'link-card-block music-card-error music-card-link' : '') + '" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard"' + (muUrl ? ' data-url="' + safeHttpUrl(muUrl) + '"' : '') + ' style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(muUrl || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span>' + (muUrl && muStatus === 'error' ? '<span class="lkc-source-text">预览不可用 · 点击打开</span>' : '') + '</' + fallbackTag + '>';
+      return '<' + fallbackTag + ' contenteditable="false"' + fallbackAttrs + (muUrl ? ' aria-label="打开音乐链接"' : '') + ' class="' + (muUrl ? 'link-card-block music-card-error music-card-link' : '') + '" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard"' + (muUrl ? ' data-url="' + safeHttpUrl(muUrl) + '"' : '') + ' style="padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-content-bg);backdrop-filter:var(--glass-content-filter);-webkit-backdrop-filter:var(--glass-content-filter);border:0.5px solid var(--glass-content-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;"><span>\uD83C\uDFB5</span><span>' + w.MynoteEditor.escapeHTML(muUrl || '\u70B9\u51FB\u7C98\u8D34\u97F3\u4E50\u94FE\u63A5') + '</span>' + (muUrl && muStatus === 'error' ? '<span class="lkc-source-text">预览不可用 · 点击打开</span>' : '') + '</' + fallbackTag + '>';
     }
     return '';
   }

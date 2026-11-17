@@ -16,13 +16,13 @@
     .editor-body .atomic[data-type="gallery"] { margin: 8px 36px; }
 
     .editor-body .atomic.attachment img { max-width: 100%; border-radius: var(--radius-32); corner-shape: squircle; display: block; }
-    .editor-body .attachment-file { padding: 16px 20px; background: var(--glass-bg); border-radius: var(--radius-32); color: var(--text-secondary); border: 0.5px solid var(--glass-border); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: opacity 0.15s; touch-action: manipulation; -webkit-touch-callout: none; }
+    .editor-body .attachment-file { padding: 16px 20px; background: var(--glass-content-bg); border-radius: var(--radius-32); color: var(--glass-label-color); border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: opacity 0.15s; touch-action: manipulation; -webkit-touch-callout: none; }
     .editor-body .attachment-file:active { opacity: 0.6; }
     .editor-body .attachment-file .att-icon { font-size: 1.5rem; flex-shrink: 0; }
     .editor-body .attachment-file .att-name { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .editor-body .attachment-file .att-hint { font-size: 0.6875rem; color: var(--text-secondary); flex-shrink: 0; background: var(--fill-hover-strong); padding: 2px 10px; border-radius: var(--radius-999); }
-    .editor-body .atomic-placeholder { padding: 24px; text-align: center; background: var(--glass-bg); border-radius: var(--radius-32); corner-shape: squircle; color: var(--text-secondary); font-size: 0.9375rem; border: 0.5px solid var(--glass-border); }
-    .editor-body .link-card-block, .editor-body .link-card-err { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; background: var(--glass-bg); border: 0.5px solid var(--glass-border); cursor: pointer; backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); }
+    .editor-body .atomic-placeholder { padding: 24px; text-align: center; background: var(--glass-content-bg); border-radius: var(--radius-32); corner-shape: squircle; color: var(--text-secondary); font-size: 0.9375rem; border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+    .editor-body .link-card-block, .editor-body .link-card-err { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); cursor: pointer; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
     .editor-body .link-card-skeleton { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; cursor: pointer; }
     .editor-body a.link-card-block { display: block; color: inherit; text-decoration: none; }
     .editor-body .lkc-cover { width: 100%; aspect-ratio: 2.4/1; overflow: hidden; background: var(--border-color); }
@@ -38,9 +38,10 @@
     .editor-body .lke-inner { padding: 12px 14px; font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
     @keyframes toastSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes toastSpin { to { transform: rotate(360deg); } }
-    .editor-body .md-preview { margin: 0.2em 0; cursor: pointer; border-radius: var(--radius-999); padding: 2px 12px; transition: background 0.15s; user-select: none; -webkit-user-select: none; display: inline-block; background: var(--glass-bg); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); border: 0.5px solid var(--glass-border); }
+    .editor-body .md-preview { margin: 0.2em 0; cursor: pointer; border-radius: var(--radius-999); padding: 2px 12px; transition: background 0.15s; user-select: none; -webkit-user-select: none; display: inline-block; background: var(--glass-content-bg); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); border: 0.5px solid var(--glass-content-border); }
+    .editor-body .md-preview-inline { cursor: pointer; }
     .editor-body .md-preview:hover { background: var(--fill-hover); }
-    .editor-body .md-preview.block { display: block; width: 100%; max-width: 100%; border-radius: 0; padding: 0; background: transparent; border: none; overflow: visible; margin: 4px 0; min-width: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; cursor: pointer; }
+    .editor-body .md-preview.block { display: block; width: 100%; max-width: 100%; border-radius: 0; padding: 0; background: transparent; border: none; overflow: visible; margin: 4px 0; min-width: 0; backdrop-filter: none; -webkit-backdrop-filter: none; cursor: pointer; }
     .editor-body .md-preview.block:hover { background: transparent; cursor: pointer; }
     .editor-body .md-preview.block > *:hover { cursor: pointer; }
     .editor-body .md-preview.block > *:last-child { margin-bottom: 0; }
@@ -52,12 +53,12 @@
     .image-text-sheet-backdrop.is-closing { opacity: 0; }
     .image-text-sheet-wrap { position: fixed; z-index: 4001; left: 0; right: 0; bottom: calc(var(--safe-bottom) + 14px); display: flex; justify-content: center; padding: 0 14px; pointer-events: none; transform: translateY(0); opacity: 1; transition: opacity 200ms ease, transform 250ms cubic-bezier(0.34,1.56,0.64,1); }
     .image-text-sheet-wrap.is-closing { transform: translateY(20px); opacity: 0; }
-    .image-text-sheet { box-sizing: border-box; width: 100%; max-width: 600px; max-height: min(78dvh, 680px); display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; padding: 20px 20px calc(20px + var(--safe-bottom)); background: var(--glass-bg); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); border: 0.5px solid var(--glass-border); border-radius: var(--radius-28); box-shadow: var(--shadow-float-strong); color: var(--text-main); }
+    .image-text-sheet { box-sizing: border-box; width: 100%; max-width: 600px; max-height: min(78dvh, 680px); display: flex; flex-direction: column; overflow: hidden; pointer-events: auto; padding: 20px 20px calc(20px + var(--safe-bottom)); background: var(--glass-overlay-bg); backdrop-filter: var(--glass-overlay-filter); -webkit-backdrop-filter: var(--glass-overlay-filter); border: 0.5px solid var(--glass-overlay-border); border-radius: var(--radius-28); color: var(--text-main); }
     .image-text-sheet-header { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; position: relative; min-height: 40px; }
     .image-text-sheet-header h2 { margin-top: 0; color: var(--text-main); }
     .image-text-sheet-content { min-height: 44px; max-height: min(58dvh, 500px); overflow: auto; padding: 4px 2px 10px; color: var(--text-main); font-size: var(--font-16); line-height: var(--md-line-height); white-space: pre-wrap; overflow-wrap: anywhere; -webkit-overflow-scrolling: touch; }
     .image-text-sheet-editor { box-sizing: border-box; width: 100%; min-height: 160px; max-height: min(58dvh, 500px); resize: vertical; overflow: auto; padding: 12px; border: 1px solid var(--border-color); border-radius: var(--radius-12); outline: none; background: var(--fill-subtle); color: var(--text-main); font: var(--font-16)/var(--md-line-height) var(--font-family-base); white-space: pre-wrap; }
-    .image-text-sheet-editor:focus-visible { border-color: var(--md-focus-ring); box-shadow: 0 0 0 3px var(--fill-accent-16); }
+    .image-text-sheet-editor:focus-visible { border-color: var(--md-focus-ring); outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
     .image-text-sheet-footer { flex: 0 0 auto; display: flex; justify-content: flex-end; padding-top: 10px; }
     .image-text-sheet-action { min-width: 104px; min-height: 44px; padding: 0 18px; border: 0; border-radius: var(--radius-999); background: var(--fill-accent-10); color: var(--color-accent); font: 600 var(--font-14)/1 var(--font-family-base); cursor: pointer; }
     .image-text-sheet-action:active { background: var(--fill-hover-strong); }

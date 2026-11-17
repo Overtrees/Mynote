@@ -48,18 +48,21 @@
         R.createElement('button', { ref:sw.btn2Ref, className:'swipe-action-btn', style:{ background:"var(--color-danger)", transform:'translateX(30px)', opacity:0 }, onClick:function(e){e.stopPropagation();sw.snapClose();onDelete(memo.id);} },
           typeof w.SvgIcon === 'function' ? w.SvgIcon('delMulti', {width:17,height:17,strokeWidth:2.2,stroke:'var(--color-white)'}) : null,
           '\u5220\u9664')),
-      R.createElement('div', { ref:sw.rowRef, className:'img-card', onClick:function(){ if (!isNewCard && !sw.gesture.current.opened) onOpen(memo); }, style:{ borderBottom:'none' } },
+      R.createElement('div', { ref:sw.rowRef, className:'img-card', role:'group', tabIndex:0,
+        'aria-label':(memo.title || '\u65E0\u6807\u9898') + '\uFF0C\u56FE\u7247\u7B14\u8BB0\uFF0C\u6309\u56DE\u8F66\u6216\u7A7A\u683C\u6253\u5F00',
+        onKeyDown:function(e){if(e.target!==e.currentTarget)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();if(!isNewCard&&!sw.gesture.current.opened)onOpen(memo);}},
+        onClick:function(){ if (!isNewCard && !sw.gesture.current.opened) onOpen(memo); }, style:{ borderBottom:'none' } },
         thumb ? R.createElement('img', { className:'img-cover', src:thumb, alt:'', style:{ pointerEvents:'none' } }) : R.createElement('div', { className:'img-cover' }),
         R.createElement('div', { className:'img-body' },
           R.createElement('div', { className:'img-text' },
             R.createElement('div', { className:'t', style:{ display:'flex', alignItems:'center', gap:6, width:'100%' } },
               R.createElement('span', { style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' } }, memo.title || '\u65E0\u6807\u9898'),
               !isNewCard && tags.length > 0 && R.createElement('div', { style:{ display:'flex', gap:4, flexWrap:'wrap', overflow:'hidden', justifyContent:'flex-end', flex:1, minWidth:0 } },
-                tags.map(function(t){ return R.createElement('span', { key:t, style:{ fontSize:"var(--font-10)", color:"var(--color-accent)", background:'var(--glass-bg)', padding:'0 5px', borderRadius:"var(--radius-999)", lineHeight:'18px', whiteSpace:'nowrap', border:'0.5px solid var(--glass-border)' } }, t); }))),
+                tags.map(function(t){ return R.createElement('span', { key:t, className:'glass-tag', style:{ fontSize:"var(--font-10)", padding:'0 5px', borderRadius:"var(--radius-999)", lineHeight:'18px', whiteSpace:'nowrap' } }, t); }))),
             R.createElement('div', { className:'m', style:w.MynoteInlineStyles.centerRow6 },
               R.createElement('span', null, typeof w.timeAgo === 'function' ? w.timeAgo(memo.updatedAt) : memo.updatedAt),
-              R.createElement('span', { style:{ color:'var(--text-secondary)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } }, '\u00B7 ' + preview),
-              expandText && R.createElement('span', { className:'expand-btn', onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))))));
+              R.createElement('span', { className:'glass-label', style:{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 } }, '\u00B7 ' + preview),
+              expandText && R.createElement('button', { type:'button', className:'expand-btn', 'aria-label':expandText, onClick:function(e){e.stopPropagation();onExpand&&onExpand();} }, expandText))))));
   }
 
   w.ImageCard = ImageCard;

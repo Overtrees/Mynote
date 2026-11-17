@@ -35,22 +35,35 @@
   --md-callout-important-icon: #8436aa;
   --md-callout-caution-icon: #b3261e;
 
-  /* 玻璃拟态：浅色用深色细边缘提升浅背景上的可见度 */
-  --glass-bg: rgba(255, 255, 255, 0.4);
-  --glass-blur: 36px;
-  --glass-saturate: 2.5;
-  --glass-brightness: 1.15;
-  --glass-border: rgba(0, 0, 0, 0.16);
-  --glass-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness)) contrast(105%);
-  --glass-filter-soft: blur(var(--glass-blur));
-  --inset-glass: inset 0 1px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(0, 0, 0, 0.06);
-  --glass-shadow: var(--inset-glass);
-  --glass-highlight: var(--inset-glass);
-  --glass-inner-border: inset 0 0 0 0.5px var(--glass-border);
+  /* 语义玻璃层：浮层更清晰、卡片保持通透、控件提高不透明度以确保文字可读 */
+  --glass-overlay-bg: #ffffff;
+  --glass-overlay-border: rgba(0, 0, 0, 0.18);
+  --glass-overlay-filter: blur(28px) saturate(1.8);
+  --glass-content-bg: #ffffff;
+  --glass-content-border: rgba(0, 0, 0, 0.16);
+  --glass-content-filter: blur(24px) saturate(1.7);
+  --glass-control-bg: #ffffff;
+  --glass-control-border: rgba(0, 0, 0, 0.2);
+  --glass-control-filter: blur(12px) saturate(1.5);
+  --glass-label-color: #48494f;
+  --glass-label-accent: #005bbb;
+  --glass-focus-ring: #005bbb;
+  /* 兼容尚未迁移的旧表面；新样式应使用上方语义令牌 */
+  --glass-bg: var(--glass-content-bg);
+  --glass-blur: 24px;
+  --glass-saturate: 1.7;
+  --glass-brightness: 1;
+  --glass-border: var(--glass-content-border);
+  --glass-filter: var(--glass-content-filter);
+  --glass-filter-soft: blur(16px);
+  --inset-glass: none;
+  --glass-shadow: none;
+  --glass-highlight: none;
+  --glass-inner-border: none;
   --light-x: 30%;
   --light-y: 30%;
-  --blur-thin: blur(8px) saturate(160%) contrast(105%);
-  --blur-regular: blur(16px) saturate(180%) contrast(105%);
+  --blur-thin: blur(8px) saturate(160%);
+  --blur-regular: blur(16px) saturate(180%);
 
   /* 语义色 */
   --color-accent: #007aff;
@@ -142,18 +155,18 @@
   --radius-circle: 50%;
 
   /* 阴影 */
-  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-card-soft: 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow-float: 0 2px 8px rgba(0, 0, 0, 0.04), var(--glass-highlight);
-  --shadow-float-soft: 0 2px 8px rgba(0, 0, 0, 0.03);
-  --shadow-float-strong: 0 2px 8px rgba(0, 0, 0, 0.06), var(--glass-highlight);
-  --shadow-dialog: 0 4px 20px rgba(0, 0, 0, 0.10), var(--glass-highlight);
-  --shadow-overlay: 0 4px 24px rgba(0, 0, 0, 0.30);
-  --shadow-danger: 0 2px 10px rgba(255, 59, 48, 0.35);
-  --shadow-modal: 0 10px 30px rgba(0, 0, 0, 0.08);
-  --shadow-sheet: 0 -8px 24px rgba(0, 0, 0, 0.10), var(--glass-highlight);
-  --shadow-sheet-strong: 0 2px 20px rgba(0, 0, 0, 0.12), var(--glass-highlight);
-  --shadow-popover: 0 10px 28px rgba(0, 0, 0, 0.14), var(--glass-highlight);
+  --shadow-card: none;
+  --shadow-card-soft: none;
+  --shadow-float: none;
+  --shadow-float-soft: none;
+  --shadow-float-strong: none;
+  --shadow-dialog: none;
+  --shadow-overlay: none;
+  --shadow-danger: none;
+  --shadow-modal: none;
+  --shadow-sheet: none;
+  --shadow-sheet-strong: none;
+  --shadow-popover: none;
 
   /* 尺寸与安全区 */
   --safe-bottom: env(safe-area-inset-bottom);
@@ -193,16 +206,44 @@
     --md-callout-tip-icon: #75e29a;
     --md-callout-important-icon: #d39bed;
     --md-callout-caution-icon: #ff8178;
-    --glass-bg: rgba(0, 0, 0, 0.4);
-    --glass-border: rgba(255, 255, 255, 0.16);
-    --glass-saturate: 1.5;
-    --glass-brightness: 1.05;
-    --inset-glass: inset 0 1px 1px rgba(255, 255, 255, 0.14), inset 0 -1px 2px rgba(0, 0, 0, 0.45);
-    --glass-shadow: var(--inset-glass);
-    --glass-highlight: var(--inset-glass);
+    --glass-overlay-bg: #1c1c1e;
+    --glass-overlay-border: rgba(255, 255, 255, 0.2);
+    --glass-overlay-filter: blur(28px) saturate(1.35);
+    --glass-content-bg: #202024;
+    --glass-content-border: rgba(255, 255, 255, 0.18);
+    --glass-content-filter: blur(24px) saturate(1.35);
+    --glass-control-bg: #38383c;
+    --glass-control-border: rgba(255, 255, 255, 0.24);
+    --glass-control-filter: blur(12px) saturate(1.25);
+    --glass-label-color: #d1d1d6;
+    --glass-label-accent: #72b7ff;
+    --glass-focus-ring: #72b7ff;
+    --glass-bg: var(--glass-content-bg);
+    --glass-border: var(--glass-content-border);
+    --glass-saturate: 1.35;
+    --glass-brightness: 1;
+    --inset-glass: none;
+    --glass-shadow: none;
+    --glass-highlight: none;
     --fill-subtle: rgba(255, 255, 255, 0.04);
     --fill-subtle-2: rgba(255, 255, 255, 0.03);
     --launch-bg: #000000;
     --launch-border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* 半透明只在浏览器实际支持背景模糊时启用；不支持时前面的实色默认值即为回退。 */
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  :root {
+    --glass-overlay-bg: rgba(255, 255, 255, 0.84);
+    --glass-content-bg: rgba(255, 255, 255, 0.74);
+    --glass-control-bg: rgba(255, 255, 255, 0.9);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --glass-overlay-bg: rgba(28, 28, 30, 0.94);
+      --glass-content-bg: rgba(32, 32, 36, 0.86);
+      --glass-control-bg: rgba(56, 56, 60, 0.96);
+    }
   }
 }

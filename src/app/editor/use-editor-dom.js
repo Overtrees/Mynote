@@ -139,6 +139,11 @@
       var targetP;
       if (renderedEl.tagName === 'P') {
         renderedEl.removeAttribute('data-mdtext');
+        renderedEl.removeAttribute('contenteditable');
+        renderedEl.removeAttribute('tabindex');
+        renderedEl.removeAttribute('role');
+        renderedEl.removeAttribute('aria-label');
+        renderedEl.classList.remove('md-preview-inline');
         renderedEl.textContent = text;
         targetP = renderedEl;
       } else {
@@ -204,7 +209,7 @@
         inputDiv.contentEditable = 'true';
         inputDiv.dataset.blockid = blockId2;
         inputDiv.dataset.musicUrl = 'pending';
-        inputDiv.style.cssText = 'padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);outline:none;';
+        inputDiv.style.cssText = 'padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-control-bg);backdrop-filter:var(--glass-control-filter);-webkit-backdrop-filter:var(--glass-control-filter);border:0.5px solid var(--glass-control-border);font-size:var(--font-14);color:var(--text-main);outline:none;';
         inputDiv.textContent = '粘贴音乐链接到这里...';
         musicCard.replaceWith(inputDiv);
         /* 更新 doc 状态为 input */
@@ -617,7 +622,7 @@
               pillDiv.contentEditable = 'false';
               pillDiv.dataset.blockid = forceDoc[fi].id;
               pillDiv.dataset.type = 'musicCard';
-              pillDiv.style.cssText = 'padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-bg);backdrop-filter:var(--glass-filter);-webkit-backdrop-filter:var(--glass-filter);border:0.5px solid var(--glass-border);font-size:var(--font-14);color:var(--text-secondary);display:flex;align-items:center;gap:10px;';
+              pillDiv.style.cssText = 'padding:12px 16px;border-radius:var(--radius-999);background:var(--glass-content-bg);backdrop-filter:var(--glass-content-filter);-webkit-backdrop-filter:var(--glass-content-filter);border:0.5px solid var(--glass-content-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;';
               pillDiv.innerHTML = '<span>🎵</span><span>点击粘贴音乐链接</span>';
               mcEl.replaceWith(pillDiv);
             }

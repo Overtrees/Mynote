@@ -489,11 +489,11 @@ function MemoList() {
     style: {
       width: 72,
       height: 72,
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
+      backdropFilter: "var(--glass-control-filter)",
+      WebkitBackdropFilter: "var(--glass-control-filter)",
       borderRadius: "var(--radius-circle)",
-      background: "var(--glass-bg)",
-      border: "0.5px solid var(--glass-border)",
+      background: "var(--glass-control-bg)",
+      border: "0.5px solid var(--glass-control-border)",
       display: "flex",
       alignItems: "flex-end",
       justifyContent: "center",
@@ -519,6 +519,7 @@ function MemoList() {
     /*#__PURE__*/React.createElement("path", { d: "M 290,145 C 290,165 315,165 315,150" }),
     /*#__PURE__*/React.createElement("path", { d: "M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228" }),
     /*#__PURE__*/React.createElement("path", { d: "M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348" })))), searchOpen ? /*#__PURE__*/React.createElement("div", {
+    className: "glass-search-panel",
     style: {
       position: "absolute",
       right: 20,
@@ -529,10 +530,10 @@ function MemoList() {
       gap: 8,
       padding: "0 14px",
       borderRadius: "var(--radius-999)",
-      background: "var(--glass-bg)",
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: "0.5px solid var(--glass-border)",
+      background: "var(--glass-overlay-bg)",
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: "0.5px solid var(--glass-overlay-border)",
       opacity: isCompact ? 0 : 1,
       visibility: isCompact ? "hidden" : "visible",
       transition: "opacity 280ms ease"
@@ -547,6 +548,8 @@ function MemoList() {
     strokeLinecap: "round",
     strokeLinejoin: "round"
   }, /*#__PURE__*/React.createElement("circle", { cx: 11, cy: 11, r: 8 }), /*#__PURE__*/React.createElement("line", { x1: 21, y1: 21, x2: 16.65, y2: 16.65 })), /*#__PURE__*/React.createElement("input", {
+    className: "glass-search-input",
+    "aria-label": "搜索笔记",
     autoFocus: true,
     placeholder: "\u641C\u7D22\u7B14\u8BB0...",
     value: searchQuery,
@@ -563,7 +566,10 @@ function MemoList() {
       outline: "none",
       fontFamily: "inherit"
     }
-  })) : /*#__PURE__*/React.createElement("div", {
+  })) : /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "glass-search-trigger",
+    "aria-label": "搜索笔记",
     onClick: () => setSearchOpen(true),
     style: {
       position: "absolute",
@@ -576,15 +582,17 @@ function MemoList() {
       gap: 6,
       padding: "0 18px",
       borderRadius: "var(--radius-999)",
-      background: "var(--glass-bg)",
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: "0.5px solid var(--glass-border)",
+      background: "var(--glass-control-bg)",
+      backdropFilter: "var(--glass-control-filter)",
+      WebkitBackdropFilter: "var(--glass-control-filter)",
+      border: "0.5px solid var(--glass-control-border)",
       cursor: "pointer",
       pointerEvents: "auto",
       opacity: isCompact ? 0 : 1,
       visibility: isCompact ? "hidden" : "visible",
-      transition: "opacity 280ms ease"
+      transition: "opacity 280ms ease",
+      color: "var(--glass-label-color)",
+      fontFamily: "inherit"
     }
   }, /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 24 24",
@@ -596,7 +604,7 @@ function MemoList() {
     strokeLinecap: "round",
     strokeLinejoin: "round"
   }, /*#__PURE__*/React.createElement("circle", { cx: 11, cy: 11, r: 8 }), /*#__PURE__*/React.createElement("line", { x1: 21, y1: 21, x2: 16.65, y2: 16.65 })), /*#__PURE__*/React.createElement("span", {
-    style: { fontSize: "var(--font-14)", color: "var(--text-secondary)", letterSpacing: "-0.1px" }
+    style: { fontSize: "var(--font-14)", color: "var(--glass-label-color)", letterSpacing: "-0.1px" }
   }, "\u641C\u7D22"))), /*#__PURE__*/React.createElement("div", {
     className: "container"
   }, /*#__PURE__*/React.createElement("div", {

@@ -1,22 +1,13 @@
 /* 备份管理页面卡片 */
 .backup-hero {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-    border: 0.5px solid var(--glass-border);
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-30);
     corner-shape: squircle;
     padding: 18px;
     margin-bottom: 18px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-}
-@media (prefers-color-scheme: dark) {
-    .backup-hero {
-        background: var(--glass-bg);
-        border-color: var(--glass-border);
-    }
 }
 .backup-hero-top {
     display: flex;
@@ -33,7 +24,7 @@
 .backup-hero-desc {
     font-size: 0.8125rem;
     line-height: 1.5;
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
 }
 .backup-hero-badge,
 .backup-state {
@@ -42,9 +33,10 @@
     font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
+    background: var(--glass-control-bg);
+    backdrop-filter: var(--glass-control-filter);
+    -webkit-backdrop-filter: var(--glass-control-filter);
+    border: 1px solid var(--glass-control-border);
 }
 .backup-hero-badge.connected,
 .backup-state.connected {
@@ -54,7 +46,7 @@
 .backup-hero-badge.disconnected,
 .backup-state.disconnected {
     background: rgba(127,127,127,0.12);
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
 }
 .backup-stats {
     display: grid;
@@ -62,16 +54,16 @@
     gap: 10px;
 }
 .backup-stat {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-    border: 0.5px solid var(--glass-border);
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-18);
     padding: 12px;
 }
 .backup-stat-label {
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
     margin-bottom: 6px;
 }
 .backup-stat-value {
@@ -82,7 +74,7 @@
 .backup-section-title {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: 0 4px;
@@ -90,15 +82,14 @@
     margin-top: 8px;
 }
 .backup-card {
-    background: var(--glass-bg);
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-    border: 0.5px solid var(--glass-border);
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-28);
     corner-shape: squircle;
     overflow: hidden;
     margin-bottom: 16px;
-    box-shadow: var(--shadow-card);
 }
 .backup-row {
     display: flex;
@@ -125,7 +116,7 @@
 .backup-row-desc {
     font-size: 0.8125rem;
     line-height: 1.45;
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
 }
 .backup-row-right {
     display: flex;
@@ -134,7 +125,7 @@
     flex-shrink: 0;
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--glass-label-color);
 }
 .backup-row-arrow {
     font-size: 1.125rem;
@@ -156,18 +147,17 @@
     font-size: 0.8125rem;
 }
 .backup-btn {
-    background: var(--glass-bg);
+    background: var(--glass-control-bg);
     color: var(--text-main);
-    border: 0.5px solid var(--glass-border);
+    border: 1px solid var(--glass-control-border);
     border-radius: var(--radius-999);
     height: 44px;
     padding: 0 18px;
     font-size: 0.875rem;
     font-weight: 650;
     cursor: pointer;
-    backdrop-filter: var(--glass-filter);
-    -webkit-backdrop-filter: var(--glass-filter);
-    box-shadow: var(--shadow-float);
+    backdrop-filter: var(--glass-control-filter);
+    -webkit-backdrop-filter: var(--glass-control-filter);
     margin-right: 0;
     margin-bottom: 0;
     font-family: inherit;
@@ -178,16 +168,15 @@
     border-color: rgba(255,255,255,0.24);
 }
 .backup-btn.secondary {
-    background: var(--card-bg);
+    background: var(--glass-control-bg);
     color: var(--text-main);
-}
-@media (prefers-color-scheme: dark) {
-    .backup-btn.secondary {
-        background: var(--glass-bg);
-    }
 }
 .backup-btn.danger {
     background: rgba(255,69,58,0.14);
     color: var(--color-danger);
     border-color: rgba(255,69,58,0.18);
+}
+.backup-btn:focus-visible {
+    outline: 3px solid var(--glass-focus-ring);
+    outline-offset: 2px;
 }

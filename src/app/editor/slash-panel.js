@@ -47,11 +47,10 @@
         left: slashAnchor.left,
         top: slashAnchor.top,
         width: slashAnchor.width,
-        background: 'var(--glass-bg)',
-        backdropFilter: 'var(--glass-filter)',
-        WebkitBackdropFilter: 'var(--glass-filter)',
-        border: '0.5px solid var(--glass-border)',
-        boxShadow: 'var(--shadow-popover)',
+        background: 'var(--glass-overlay-bg)',
+        backdropFilter: 'var(--glass-overlay-filter)',
+        WebkitBackdropFilter: 'var(--glass-overlay-filter)',
+        border: '0.5px solid var(--glass-overlay-border)',
         borderRadius: 'var(--radius-22)',
         padding: '10px 10px',
         maxHeight: 280,
@@ -162,9 +161,9 @@
                 R.createElement('span', null, hl(cmd.title)),
                 cmd.recent && R.createElement('span', {
                   style: {
-                    fontSize: 'var(--font-10)', color: 'var(--text-secondary)',
-                    background: 'var(--glass-bg)',
-                    padding: '1px 6px', borderRadius: 'var(--radius-999)', border: '0.5px solid var(--glass-border)', opacity: 0.85
+                    fontSize: 'var(--font-10)', color: 'var(--glass-label-color)',
+                    background: 'var(--glass-control-bg)',
+                    padding: '1px 6px', borderRadius: 'var(--radius-999)', border: '0.5px solid var(--glass-control-border)'
                   }
                 }, '\u6700\u8FD1')),
               R.createElement('div', { style: { fontSize: 'var(--font-12)', color: 'var(--text-secondary)', marginTop: 3 } }, hl(cmd.subtitle))),

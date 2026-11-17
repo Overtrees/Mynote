@@ -44,11 +44,23 @@
     return out;
   }
 
+  function markInlinePreview(p) {
+    p.contentEditable = 'false';
+    p.classList.add('md-preview-inline');
+    p.tabIndex = 0;
+    p.setAttribute('role', 'group');
+    p.setAttribute('aria-label', 'Markdown 预览，按回车或空格编辑');
+    return p;
+  }
+
   /* 建立块级预览 div（contentEditable=false + mdtext 缓存） */
   function makePreviewBlock(blockId, merged, html) {
     var dv = document.createElement('div');
     dv.contentEditable = 'false';
     dv.className = 'md-preview block markdown-render';
+    dv.tabIndex = 0;
+    dv.setAttribute('role', 'group');
+    dv.setAttribute('aria-label', 'Markdown 预览，按回车或空格编辑');
     if (blockId != null) dv.dataset.blockid = blockId;
     dv.dataset.mdtext = merged;
     dv.innerHTML = html;
@@ -104,6 +116,7 @@
       }
     }
     p.dataset.mdtext = text;
+    markInlinePreview(p);
     // marked.parse 对内联内容会包 <p>，取其子内容避免 p 嵌套 p
     if (temp.children.length === 1 && temp.children[0].tagName === 'P') {
       p.innerHTML = temp.children[0].innerHTML;
@@ -123,6 +136,7 @@
     collectFenceGroup: collectFenceGroup,
     collectListGroup: collectListGroup,
     range: range,
+    markInlinePreview: markInlinePreview,
     makePreviewBlock: makePreviewBlock,
     renderSingleParagraph: renderSingleParagraph,
     replaceGroupWithPreview: replaceGroupWithPreview

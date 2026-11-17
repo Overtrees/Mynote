@@ -52,12 +52,12 @@
         padding: 0 16px; gap: 12px; pointer-events: auto;
     }
     .action-btn, .editor-btn {
-        background: var(--glass-bg);
+        background: var(--glass-control-bg);
         color: var(--text-main);
         text-decoration: none;
         cursor: pointer;
-        backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter);
-        border: 0.5px solid var(--glass-border);
+        backdrop-filter: var(--glass-control-filter); -webkit-backdrop-filter: var(--glass-control-filter);
+        border: 0.5px solid var(--glass-control-border);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -102,10 +102,10 @@
         padding: 6px 16px;
         border-radius: var(--radius-20);
         corner-shape: squircle;
-        background: var(--glass-bg);
-        backdrop-filter: var(--glass-filter);
-        -webkit-backdrop-filter: var(--glass-filter);
-        border: 0.5px solid var(--glass-border);
+        background: var(--glass-overlay-bg);
+        backdrop-filter: var(--glass-overlay-filter);
+        -webkit-backdrop-filter: var(--glass-overlay-filter);
+        border: 0.5px solid var(--glass-overlay-border);
         opacity: 1;
         pointer-events: none;
         white-space: nowrap;
@@ -145,11 +145,11 @@
         position: relative; z-index: 1; padding: 14px 16px;
         border-radius: var(--radius-32);
         display: flex; justify-content: space-between; align-items: center;
-        background: var(--glass-bg);
+        background: var(--glass-content-bg);
         transform: translateZ(0);
-        backdrop-filter: var(--glass-filter);
-        -webkit-backdrop-filter: var(--glass-filter);
-        box-shadow: inset 0 0 0 0.5px var(--glass-border);
+        backdrop-filter: var(--glass-content-filter);
+        -webkit-backdrop-filter: var(--glass-content-filter);
+        border: 0.5px solid var(--glass-content-border);
         cursor: pointer;
         transition: transform 0.22s cubic-bezier(0.25,0.46,0.45,0.94);
         user-select: none; gap: 12px;
@@ -175,7 +175,7 @@
     .item-meta { font-size: 0.75rem; color: var(--text-secondary); }
     .item-right { display: none; }
     .item-time { font-size: 0.75rem; color: var(--text-secondary); }
-.img-card { background: var(--glass-bg); backdrop-filter: var(--glass-filter); -webkit-backdrop-filter: var(--glass-filter); box-shadow: inset 0 0 0 0.5px var(--glass-border); border-radius: var(--radius-32); corner-shape: squircle; margin-bottom: 6px; }
+.img-card { background: var(--glass-content-bg); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); border: 0.5px solid var(--glass-content-border); border-radius: var(--radius-32); corner-shape: squircle; margin-bottom: 6px; }
     .img-card:last-child { margin-bottom: 0; }
     .img-cover { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--border-color); -webkit-touch-callout: none; border-radius: var(--radius-32) 32px 0 0; corner-shape: squircle; }
     .img-cover-fb { width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-size: 2.25rem; background: var(--btn-bg); color: var(--text-secondary); border-radius: var(--radius-32) 32px 0 0; corner-shape: squircle; }
@@ -185,9 +185,9 @@
     .img-text .m { font-size: 0.75rem; color: var(--text-secondary); }
     .expand-btn {
         display: inline-flex; align-items: center; gap: 4px;
-        background: var(--glass-bg); padding: 4px 10px; border-radius: var(--radius-14);
-        font-size: 0.6875rem; color: var(--text-secondary); flex-shrink: 0; white-space: nowrap; cursor: pointer;
-        border: 0.5px solid var(--glass-border);
+        background: var(--glass-control-bg); padding: 4px 10px; border-radius: var(--radius-14);
+        font-size: 0.6875rem; color: var(--glass-label-color); font-family: inherit; flex-shrink: 0; white-space: nowrap; cursor: pointer;
+        border: 1px solid var(--glass-control-border);
     }
     .gap-16 { height: 16px; }
     .markdown-render {
@@ -208,167 +208,73 @@
     :root {
         --glass-filter: none;
         --glass-filter-soft: none;
-        --glass-bg: rgba(255, 255, 255, 0.9);
+        --glass-overlay-filter: none;
+        --glass-content-filter: none;
+        --glass-control-filter: none;
+        --glass-overlay-bg: rgba(255, 255, 255, 0.97);
+        --glass-content-bg: rgba(255, 255, 255, 0.94);
+        --glass-control-bg: rgba(255, 255, 255, 0.98);
     }
     @media (prefers-color-scheme: dark) {
-        :root { --glass-bg: rgba(20, 20, 24, 0.92); }
+        :root {
+            --glass-overlay-bg: rgba(28, 28, 30, 0.98);
+            --glass-content-bg: rgba(28, 28, 30, 0.96);
+            --glass-control-bg: rgba(44, 44, 46, 0.98);
+        }
     }
 }
-
-/* 液态玻璃借鉴：细边缘反光 + 底缘焦散。仅叠加在已有玻璃表面，内容与交互保持原样。 */
-:root {
-    --glass-edge-core: 0.92;
-    --glass-edge-halo: 0.18;
-    --glass-caustic-alpha: 0.42;
-}
-@media (prefers-color-scheme: dark) {
-    :root {
-        --glass-edge-core: 0.62;
-        --glass-edge-halo: 0.09;
-        --glass-caustic-alpha: 0.22;
-    }
-}
-.action-btn,
-.editor-btn,
-.list-item,
-.img-card,
-.link-card,
-.link-card-error,
-.backup-hero,
-.backup-stat,
-.backup-card,
-.backup-btn,
-.editor-body .attachment-file,
-.editor-body .link-card-block,
-.editor-body .link-card-err,
-.editor-body .img-text-card,
-.editor-body .img-text-row,
-.image-text-sheet,
-.glass-edge {
-    position: relative;
-}
-
-@supports ((-webkit-mask-composite: xor) or (mask-composite: exclude)) {
-    .action-btn::before,
-    .editor-btn::before,
-    .page-title.compact::before,
-    .list-item::before,
-    .img-card::before,
-    .link-card::before,
-    .link-card-error::before,
-    .backup-hero::before,
-    .backup-stat::before,
-    .backup-card::before,
-    .backup-btn::before,
-    .editor-body .attachment-file::before,
-    .editor-body .link-card-block::before,
-    .editor-body .link-card-err::before,
-    .editor-body .img-text-card::before,
-    .editor-body .img-text-row::before,
-    .image-text-sheet::before,
-    .glass-edge::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        padding: 1px;
-        pointer-events: none;
-        z-index: 1;
-        background: radial-gradient(
-            circle at var(--light-x, 30%) var(--light-y, 30%),
-            rgba(255, 255, 255, var(--glass-edge-core)) 0%,
-            rgba(255, 255, 255, var(--glass-edge-halo)) 30%,
-            transparent 70%
-        );
-        -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-    }
-}
-
-.action-btn::after,
-.editor-btn::after,
-.page-title.compact::after,
-.list-item::after,
-.img-card::after,
-.link-card::after,
-.link-card-error::after,
-.backup-hero::after,
-.backup-stat::after,
-.backup-card::after,
-.backup-btn::after,
-.editor-body .attachment-file::after,
-.editor-body .link-card-block::after,
-.editor-body .link-card-err::after,
-.editor-body .img-text-card::after,
-.editor-body .img-text-row::after,
-.image-text-sheet::after,
-.glass-edge::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 1;
-    opacity: 0.8;
-    background: radial-gradient(
-        ellipse 85% 3px at 50% 100%,
-        rgba(255, 255, 255, var(--glass-caustic-alpha)) 0%,
-        transparent 70%
-    );
-}
-
-/* 高对比度与减少透明偏好优先于装饰性光效。 */
-@media (forced-colors: active), (prefers-reduced-transparency: reduce) {
-    .action-btn::before,
-    .action-btn::after,
-    .editor-btn::before,
-    .editor-btn::after,
-    .page-title.compact::before,
-    .page-title.compact::after,
-    .list-item::before,
-    .list-item::after,
-    .img-card::before,
-    .img-card::after,
-    .link-card::before,
-    .link-card::after,
-    .link-card-error::before,
-    .link-card-error::after,
-    .backup-hero::before,
-    .backup-hero::after,
-    .backup-stat::before,
-    .backup-stat::after,
-    .backup-card::before,
-    .backup-card::after,
-    .backup-btn::before,
-    .backup-btn::after,
-    .editor-body .attachment-file::before,
-    .editor-body .attachment-file::after,
-    .editor-body .link-card-block::before,
-    .editor-body .link-card-block::after,
-    .editor-body .link-card-err::before,
-    .editor-body .link-card-err::after,
-    .editor-body .img-text-card::before,
-    .editor-body .img-text-card::after,
-    .editor-body .img-text-row::before,
-    .editor-body .img-text-row::after,
-    .image-text-sheet::before,
-    .image-text-sheet::after,
-    .glass-edge::before,
-    .glass-edge::after {
-        display: none;
-    }
-}
-
 
 @media (prefers-reduced-transparency: reduce) {
     :root {
         --glass-filter: none;
         --glass-filter-soft: none;
-        --glass-bg: rgba(255, 255, 255, 0.94);
+        --glass-overlay-filter: none;
+        --glass-content-filter: none;
+        --glass-control-filter: none;
+        --glass-overlay-bg: rgba(255, 255, 255, 0.98);
+        --glass-content-bg: rgba(255, 255, 255, 0.96);
+        --glass-control-bg: rgba(255, 255, 255, 0.99);
     }
     @media (prefers-color-scheme: dark) {
-        :root { --glass-bg: rgba(28, 28, 30, 0.96); }
+        :root {
+            --glass-overlay-bg: rgba(28, 28, 30, 0.99);
+            --glass-content-bg: rgba(28, 28, 30, 0.97);
+            --glass-control-bg: rgba(44, 44, 46, 0.99);
+        }
     }
+}
+
+/* 焦点和标签对比度不依赖背景模糊效果。 */
+.list-item:focus-visible,
+.img-card:focus-visible,
+.link-card:focus-visible,
+.editor-body .md-preview:focus-visible,
+.editor-body .md-preview-inline:focus-visible,
+.editor-body .music-card-link:focus-visible {
+    outline: 3px solid var(--glass-focus-ring);
+    outline-offset: -4px;
+}
+.glass-search-panel:focus-within {
+    outline: 3px solid var(--glass-focus-ring);
+    outline-offset: 2px;
+}
+.glass-search-trigger:focus-visible {
+    outline: 3px solid var(--glass-focus-ring);
+    outline-offset: 3px;
+}
+.glass-search-input:focus-visible { outline: none; }
+.glass-tag {
+    color: var(--glass-label-accent) !important;
+    background: var(--glass-control-bg) !important;
+    border: 1px solid var(--glass-control-border) !important;
+}
+.glass-label,
+.item-meta,
+.img-text .m,
+.backup-hero-desc,
+.backup-stat-label,
+.backup-section-title,
+.backup-row-desc,
+.backup-state.disconnected {
+    color: var(--glass-label-color);
 }

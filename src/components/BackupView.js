@@ -581,7 +581,6 @@ const BackupView = ({
     strokeWidth: 2,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    style: { filter: "drop-shadow(0 0 6px var(--fill-accent-35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -619,7 +618,6 @@ const BackupView = ({
     strokeWidth: 2,
     strokeLinecap: "round",
     strokeLinejoin: "round",
-    style: { filter: "drop-shadow(0 0 6px var(--fill-accent-35))" }
   }, /*#__PURE__*/React.createElement("path", {
     d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
   }), /*#__PURE__*/React.createElement("polyline", {
@@ -771,9 +769,9 @@ const BackupView = ({
         borderRadius: "var(--radius-999)",
         textTransform: 'uppercase',
         letterSpacing: '0.3px',
-        background: 'var(--glass-bg)',
-        border: '0.5px solid var(--glass-border)',
-        color: 'var(--text-secondary)'
+        background: 'var(--glass-control-bg)',
+        border: '0.5px solid var(--glass-control-border)',
+        color: 'var(--glass-label-color)'
       }
     }, typeLabel)), React.createElement('div', {
       style: {
@@ -809,13 +807,12 @@ const BackupView = ({
     style: {
       width: '100%',
       maxWidth: 600,
-      background: 'var(--glass-bg)',
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: '0.5px solid var(--glass-border)',
+      background: 'var(--glass-overlay-bg)',
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: '0.5px solid var(--glass-overlay-border)',
       borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -872,13 +869,12 @@ const BackupView = ({
     style: {
       width: '100%',
       maxWidth: 600,
-      background: 'var(--glass-bg)',
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: '0.5px solid var(--glass-border)',
+      background: 'var(--glass-overlay-bg)',
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: '0.5px solid var(--glass-overlay-border)',
       borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -932,13 +928,12 @@ const BackupView = ({
     style: {
       width: '100%',
       maxWidth: 600,
-      background: 'var(--glass-bg)',
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: '0.5px solid var(--glass-border)',
+      background: 'var(--glass-overlay-bg)',
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: '0.5px solid var(--glass-overlay-border)',
       borderRadius: "var(--radius-28)",
       padding: '14px 14px calc(14px + env(safe-area-inset-bottom))',
-      boxShadow: "var(--shadow-sheet)",
       pointerEvents: 'auto'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -953,9 +948,9 @@ const BackupView = ({
       borderRadius: "var(--radius-22)",
       padding: 14,
       marginBottom: 10,
-      background: 'var(--glass-bg)',
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
+      background: 'var(--glass-content-bg)',
+      backdropFilter: "var(--glass-content-filter)",
+      WebkitBackdropFilter: "var(--glass-content-filter)",
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -994,9 +989,9 @@ const BackupView = ({
       borderRadius: "var(--radius-22)",
       padding: 14,
       marginBottom: 12,
-      background: 'var(--glass-bg)',
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
+      background: 'var(--glass-content-bg)',
+      backdropFilter: "var(--glass-content-filter)",
+      WebkitBackdropFilter: "var(--glass-content-filter)",
       cursor: 'pointer'
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -1045,16 +1040,15 @@ const BackupView = ({
         right: 16,
         bottom: 'calc(env(safe-area-inset-bottom) + 16px)',
         zIndex: 5000,
-        background: 'var(--glass-bg)',
-        backdropFilter: "var(--glass-filter)",
-        WebkitBackdropFilter: "var(--glass-filter)",
-        border: '0.5px solid var(--glass-border)',
+        background: 'var(--glass-overlay-bg)',
+        backdropFilter: "var(--glass-overlay-filter)",
+        WebkitBackdropFilter: "var(--glass-overlay-filter)",
+        border: '0.5px solid var(--glass-overlay-border)',
         borderRadius: "var(--radius-28)",
         padding: '14px 16px',
         display: 'flex',
         alignItems: 'center',
         gap: 10,
-        boxShadow: "var(--shadow-dialog)",
         overflow: 'hidden',
         opacity: 1,
         transform: 'translateY(0) scale(1)',

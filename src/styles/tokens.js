@@ -89,7 +89,28 @@
       background: 'var(--glass-bg)',
       border: '0.5px solid var(--glass-border)',
       backdropFilter: 'var(--glass-filter)',
-      WebkitBackdropFilter: 'var(--glass-filter)'
+      WebkitBackdropFilter: 'var(--glass-filter)',
+      label: 'var(--glass-label-color)',
+      labelAccent: 'var(--glass-label-accent)',
+      focusRing: 'var(--glass-focus-ring)',
+      overlay: {
+        background: 'var(--glass-overlay-bg)',
+        border: '0.5px solid var(--glass-overlay-border)',
+        backdropFilter: 'var(--glass-overlay-filter)',
+        WebkitBackdropFilter: 'var(--glass-overlay-filter)'
+      },
+      content: {
+        background: 'var(--glass-content-bg)',
+        border: '0.5px solid var(--glass-content-border)',
+        backdropFilter: 'var(--glass-content-filter)',
+        WebkitBackdropFilter: 'var(--glass-content-filter)'
+      },
+      control: {
+        background: 'var(--glass-control-bg)',
+        border: '0.5px solid var(--glass-control-border)',
+        backdropFilter: 'var(--glass-control-filter)',
+        WebkitBackdropFilter: 'var(--glass-control-filter)'
+      }
     },
     palette: {
       backgroundColors: ['#eaeef2', '#e8e0d4', '#d4e8d0', '#d0e0e8', '#e8d0d4', '#fff3e0', '#e8e0f0', '#f0e8d0'],

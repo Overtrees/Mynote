@@ -44,12 +44,12 @@
                   var sel = fontSize === opt.key;
                   return R.createElement('button', { key:opt.key, onClick:function(){applyFontSize(opt.key);},
                     style:{ height:32, minWidth:40, padding:'0 12px', borderRadius:"var(--radius-16)",
-                      border:sel ? '0.5px solid var(--fill-accent-35)' : '0.5px solid var(--glass-border)',
-                      background:sel ? 'var(--fill-accent-10)' : 'var(--glass-bg)',
+                      border:sel ? '0.5px solid var(--fill-accent-35)' : '0.5px solid var(--glass-control-border)',
+                      background:sel ? 'var(--fill-accent-10)' : 'var(--glass-control-bg)',
                       color:sel ? 'var(--color-accent)' : 'var(--text-main)',
                       fontSize:opt.fs, fontWeight:sel ? 700 : 500,
                       fontFamily:'inherit', cursor:'pointer',
-                      backdropFilter:"var(--glass-filter)", WebkitBackdropFilter:"var(--glass-filter)",
+                      backdropFilter:"var(--glass-control-filter)", WebkitBackdropFilter:"var(--glass-control-filter)",
                       transition:'all 0.18s ease', lineHeight:1 }
                   }, opt.label);
                 })))),

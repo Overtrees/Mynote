@@ -227,12 +227,9 @@ function Editor({
           if (cached.t === 'i') {
             p.dataset.mdtext = cached.m;
             p.innerHTML = cached.h;
+            MynoteMdBlocks.markInlinePreview(p);
           } else if (cached.t === 'b') {
-            var dv = document.createElement('div');
-            dv.contentEditable = 'false';
-            dv.className = 'md-preview block markdown-render';
-            dv.dataset.blockid = bid;
-            dv.dataset.mdtext = cached.m;
+            var dv = MynoteMdBlocks.makePreviewBlock(bid, cached.m, cached.h);
             dv.innerHTML = cached.h;
             p.replaceWith(dv);
           }
@@ -1227,6 +1224,12 @@ function Editor({
   }, [triggerAutoSave, updateSlashStateFromSelection]);
   var handleEditorKeyDown = useCallback(function (e) {
     var host = editorBodyRef.current;
+    var mdPreview = e.target && e.target.closest && e.target.closest('.md-preview.block[data-mdtext], .md-preview-inline[data-mdtext]');
+    if (mdPreview && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      handleEditorClick(e);
+      return;
+    }
     if (host && host.dataset.activeMusicInputId && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.key)) {
       var keySel = window.getSelection();
       var keyNode = keySel && keySel.focusNode;
@@ -1780,10 +1783,10 @@ function Editor({
         width: 72,
         height: 72,
         borderRadius: "var(--radius-circle)",
-        border: avatarUrl ? "none" : "0.5px solid var(--glass-border)",
-        background: avatarUrl ? "transparent" : "var(--glass-bg)",
-        backdropFilter: avatarUrl ? "none" : "var(--glass-filter)",
-        WebkitBackdropFilter: avatarUrl ? "none" : "var(--glass-filter)",
+        border: avatarUrl ? "none" : "0.5px solid var(--glass-control-border)",
+        background: avatarUrl ? "transparent" : "var(--glass-control-bg)",
+        backdropFilter: avatarUrl ? "none" : "var(--glass-control-filter)",
+        WebkitBackdropFilter: avatarUrl ? "none" : "var(--glass-control-filter)",
         cursor: "pointer",
         padding: 0,
         overflow: "hidden"
@@ -1808,10 +1811,10 @@ function Editor({
         width: isOverflow ? CAPSULE_MAX_CONTENT_W + 36 : "auto",
         maxWidth: "100%",
         borderRadius: "var(--radius-33)",
-        background: "var(--glass-bg)",
-        backdropFilter: "var(--glass-filter)",
-        WebkitBackdropFilter: "var(--glass-filter)",
-        border: "0.5px solid var(--glass-border)",
+        background: "var(--glass-control-bg)",
+        backdropFilter: "var(--glass-control-filter)",
+        WebkitBackdropFilter: "var(--glass-control-filter)",
+        border: "0.5px solid var(--glass-control-border)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -2001,11 +2004,10 @@ function Editor({
       right: 16,
       top: "calc(env(safe-area-inset-top) + 7px + 46px + 6px)",
       width: 246,
-      background: "var(--glass-bg)",
-      backdropFilter: "var(--glass-filter)",
-      WebkitBackdropFilter: "var(--glass-filter)",
-      border: "0.5px solid var(--glass-border)",
-      boxShadow: "var(--shadow-sheet-strong)",
+      background: "var(--glass-overlay-bg)",
+      backdropFilter: "var(--glass-overlay-filter)",
+      WebkitBackdropFilter: "var(--glass-overlay-filter)",
+      border: "0.5px solid var(--glass-overlay-border)",
       borderRadius: "var(--radius-22)",
       overflow: "hidden",
       opacity: menuClosing ? 0 : 1,
