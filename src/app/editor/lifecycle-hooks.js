@@ -14,6 +14,7 @@
     var memo = opts.memo;
     var titleValueRef = opts.titleValueRef;
     var docRef = opts.docRef;
+    var layoutRef = opts.layoutRef;
     R.useEffect(function () {
       var flushNow = function () {
         if (closedRef.current) return;
@@ -22,6 +23,7 @@
         if (w.MynoteLocal && w.MynoteLocal.DraftStore && w.MynoteLocal.DraftStore.save) {
           w.MynoteLocal.DraftStore.save(memo.id, {
             doc: docRef.current,
+            layout: layoutRef && layoutRef.current || undefined,
             title: titleValueRef.current,
             updatedAt: new Date().toISOString()
           }).catch(function () {});

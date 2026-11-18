@@ -55,6 +55,16 @@
     return host;
   }
 
+  function getMarkdownParagraphGroups(host) {
+    var columns = Array.prototype.filter.call(host && host.children || [], function (child) {
+      return child.classList && child.classList.contains('editor-column');
+    });
+    var roots = columns.length ? columns : [host];
+    return roots.map(function (root) {
+      return Array.prototype.filter.call(root.children || [], function (child) { return child.tagName === 'P' && !!(child.dataset && child.dataset.blockid); });
+    });
+  }
+
   var handleEditorClick = useCallback(function (e) {
     var host = editorBodyRef.current;
     var retryButton = e.target && e.target.closest && e.target.closest('[data-music-retry]');
@@ -463,35 +473,32 @@
       if (!skipHeavy) {
         // 代码块：以 ``` 开头和结尾的行组（收集规则见 MynoteMdBlocks）
         var codeGroups = [];
-        ti = 0;
-        while (ti < ps.length) {
-          var txt = (ps[ti].textContent || '').trim();
-          if (MynoteMdBlocks.isFenceLine(txt)) {
-            var fg = MynoteMdBlocks.collectFenceGroup(ps, ti);
-            codeGroups.push({
-              indices: MynoteMdBlocks.range(fg.start, fg.end),
-              texts: fg.texts
-            });
-            ti = fg.end;
-          } else {
-            ti++;
+        var paragraphGroups = getMarkdownParagraphGroups(el);
+        for (var pgi = 0; pgi < paragraphGroups.length; pgi++) {
+          var groupPs = paragraphGroups[pgi];
+          ti = 0;
+          while (ti < groupPs.length) {
+            var txt = (groupPs[ti].textContent || '').trim();
+            if (MynoteMdBlocks.isFenceLine(txt)) {
+              var fg = MynoteMdBlocks.collectFenceGroup(groupPs, ti);
+              codeGroups.push({ paragraphs: MynoteMdBlocks.range(fg.start, fg.end).map(function (k) { return groupPs[k]; }), texts: fg.texts });
+              ti = fg.end;
+            } else ti++;
           }
         }
 
         // 列表：连续以 -、*、数字. 开头的行组（收集规则见 MynoteMdBlocks）
         var listGroups = [];
-        ti = 0;
-        while (ti < ps.length) {
-          var txt = (ps[ti].textContent || '').trim();
-          if (MynoteMdBlocks.isListLine(txt)) {
-            var lg = MynoteMdBlocks.collectListGroup(ps, ti);
-            listGroups.push({
-              indices: MynoteMdBlocks.range(lg.start, lg.end),
-              texts: lg.texts
-            });
-            ti = lg.end;
-          } else {
-            ti++;
+        for (var lgi = 0; lgi < paragraphGroups.length; lgi++) {
+          var listPs = paragraphGroups[lgi];
+          ti = 0;
+          while (ti < listPs.length) {
+            var txt = (listPs[ti].textContent || '').trim();
+            if (MynoteMdBlocks.isListLine(txt)) {
+              var lg = MynoteMdBlocks.collectListGroup(listPs, ti);
+              listGroups.push({ paragraphs: MynoteMdBlocks.range(lg.start, lg.end).map(function (k) { return listPs[k]; }), texts: lg.texts });
+              ti = lg.end;
+            } else ti++;
           }
         }
 
@@ -499,30 +506,26 @@
         for (var gi2 = 0; gi2 < codeGroups.length; gi2++) {
           var grp2 = codeGroups[gi2];
           // 跳过已不在 DOM 中的组（被表格组处理牵连删除的）
-          if (!ps[grp2.indices[0]] || !ps[grp2.indices[0]].parentNode) continue;
+          if (!grp2.paragraphs[0] || !grp2.paragraphs[0].parentNode) continue;
           var merged2 = grp2.texts.join('\n');
           var html2 = renderMarkdownHtml(merged2);
           var tmp2 = document.createElement('div');
           tmp2.innerHTML = html2;
           if (tmp2.firstElementChild && tmp2.firstElementChild.tagName === 'PRE') {
-            MynoteMdBlocks.replaceGroupWithPreview(grp2.indices.map(function (k) {
-              return ps[k];
-            }), merged2, html2);
+            MynoteMdBlocks.replaceGroupWithPreview(grp2.paragraphs, merged2, html2);
           }
         }
 
         /* ---- 处理列表组 ---- */
         for (var gi3 = 0; gi3 < listGroups.length; gi3++) {
           var grp3 = listGroups[gi3];
-          if (!ps[grp3.indices[0]] || !ps[grp3.indices[0]].parentNode) continue;
+          if (!grp3.paragraphs[0] || !grp3.paragraphs[0].parentNode) continue;
           var merged3 = grp3.texts.join('\n');
           var html3 = renderMarkdownHtml(merged3);
           var tmp3 = document.createElement('div');
           tmp3.innerHTML = html3;
           if (tmp3.firstElementChild && (tmp3.firstElementChild.tagName === 'UL' || tmp3.firstElementChild.tagName === 'OL')) {
-            MynoteMdBlocks.replaceGroupWithPreview(grp3.indices.map(function (k) {
-              return ps[k];
-            }), merged3, html3);
+            MynoteMdBlocks.replaceGroupWithPreview(grp3.paragraphs, merged3, html3);
           }
         }
       } /* end if (!skipHeavy) */

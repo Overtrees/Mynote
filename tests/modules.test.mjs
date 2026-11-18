@@ -241,6 +241,17 @@ test('备份校验兼容旧版并覆盖当前所有 block 类型与恶意字段'
   assert.equal(validate({ memos: [{ id: 'm1', doc: blocks }] }), true, '无版本旧备份与全部当前类型应可导入');
   assert.equal(validate({ version: 1, memos: [{ id: 'm1', doc: [{ id: 'legacy', type: 'historic-widget', payload: { text: '保留旧数据' } }] }] }), true);
   assert.equal(validate({ version: 2, memos: [{ id: 'm1', doc: [] }] }), true);
+  const layoutMemo = {
+    id: 'm-layout',
+    doc: [{ id: 'left-block', type: 'paragraph', children: [{ text: '左' }] }, { id: 'right-block', type: 'musicCard', url: 'https://music.example.test/track' }],
+    layout: { version: 1, mode: 'independent', left: ['left-block'], right: ['right-block'] }
+  };
+  assert.equal(validate({ version: 2, memos: [layoutMemo] }), true, '新备份应保留有效的独立双栏成员映射');
+  assert.equal(validate({ memos: [{ id: 'm-legacy', doc: layoutMemo.doc }] }), true, '旧备份缺少 layout 时仍应兼容');
+  assert.throws(() => validate({ memos: [{ ...layoutMemo, layout: { ...layoutMemo.layout, right: ['missing-block'] } }] }), /不存在的正文块/);
+  assert.throws(() => validate({ memos: [{ ...layoutMemo, layout: { ...layoutMemo.layout, right: ['left-block'] } }] }), /重复块 ID/);
+  assert.throws(() => validate({ memos: [{ ...layoutMemo, layout: { ...layoutMemo.layout, mode: 'columns' } }] }), /列布局格式/);
+  assert.throws(() => validate({ memos: [{ ...layoutMemo, layout: { version: 1, mode: 'independent', left: ['right-block'], right: ['left-block'] } }] }), /顺序不匹配/);
   assert.throws(() => validate({ version: 3, memos: [] }), /备份版本/);
   const bad = doc => validate({ version: 2, memos: [{ id: 'm1', doc }] });
   assert.throws(() => bad([{ id: 'b', type: 'heading', attrs: { level: 9 } }]), /标题级别/);

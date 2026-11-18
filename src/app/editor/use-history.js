@@ -10,12 +10,41 @@
     var setRenderKey = opts.setRenderKey;
     var triggerAutoSave = opts.triggerAutoSave;
     var setEditorDocRef = opts.setEditorDocRef;
+    var layoutRef = opts.layoutRef;
+    var layoutModeRef = opts.layoutModeRef;
+    var setIndependentColumns = opts.setIndependentColumns;
+    var captureLayout = opts.captureLayout;
 
     var history = R.useRef({ past: [], future: [] });
     var txOps = R.useRef([]);
     var txTimer = R.useRef(null);
     var lastSnapshotRef = R.useRef(null);
+    var lastLayoutSnapshotRef = R.useRef(layoutRef && layoutRef.current ? JSON.parse(JSON.stringify(layoutRef.current)) : null);
     var lastPushAtRef = R.useRef(0);
+    var txBeforeLayoutRef = R.useRef(null);
+    var txAfterLayoutRef = R.useRef(null);
+
+    function cloneLayout(layout) { return layout ? JSON.parse(JSON.stringify(layout)) : null; }
+    function currentLayout(doc) {
+      var value = typeof captureLayout === 'function' ? captureLayout(doc || docRef.current || []) : layoutRef && layoutRef.current;
+      return cloneLayout(value);
+    }
+    function restoreLayout(layout, doc) {
+      var el = editorBodyRef.current;
+      if (!layout) {
+        if (layoutModeRef && layoutModeRef.current === 'independent' && el && w.MynoteEditorColumns) {
+          w.MynoteEditorColumns.setIndependentScroll(el, true, null);
+        }
+        return;
+      }
+      var normalized = w.MynoteEditorColumns && w.MynoteEditorColumns.normalizeLayout
+        ? w.MynoteEditorColumns.normalizeLayout(doc || docRef.current || [], layout) || layout
+        : layout;
+      if (layoutRef) layoutRef.current = cloneLayout(normalized);
+      if (layoutModeRef) layoutModeRef.current = normalized.mode === 'flow' ? 'flow' : 'independent';
+      if (typeof setIndependentColumns === 'function') setIndependentColumns(normalized.mode !== 'flow');
+      if (el && w.MynoteEditorColumns) w.MynoteEditorColumns.setIndependentScroll(el, normalized.mode !== 'flow', normalized);
+    }
 
     function restoreEditorSelection(descriptor) {
       var el = editorBodyRef.current;
@@ -40,29 +69,41 @@
       } catch (_) {}
     }
 
-    var recordUndoTransaction = R.useCallback(function (before, after, beforeSelection, afterSelection) {
+    var recordUndoTransaction = R.useCallback(function (before, after, beforeSelection, afterSelection, beforeLayout, afterLayout) {
       var beforeDoc = JSON.parse(JSON.stringify(before || []));
       var afterDoc = JSON.parse(JSON.stringify(after || docRef.current || []));
       if (JSON.stringify(beforeDoc) === JSON.stringify(afterDoc)) return false;
+      var previousLayout = cloneLayout(beforeLayout || lastLayoutSnapshotRef.current || (layoutRef && layoutRef.current));
+      var nextLayout = cloneLayout(afterLayout || currentLayout(afterDoc));
       var h = history.current;
       h.past.push({
         snapshot: beforeDoc,
+        layout: previousLayout,
+        redoLayout: nextLayout,
         restoreSelection: beforeSelection ? JSON.parse(JSON.stringify(beforeSelection)) : null,
         redoSelection: afterSelection ? JSON.parse(JSON.stringify(afterSelection)) : null
       });
       if (h.past.length > 100) h.past.shift();
       h.future = [];
       lastSnapshotRef.current = afterDoc;
+      lastLayoutSnapshotRef.current = nextLayout;
+      if (layoutRef && nextLayout) layoutRef.current = cloneLayout(nextLayout);
       lastPushAtRef.current = 0;
       return true;
     }, [docRef]);
 
-    var recordOp = R.useCallback(function (patch) {
+    var recordOp = R.useCallback(function (patch, beforeLayout, afterLayout) {
+      if (txOps.current.length === 0) txBeforeLayoutRef.current = cloneLayout(beforeLayout || (layoutRef && layoutRef.current));
       txOps.current.push(patch);
+      txAfterLayoutRef.current = cloneLayout(afterLayout || (layoutRef && layoutRef.current));
       clearTimeout(txTimer.current);
       txTimer.current = setTimeout(function () {
         var combined = txOps.current;
+        var previousLayout = txBeforeLayoutRef.current;
+        var nextLayout = txAfterLayoutRef.current;
         txOps.current = [];
+        txBeforeLayoutRef.current = null;
+        txAfterLayoutRef.current = null;
         if (combined.length === 0) return;
         var inverse = combined.map(function (p) {
           if (p.op === 'update') return { op: 'update', index: p.index, prev: p.next, next: p.prev };
@@ -70,13 +111,43 @@
           if (p.op === 'remove') return { op: 'insert', index: p.index, node: p.node };
           return p;
         }).reverse();
-        history.current.past.push({ patch: combined, inverse: inverse });
+        history.current.past.push({ patch: combined, inverse: inverse, layout: previousLayout, redoLayout: nextLayout });
         if (history.current.past.length > 100) history.current.past.shift();
         history.current.future = [];
+        if (nextLayout) {
+          lastLayoutSnapshotRef.current = cloneLayout(nextLayout);
+          if (layoutRef) layoutRef.current = cloneLayout(nextLayout);
+        }
       }, 200);
-    }, []);
+    }, [layoutRef]);
 
-    var applyPatch = R.useCallback(function (patch) {
+    function syncEditorDOMToDocument(layout) {
+      var el = editorBodyRef.current;
+      if (!el || !w.MynoteEditor || !w.MynoteEditor.renderDocToEditorHTML) return;
+      var blocks = w.MynoteEditorColumns && w.MynoteEditorColumns.getBlocks
+        ? w.MynoteEditorColumns.getBlocks(el)
+        : Array.prototype.slice.call(el.children || []);
+      var byId = Object.create(null);
+      blocks.forEach(function (block) { if (block.dataset && block.dataset.blockid) byId[block.dataset.blockid] = block; });
+      var ordered = [];
+      (docRef.current || []).forEach(function (node) {
+        var block = node && node.id && byId[node.id];
+        if (!block) {
+          var template = w.document.createElement('template');
+          template.innerHTML = w.MynoteEditor.renderDocToEditorHTML([node], filesRef.current);
+          block = template.content.firstElementChild;
+        }
+        if (block) ordered.push(block);
+      });
+      if (w.MynoteEditorColumns && w.MynoteEditorColumns.flatten) w.MynoteEditorColumns.flatten(el);
+      el.replaceChildren();
+      var fragment = w.document.createDocumentFragment();
+      ordered.forEach(function (block) { fragment.appendChild(block); });
+      el.appendChild(fragment);
+      if (layout) restoreLayout(layout, docRef.current);
+    }
+
+    var applyPatch = R.useCallback(function (patch, layout) {
       if (!Array.isArray(patch) || patch.length === 0) return;
       var cur = docRef.current;
       patch.forEach(function (p) {
@@ -91,27 +162,32 @@
           if (idxR !== -1) cur.splice(idxR, 1);
         }
       });
+      syncEditorDOMToDocument(layout || (layoutRef && layoutRef.current));
       setRenderKey(function (prev) { return prev + 1; });
-    }, [docRef, setRenderKey]);
+    }, [docRef, setRenderKey, layoutRef]);
 
     // 统一历史入口：所有撤销点都由此写入，条目形如 { snapshot: 撤销后应恢复的内容 }
     var recordUndoPoint = R.useCallback(function () {
       var snapshot = JSON.parse(JSON.stringify(docRef.current));
       var prev = lastSnapshotRef.current;
-      if (!prev) { lastSnapshotRef.current = snapshot; return; }
-      if (JSON.stringify(prev) === JSON.stringify(snapshot)) return;
+      var snapshotLayout = currentLayout(snapshot);
+      var prevLayout = cloneLayout(lastLayoutSnapshotRef.current);
+      if (!prev) { lastSnapshotRef.current = snapshot; lastLayoutSnapshotRef.current = snapshotLayout; return; }
+      if (JSON.stringify(prev) === JSON.stringify(snapshot) && JSON.stringify(prevLayout) === JSON.stringify(snapshotLayout)) return;
       var h = history.current;
       var now = Date.now();
       var top = h.past[h.past.length - 1];
       // 连续输入（600ms 内）合并成一步：保留更早的 before，撤销一次回到输入前
       if (top && top.snapshot && now - lastPushAtRef.current < 600) {
         top.snapshot = prev;
+        top.layout = prevLayout;
       } else {
-        h.past.push({ snapshot: prev });
+        h.past.push({ snapshot: prev, layout: prevLayout });
         if (h.past.length > 100) h.past.shift();
       }
       lastPushAtRef.current = now;
       lastSnapshotRef.current = snapshot;
+      lastLayoutSnapshotRef.current = snapshotLayout;
       h.future = [];
     }, [docRef]);
 
@@ -120,26 +196,30 @@
       if (!last) return;
       h.past.pop();
       var current = JSON.parse(JSON.stringify(docRef.current));
+      var currentLayoutSnapshot = currentLayout(current);
       if (last.snapshot) {
         var restoreTo = JSON.parse(JSON.stringify(last.snapshot));
         docRef.current = restoreTo;
         setEditorDocRef(restoreTo);
         lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
+        lastLayoutSnapshotRef.current = cloneLayout(last.layout);
         var el = editorBodyRef.current;
         if (el) {
           el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
-          if (el.classList.contains('is-independent-scroll') && w.MynoteEditorColumns) w.MynoteEditorColumns.setIndependentScroll(el, true);
+          restoreLayout(last.layout, restoreTo);
         }
         setRenderKey(function (p) { return p + 1; });
         if (last.restoreSelection) w.requestAnimationFrame(function () { restoreEditorSelection(last.restoreSelection); });
-        h.future.push({ snapshot: current, restoreSelection: last.redoSelection || null, undoSelection: last.restoreSelection || null });
+        h.future.push({ snapshot: current, layout: currentLayoutSnapshot, restoreSelection: last.redoSelection || null, undoSelection: last.restoreSelection || null });
         lastPushAtRef.current = 0;
         triggerAutoSave();
         return;
       }
-      applyPatch(last.inverse);
+      var restorePatchLayout = cloneLayout(last.layout || currentLayoutSnapshot);
+      applyPatch(last.inverse, restorePatchLayout);
       lastSnapshotRef.current = JSON.parse(JSON.stringify(docRef.current));
-      h.future.push({ patch: last.patch, inverse: last.inverse });
+      lastLayoutSnapshotRef.current = cloneLayout(restorePatchLayout);
+      h.future.push({ patch: last.patch, inverse: last.inverse, layout: currentLayoutSnapshot, redoLayout: cloneLayout(last.redoLayout || currentLayoutSnapshot) });
       lastPushAtRef.current = 0;
       triggerAutoSave();
     }, [applyPatch, triggerAutoSave, docRef, editorBodyRef, filesRef, setEditorDocRef, setRenderKey, triggerAutoSave]);
@@ -149,26 +229,30 @@
       if (!nxt) return;
       h.future.pop();
       var current = JSON.parse(JSON.stringify(docRef.current));
+      var currentLayoutSnapshot = currentLayout(current);
       if (nxt.snapshot) {
         var restoreTo = JSON.parse(JSON.stringify(nxt.snapshot));
         docRef.current = restoreTo;
         setEditorDocRef(restoreTo);
         lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
+        lastLayoutSnapshotRef.current = cloneLayout(nxt.layout);
         var el = editorBodyRef.current;
         if (el) {
           el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
-          if (el.classList.contains('is-independent-scroll') && w.MynoteEditorColumns) w.MynoteEditorColumns.setIndependentScroll(el, true);
+          restoreLayout(nxt.layout, restoreTo);
         }
         setRenderKey(function (p) { return p + 1; });
         if (nxt.restoreSelection) w.requestAnimationFrame(function () { restoreEditorSelection(nxt.restoreSelection); });
-        h.past.push({ snapshot: current, restoreSelection: nxt.undoSelection || null, redoSelection: nxt.restoreSelection || null });
+        h.past.push({ snapshot: current, layout: currentLayoutSnapshot, restoreSelection: nxt.undoSelection || null, redoSelection: nxt.restoreSelection || null });
         lastPushAtRef.current = 0;
         triggerAutoSave();
         return;
       }
-      applyPatch(nxt.patch);
+      var redoPatchLayout = cloneLayout(nxt.redoLayout || nxt.layout || currentLayoutSnapshot);
+      applyPatch(nxt.patch, redoPatchLayout);
       lastSnapshotRef.current = JSON.parse(JSON.stringify(docRef.current));
-      h.past.push({ patch: nxt.patch, inverse: nxt.inverse });
+      lastLayoutSnapshotRef.current = cloneLayout(redoPatchLayout);
+      h.past.push({ patch: nxt.patch, inverse: nxt.inverse, layout: currentLayoutSnapshot, redoLayout: redoPatchLayout });
       lastPushAtRef.current = 0;
       triggerAutoSave();
     }, [applyPatch, triggerAutoSave, docRef, editorBodyRef, filesRef, setEditorDocRef, setRenderKey, triggerAutoSave]);
@@ -205,6 +289,7 @@
       txOps: txOps,
       txTimer: txTimer,
       lastSnapshotRef: lastSnapshotRef,
+      lastLayoutSnapshotRef: lastLayoutSnapshotRef,
       lastPushAtRef: lastPushAtRef,
       recordOp: recordOp,
       applyPatch: applyPatch,

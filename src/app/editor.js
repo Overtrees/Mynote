@@ -26,11 +26,14 @@ function memoWikiTargets(memo) {
   });
   return targets;
 }
-function restoreIndependentEditorLayout(element) {
-  if (!element || !element.classList || !element.classList.contains('is-independent-scroll')) return;
-  if (window.MynoteEditorColumns && typeof window.MynoteEditorColumns.setIndependentScroll === 'function') {
-    window.MynoteEditorColumns.setIndependentScroll(element, true);
+function restoreIndependentEditorLayout(element, layout, mode) {
+  if (!element || !element.classList || !window.MynoteEditorColumns || typeof window.MynoteEditorColumns.setIndependentScroll !== 'function') return null;
+  var shouldBeIndependent = mode === 'independent' || !mode && element.classList.contains('is-independent-scroll');
+  if (!shouldBeIndependent) {
+    if (element.classList.contains('is-independent-scroll')) window.MynoteEditorColumns.setIndependentScroll(element, false);
+    return layout || null;
   }
+  return window.MynoteEditorColumns.setIndependentScroll(element, true, layout);
 }
 function getAdjacentEditorBlock(host, block, direction) {
   if (!host || !block) return null;
@@ -145,13 +148,23 @@ const initialDoc = memo.doc || [{
         if (draftDate > memoDate) {
           docRef.current = draft.doc;
           setEditorDocRef(draft.doc);
+          var draftLayout = window.MynoteEditorColumns && window.MynoteEditorColumns.normalizeLayout
+            ? window.MynoteEditorColumns.normalizeLayout(draft.doc, draft.layout || memo.layout)
+            : null;
+          if (draftLayout) {
+            columnLayoutRef.current = draftLayout;
+            columnModeRef.current = draftLayout.mode;
+            setIndependentColumns(draftLayout.mode === 'independent');
+          }
           setRenderKey(prev => prev + 1);
           // 同步 DOM：草稿恢复时 editor-body 可能已被 innerHTML 初始化
           // 手动更新 DOM 防止 docRef 与 DOM 脱节
           var el = editorBodyRef.current;
           if (el && domInited.current) {
             el.innerHTML = renderDocToEditorHTML(draft.doc, files);
-            restoreIndependentEditorLayout(el);
+            var restoredDraftLayout = restoreIndependentEditorLayout(el, draftLayout || columnLayoutRef.current, columnModeRef.current);
+            if (restoredDraftLayout) columnLayoutRef.current = restoredDraftLayout;
+            if (columnModeRef.current === 'independent') captureCurrentColumnLayout(draft.doc, 'independent');
           }
         }
       }
@@ -290,14 +303,47 @@ const initialDoc = memo.doc || [{
   var editorBodyRef = useRef(null);
   var inputTimerRef = useRef(null);
   var musicPasteTransactionRef = useRef(null);
+  var initialColumnLayout = window.MynoteEditorColumns && window.MynoteEditorColumns.normalizeLayout
+    ? window.MynoteEditorColumns.normalizeLayout(initialDoc, memo.layout)
+    : null;
+  var initialColumnMode = initialColumnLayout
+    ? initialColumnLayout.mode
+    : (function () { try { return window.localStorage.getItem('sj_editor_independent_scroll') === '1' ? 'independent' : 'flow'; } catch (_) { return 'flow'; } })();
+  var columnLayoutRef = useRef(initialColumnLayout);
+  var columnModeRef = useRef(initialColumnMode);
   const [independentColumns, setIndependentColumns] = useState(function () {
-    try { return window.localStorage.getItem('sj_editor_independent_scroll') === '1'; }
-    catch (_) { return false; }
+    return initialColumnMode === 'independent';
   });
+  function captureCurrentColumnLayout(doc, mode) {
+    var columns = window.MynoteEditorColumns;
+    if (!columns) return columnLayoutRef.current;
+    var activeMode = mode || columnModeRef.current || 'flow';
+    if (editorBodyRef.current && editorBodyRef.current.classList.contains('is-independent-scroll')) activeMode = 'independent';
+    var nextLayout = columns.captureLayout
+      ? columns.captureLayout(editorBodyRef.current, doc || docRef.current || [], activeMode, columnLayoutRef.current)
+      : columnLayoutRef.current;
+    if (nextLayout) columnLayoutRef.current = nextLayout;
+    return nextLayout;
+  }
   var toggleIndependentColumns = useCallback(function () {
     var next = !independentColumns;
     var body = editorBodyRef.current;
-    if (body && window.MynoteEditorColumns) window.MynoteEditorColumns.setIndependentScroll(body, next);
+    if (body && window.MynoteEditorColumns) {
+      var currentDoc = parseEditorDOM(body);
+      docRef.current = currentDoc;
+      setEditorDocRef(currentDoc);
+      if (independentColumns) {
+        captureCurrentColumnLayout(currentDoc, 'independent');
+        if (columnLayoutRef.current) columnLayoutRef.current.mode = 'flow';
+        window.MynoteEditorColumns.setIndependentScroll(body, false);
+      } else {
+        var restored = window.MynoteEditorColumns.normalizeLayout(currentDoc, columnLayoutRef.current);
+        var applied = window.MynoteEditorColumns.setIndependentScroll(body, true, restored);
+        columnLayoutRef.current = applied || captureCurrentColumnLayout(currentDoc, 'independent');
+        if (columnLayoutRef.current) columnLayoutRef.current.mode = 'independent';
+      }
+    }
+    columnModeRef.current = next ? 'independent' : 'flow';
     try { window.localStorage.setItem('sj_editor_independent_scroll', next ? '1' : '0'); }
     catch (_) {}
     setIndependentColumns(next);
@@ -306,7 +352,8 @@ const initialDoc = memo.doc || [{
   /* ---------- DOM contentEditable 输入管理（替代 textarea） ---------- */
   var dragState = useRef({
     draggingId: null,
-    overIndex: null
+    overIndex: null,
+    beforeLayout: null
   });
   const [dragOverIndex, setDragOverIndex] = useState(null);
   var isComposingRef = useRef(false);
@@ -389,7 +436,9 @@ const initialDoc = memo.doc || [{
       el.appendChild(trailP);
       docRef.current.push({ id: trailId, type: 'paragraph', children: [{ text: '' }] });
     }
-    restoreIndependentEditorLayout(el);
+    var initializedLayout = restoreIndependentEditorLayout(el, columnLayoutRef.current, columnModeRef.current);
+    if (initializedLayout) columnLayoutRef.current = initializedLayout;
+    if (columnModeRef.current === 'independent') captureCurrentColumnLayout(docRef.current, 'independent');
     /* 首次加载：应用渲染缓存 + 懒加载未缓存段落 */
     var pendingCache = {};
     /* 异步加载缓存，不阻塞 init render */
@@ -399,7 +448,14 @@ const initialDoc = memo.doc || [{
       if (c) pendingCache = c;
     }).catch(function(e) { if(e) console.warn('[\u6B64\u523B]', e); });
     setTimeout(function () {
-      var ps = el.querySelectorAll('p');
+      var paragraphRoots = Array.prototype.filter.call(el.children || [], function (child) {
+        return child.classList && child.classList.contains('editor-column');
+      });
+      if (!paragraphRoots.length) paragraphRoots = [el];
+      var ps = [];
+      paragraphRoots.forEach(function (root) {
+        Array.prototype.forEach.call(root.children || [], function (child) { if (child.tagName === 'P') ps.push(child); });
+      });
       if (!ps.length) return;
       var uncached = [];
       /* ---- 第一遍：应用缓存 ---- */
@@ -418,20 +474,21 @@ const initialDoc = memo.doc || [{
             p.replaceWith(dv);
           }
         } else {
-          var txt = (p.textContent || '').trim();
-          if (txt && looksLikeCiaoMarkdown(txt)) uncached.push(p);
+          uncached.push(p);
         }
       }
       /* ---- 第二遍：分组渲染（表格/代码块/列表） ---- */
       var grouped = [];
+      paragraphRoots.forEach(function (paragraphRoot) {
+      var localUncached = uncached.filter(function (paragraph) { return paragraph.parentElement === paragraphRoot; });
       var gi = 0;
-      while (gi < uncached.length) {
-        var ct = (uncached[gi].textContent || '').trim();
+      while (gi < localUncached.length) {
+        var ct = (localUncached[gi].textContent || '').trim();
         if (MynoteMdBlocks.isFenceLine(ct)) {
           // 收集规则（含「单段落已含完整围栏」）见 MynoteMdBlocks
-          var fg2 = MynoteMdBlocks.collectFenceGroup(uncached, gi);
+          var fg2 = MynoteMdBlocks.collectFenceGroup(localUncached, gi);
           // 首次加载路径历史上只替换首段的围栏段，后续行保留原样（与旧实现逐字一致，勿"顺手修好"）
-          var grp2 = [uncached[fg2.start]];
+          var grp2 = [localUncached[fg2.start]];
           gi = fg2.end;
           var merged2 = fg2.texts.join('\n'),
             htmlG2 = renderMarkdownHtml(merged2);
@@ -443,9 +500,9 @@ const initialDoc = memo.doc || [{
           continue;
         }
         if (MynoteMdBlocks.isListLine(ct)) {
-          var lg3 = MynoteMdBlocks.collectListGroup(uncached, gi);
+          var lg3 = MynoteMdBlocks.collectListGroup(localUncached, gi);
           var grp3 = MynoteMdBlocks.range(lg3.start, lg3.end).map(function (k) {
-            return uncached[k];
+            return localUncached[k];
           });
           gi = lg3.end;
           var merged3 = lg3.texts.join('\n'),
@@ -457,9 +514,10 @@ const initialDoc = memo.doc || [{
           }
           continue;
         }
-        grouped.push(uncached[gi]);
+        grouped.push(localUncached[gi]);
         gi++;
       }
+      });
       /* ---- 第三遍：补空段落 ---- */
       var bdAll2 = el.querySelectorAll('.md-preview.block');
       for (var bdi2 = 0; bdi2 < bdAll2.length; bdi2++) {
@@ -497,7 +555,16 @@ const initialDoc = memo.doc || [{
   useEffect(function () {
     var body = editorBodyRef.current;
     if (!body || !domInited.current || !window.MynoteEditorColumns) return;
-    window.MynoteEditorColumns.setIndependentScroll(body, independentColumns);
+    if (independentColumns) {
+      var applied = window.MynoteEditorColumns.setIndependentScroll(body, true, columnLayoutRef.current);
+      if (applied) columnLayoutRef.current = applied;
+      captureCurrentColumnLayout(docRef.current, 'independent');
+    } else {
+      if (body.classList.contains('is-independent-scroll')) captureCurrentColumnLayout(docRef.current, 'independent');
+      if (columnLayoutRef.current) columnLayoutRef.current.mode = 'flow';
+      window.MynoteEditorColumns.setIndependentScroll(body, false);
+      columnModeRef.current = 'flow';
+    }
   }, [independentColumns, memo.id]);
 
   // 附件/卡片文件加载完成后更新编辑器中的原子块展示
@@ -651,7 +718,7 @@ function commitTitleFromDOM(el) {
   setEditingTitle(null);
   return raw;
 }
-var doSave = useCallback(d => {
+  var doSave = useCallback(d => {
     /* 采集 DOM 渲染缓存 → 存入 IndexedDB */
     var cachePromise = Promise.resolve();
     try {
@@ -679,11 +746,15 @@ var doSave = useCallback(d => {
       }
     } catch (_) {}
     cachePromise.catch(function () {});
-    const saveResult = onSave(memo.id, {
+    var layout = captureCurrentColumnLayout(d, columnModeRef.current);
+    if (layout) layout.mode = columnModeRef.current === 'independent' ? 'independent' : 'flow';
+    var changes = {
       title: titleValueRef.current.trim() || "无标题",
       doc: d,
       updatedAt: new Date().toISOString()
-    });
+    };
+    if (layout) changes.layout = layout;
+    const saveResult = onSave(memo.id, changes);
     return Promise.all([cachePromise, Promise.resolve(saveResult)]);
   }, [memo.id, onSave]);
   var triggerAutoSave = useCallback(isDraft => {
@@ -692,6 +763,7 @@ var doSave = useCallback(d => {
       doSave(docRef.current);
       if (isDraft) DraftStore.save(memo.id, {
         doc: docRef.current,
+        layout: columnLayoutRef.current || undefined,
         title: titleValueRef.current,
         updatedAt: new Date().toISOString()
       }).catch(function(e) { console.warn('[此刻] draft save', e); });
@@ -704,7 +776,7 @@ var doSave = useCallback(d => {
   useEffect(() => {
     triggerAutoSave();
     return () => clearTimeout(saveTimer.current);
-  }, [title, triggerAutoSave]);
+  }, [title, triggerAutoSave, independentColumns]);
   var closedRef = useRef(false);
   var mdCheckTimerRef = useRef(null);
   var blurApplyingRef = useRef(false);
@@ -717,7 +789,8 @@ var doSave = useCallback(d => {
       doSave: doSave,
       memo: memo,
       titleValueRef: titleValueRef,
-      docRef: docRef
+      docRef: docRef,
+      layoutRef: columnLayoutRef
     });
   }
   if (EditorHooks && EditorHooks.useCoverErrorGuard) {
@@ -730,7 +803,11 @@ var doSave = useCallback(d => {
     editorBodyRef: editorBodyRef,
     setRenderKey: setRenderKey,
     triggerAutoSave: triggerAutoSave,
-    setEditorDocRef: setEditorDocRef
+    setEditorDocRef: setEditorDocRef,
+    layoutRef: columnLayoutRef,
+    layoutModeRef: columnModeRef,
+    setIndependentColumns: setIndependentColumns,
+    captureLayout: captureCurrentColumnLayout
   });
   var history = History.history;
   var txTimer = History.txTimer;
@@ -775,6 +852,8 @@ var doSave = useCallback(d => {
     inputTimerRef: inputTimerRef,
     blurApplyingRef: blurApplyingRef,
     closedRef: closedRef,
+    layoutRef: columnLayoutRef,
+    captureLayout: captureCurrentColumnLayout,
     slashCommandDefs: window.MynoteSlashCommands || []
   });
   var showSlash = Slash.showSlash;
@@ -1089,7 +1168,9 @@ const handleClose = async () => {
       var endP = document.createElement('p');
       endP.dataset.blockid = genId();
       endP.innerHTML = '<br>';
-      var appendColumn = el.querySelector('.editor-column[data-editor-column="right"]') || el;
+      var appendColumn = window.MynoteEditorColumns && window.MynoteEditorColumns.getPreferredEditingHost
+        ? window.MynoteEditorColumns.getPreferredEditingHost(el, sel && sel.focusNode)
+        : el;
       appendColumn.appendChild(endP);
       insertBeforeEl = endP;
     }
@@ -1443,7 +1524,7 @@ const handleClose = async () => {
   }, [files, triggerAutoSave]);
 
   /* ===== Link card insertion ===== */
-  var insertLinkCardAtDOM = useCallback(async function (url) {
+  var insertLinkCardAtDOM = useCallback(async function (url, pasteSquareTransition) {
     recordUndoPoint();
     var cardId = genId();
     var domain = '';
@@ -1455,7 +1536,8 @@ const handleClose = async () => {
     /* 检测是否为音乐平台链接 → 自动升级为音乐卡片 */
     var isMusic = /music\.163\.com|163cn\.tv|y\.qq\.com|i\.y\.qq\.com|open\.spotify\.com|music\.apple\.com/.test(url);
     var cardType = isMusic ? 'musicCard' : 'link-card';
-    var html = '<div contenteditable="false" class="link-card-skeleton" data-blockid="' + cardId + '" data-type="' + cardType + '" data-url="' + escapeHTML(url) + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%"></div><div class="link-card-skeleton-line" style="width:50%"></div></div></div>';
+    var skeletonClass = 'link-card-skeleton' + (isMusic && pasteSquareTransition ? ' music-card-paste-transition' : '');
+    var html = '<div contenteditable="false" class="' + skeletonClass + '" data-blockid="' + cardId + '" data-type="' + cardType + '" data-url="' + escapeHTML(url) + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%"></div><div class="link-card-skeleton-line" style="width:50%"></div></div></div>';
     docRef.current.push({
       id: cardId,
       type: cardType,
@@ -1506,9 +1588,10 @@ const handleClose = async () => {
             meta: null,
             status: 'error'
           }, files);
+        }
       }
     }
-  }
+    return cardId;
   }, [insertAtomicBlockToDOM]);
 
   var retryMusicCard = useCallback(function (cardId) {
@@ -1567,7 +1650,8 @@ const handleClose = async () => {
       url = parsedUrl.href;
     } catch (_) { return false; }
 
-    var shouldAdvanceCaret = musicInput === document.activeElement || musicInput.contains(document.activeElement);
+    var shouldAdvanceCaret = !!(transaction && transaction.pasteIntoMusicInput) || musicInput === document.activeElement || musicInput.contains(document.activeElement);
+    var shouldAnimatePasteSquare = !!(transaction && transaction.pasteIntoMusicInput);
     if (transaction && transaction.restoreTarget && transaction.targetBlock && transaction.targetBlock !== musicInput && host.contains(transaction.targetBlock) && (transaction.removeTarget || transaction.beforeHTML != null)) {
       if (transaction.removeTarget) transaction.targetBlock.remove();
       else transaction.targetBlock.innerHTML = transaction.beforeHTML;
@@ -1582,20 +1666,34 @@ const handleClose = async () => {
     delete loadingNode.children;
     doc[index] = loadingNode;
     setEditorDocRef(doc);
-    musicInput.outerHTML = renderAtomicHTML(loadingNode, files);
-    var loadingCard = host.querySelector('[data-blockid="' + cardId + '"]');
-    if (shouldAdvanceCaret && loadingCard) {
-      var nextBlock = getAdjacentEditorBlock(host, loadingCard, 1);
-      if (nextBlock && nextBlock.contentEditable !== 'false') {
-        focusEditorBlock(host, nextBlock);
-        var nextRange = document.createRange();
-        nextRange.selectNodeContents(nextBlock);
-        nextRange.collapse(true);
-        var nextSelection = window.getSelection();
-        if (nextSelection) { nextSelection.removeAllRanges(); nextSelection.addRange(nextRange); }
-      }
+    musicInput.outerHTML = renderAtomicHTML(loadingNode, files, { pasteSquareTransition: shouldAnimatePasteSquare });
+    if (shouldAdvanceCaret) {
+      var loadingSelection = window.getSelection();
+      if (loadingSelection) loadingSelection.removeAllRanges();
     }
     triggerAutoSave();
+
+    function focusCaretBelowResolvedCard() {
+      if (!shouldAdvanceCaret) return;
+      var activeHost = editorBodyRef.current;
+      var activeCard = activeHost && activeHost.querySelector('[data-blockid="' + cardId + '"]');
+      if (!activeHost || !activeCard) return;
+      var nextBlock = activeCard.nextElementSibling;
+      if (!nextBlock || nextBlock.contentEditable === 'false' || nextBlock.tagName === 'HR') {
+        nextBlock = document.createElement('p');
+        nextBlock.dataset.blockid = genId();
+        nextBlock.innerHTML = '<br>';
+        activeCard.parentNode.insertBefore(nextBlock, activeCard.nextSibling);
+      }
+      focusEditorBlock(activeHost, nextBlock);
+      var nextRange = document.createRange();
+      nextRange.selectNodeContents(nextBlock);
+      nextRange.collapse(true);
+      var nextSelection = window.getSelection();
+      if (nextSelection) { nextSelection.removeAllRanges(); nextSelection.addRange(nextRange); }
+      docRef.current = parseEditorDOM(activeHost);
+      setEditorDocRef(docRef.current);
+    }
 
     function finishMusicLookup(meta) {
       var latest = docRef.current || [];
@@ -1609,6 +1707,7 @@ const handleClose = async () => {
       var currentCard = currentHost && currentHost.querySelector('[data-blockid="' + cardId + '"]');
       if (currentCard && currentCard.classList.contains('link-card-skeleton')) {
         currentCard.outerHTML = renderAtomicHTML(resolvedNode, files);
+        focusCaretBelowResolvedCard();
       }
       triggerAutoSave();
     }
@@ -1631,6 +1730,8 @@ const handleClose = async () => {
     var pasteTarget = targetBlock && targetBlock !== host && targetBlock !== musicInput && targetBlock.contentEditable !== 'false' ? targetBlock : null;
     if (!pasteTarget && selectionBlock && selectionBlock !== musicInput && selectionBlock.contentEditable !== 'false') pasteTarget = selectionBlock;
     var eventTargetsMusicInput = eventTarget && eventTarget.closest && eventTarget.closest('[data-music-url="pending"]') === musicInput;
+    var activeMusicInput = document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-music-url="pending"]');
+    var pasteIntoMusicInput = eventTargetsMusicInput || selectionBlock === musicInput || activeMusicInput === musicInput;
     var blockSnapshots = [];
     if (!pasteTarget && !eventTargetsMusicInput && selectionBlock !== musicInput) {
       Array.prototype.forEach.call(host.querySelectorAll('[data-blockid]'), function (block) {
@@ -1644,7 +1745,8 @@ const handleClose = async () => {
       beforeHTML: pasteTarget ? pasteTarget.innerHTML : null,
       beforeText: pasteTarget ? pasteTarget.textContent || '' : '',
       originalBlocks: originalBlocks,
-      blockSnapshots: blockSnapshots
+      blockSnapshots: blockSnapshots,
+      pasteIntoMusicInput: pasteIntoMusicInput
     };
   }, []);
 
@@ -1733,7 +1835,8 @@ const handleClose = async () => {
           break;
         }
       }
-      if (resolvePendingMusicUrl(pendingInput, inputText, restoreTarget)) return;
+      var resolveTransaction = restoreTarget || (transaction && transaction.blockId === pendingInput.dataset.blockid ? transaction : null);
+      if (resolvePendingMusicUrl(pendingInput, inputText, resolveTransaction)) return;
       var nativeInputEvent = e && e.nativeEvent || e;
       if (transaction && nativeInputEvent && nativeInputEvent.inputType === 'insertFromPaste') {
         musicPasteTransactionRef.current = null;
@@ -1909,7 +2012,9 @@ const handleClose = async () => {
             }
           } else {
             el.innerHTML = renderDocToEditorHTML(doc, filesRef.current);
-            restoreIndependentEditorLayout(el);
+            var rebuiltLayout = restoreIndependentEditorLayout(el, columnLayoutRef.current, columnModeRef.current);
+            if (rebuiltLayout) columnLayoutRef.current = rebuiltLayout;
+            if (columnModeRef.current === 'independent') captureCurrentColumnLayout(doc, 'independent');
           }
         }
       }
@@ -2055,9 +2160,10 @@ const handleClose = async () => {
     var focusInput = focusElement && focusElement.closest && focusElement.closest('[data-music-url="pending"]');
     var musicInput = eventInput || activeInput || markedInput || focusInput;
     if (musicInput) {
-      musicPasteTransactionRef.current = captureMusicPasteTransaction(host, musicInput, e.target);
+      transaction = captureMusicPasteTransaction(host, musicInput, e.target);
+      musicPasteTransactionRef.current = transaction;
       if (text) {
-        if (resolvePendingMusicUrl(musicInput, trimmed, null)) {
+        if (resolvePendingMusicUrl(musicInput, trimmed, transaction)) {
           e.preventDefault();
           closeSlashPanel();
           return;
@@ -2086,22 +2192,26 @@ const handleClose = async () => {
       // 文本里夹着普通链接：链接转链接卡，剩余文本保留原位
       e.preventDefault();
       closeSlashPanel();
-      insertLinkCardAtDOM(embeddedUrl).then(function () {
+      insertLinkCardAtDOM(embeddedUrl).then(function (cardId) {
         var remain = trimmed.replace(embeddedUrl, '').trim();
         if (remain) {
           var el = editorBodyRef.current;
           if (!el) return;
-          var appendColumn = el.querySelector('.editor-column[data-editor-column="right"]') || el;
-          var lastP = appendColumn.lastElementChild;
-          if (!lastP || lastP.contentEditable === 'false' || lastP.tagName === 'HR') {
-            lastP = document.createElement('p');
-            lastP.dataset.blockid = window.MynoteId.genId();
-            lastP.innerHTML = '<br>';
-            appendColumn.appendChild(lastP);
-          }
-          lastP.textContent = remain;
+          var card = cardId && el.querySelector('[data-blockid="' + cardId + '"]');
+          if (!card || !card.parentNode) return;
+          var remainP = document.createElement('p');
+          remainP.dataset.blockid = window.MynoteId.genId();
+          remainP.textContent = remain;
+          card.parentNode.insertBefore(remainP, card.nextSibling);
+          focusEditorBlock(el, remainP);
+          var remainRange = document.createRange();
+          remainRange.selectNodeContents(remainP);
+          remainRange.collapse(false);
+          var remainSelection = window.getSelection();
+          if (remainSelection) { remainSelection.removeAllRanges(); remainSelection.addRange(remainRange); }
           setEditorDocRef(docRef.current);
           docRef.current = parseEditorDOM(el);
+          captureCurrentColumnLayout(docRef.current, columnModeRef.current);
           triggerAutoSave();
         }
       });
@@ -2281,6 +2391,7 @@ const handleClose = async () => {
   }, [autoFocus]);
   const onDragStart = (e, nodeId) => {
     dragState.current.draggingId = nodeId;
+    dragState.current.beforeLayout = captureCurrentColumnLayout(docRef.current, columnModeRef.current);
     e.dataTransfer.effectAllowed = "move";
     e.currentTarget.classList.add("dragging");
   };
@@ -2294,25 +2405,39 @@ const handleClose = async () => {
       const doc = docRef.current;
       const fromIdx = doc.findIndex(n => n.id === draggingId);
       if (fromIdx !== -1 && fromIdx !== overIndex) {
+        const beforeLayout = dragState.current.beforeLayout;
         const [item] = doc.splice(fromIdx, 1);
         const adjustIndex = overIndex > fromIdx ? overIndex - 1 : overIndex;
         doc.splice(adjustIndex, 0, item);
+        let afterLayout = null;
+        if (beforeLayout) {
+          const ids = doc.map(n => n.id).filter(Boolean);
+          const split = Math.min(beforeLayout.left ? beforeLayout.left.length : 0, ids.length);
+          afterLayout = {
+            version: 1,
+            mode: beforeLayout.mode === "flow" ? "flow" : "independent",
+            left: ids.slice(0, split),
+            right: ids.slice(split)
+          };
+          columnLayoutRef.current = afterLayout;
+        }
         recordOp({
           op: "remove",
           index: fromIdx,
           node: item
-        });
+        }, beforeLayout, afterLayout);
         recordOp({
           op: "insert",
           index: adjustIndex,
           node: item
-        });
+        }, beforeLayout, afterLayout);
         setRenderKey(prev => prev + 1);
       }
     }
     dragState.current = {
       draggingId: null,
-      overIndex: null
+      overIndex: null,
+      beforeLayout: null
     };
     setDragOverIndex(null);
   };

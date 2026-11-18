@@ -166,9 +166,9 @@ const DraftStore = window.MynoteLocal ? window.MynoteLocal.DraftStore : {
 function escapeHTML(str) { return window.MynoteEditor ? window.MynoteEditor.escapeHTML(str) : String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 var __editorDocRef = window.MynoteEditor ? window.MynoteEditor.getEditorDocRef() : null;
 function setEditorDocRef(doc) { __editorDocRef = doc; if(window.MynoteEditor) window.MynoteEditor.setEditorDocRef(doc); }
-function renderAtomicHTML(node, files) {
+function renderAtomicHTML(node, files, options) {
   if (window.MynoteEditor && window.MynoteEditor.renderAtomicHTML) {
-    var html = window.MynoteEditor.renderAtomicHTML(node, files);
+    var html = window.MynoteEditor.renderAtomicHTML(node, files, options);
     if (!html && node.type === 'musicCard') {
       if (node.status === 'input') {
         return '<div contenteditable="true" data-blockid="' + node.id + '" data-type="musicCard" data-music-url="pending" style="padding:12px 18px;border-radius:var(--radius-999);background:var(--glass-control-bg);backdrop-filter:var(--glass-control-filter);-webkit-backdrop-filter:var(--glass-control-filter);border:0.5px solid var(--glass-control-border);font-size:var(--font-14);color:var(--text-main);display:flex;align-items:center;gap:10px;outline:none;">粘贴音乐链接到这里...</div>';

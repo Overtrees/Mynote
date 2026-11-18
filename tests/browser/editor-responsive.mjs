@@ -136,12 +136,12 @@ try {
     assert.ok(state.link.width <= state.columnWidth + 1, `${item.name}: 链接卡超过栏宽`);
     assert.ok(state.widthBoundCards.every(card => card.width <= card.parent + 1), `${item.name}: 至少一张 atomic/媒体卡超出父级宽度 ${JSON.stringify(state.widthBoundCards)}`);
     assert.ok(state.wrappedTexts.every(text => text.scroll <= text.client + 1), `${item.name}: 长文本仍存在横向溢出 ${JSON.stringify(state.wrappedTexts.filter(text => text.scroll > text.client + 1))}`);
-    assert.ok(Math.abs(state.musicSkeleton.ratio - 1) < 0.02, `${item.name}: 音乐加载骨架不是正方形 (${JSON.stringify(state.musicSkeleton)})`);
+    assert.ok(Math.abs(state.musicSkeleton.ratio - 2.4) < 0.03, `${item.name}: 普通音乐加载骨架应保持横向比例 (${JSON.stringify(state.musicSkeleton)})`);
     assert.equal(state.musicSkeleton.radius, '26px', `${item.name}: 音乐加载骨架圆角不是26px`);
     assert.equal(state.combo.skeleton.present, true, `${item.name}: 普通链接骨架未被引用`);
     assert.equal(state.combo.skeleton.animation, 'mynoteSkeletonSpin', `${item.name}: 链接骨架旋转加载动画未生效`);
     assert.equal(state.combo.skeleton.breakInside, 'avoid', `${item.name}: 链接骨架允许在内容流中被拆分`);
-    assert.ok(state.combo.musicCenterDelta <= 1, `${item.name}: 音乐正方形骨架未水平居中 (${state.combo.musicCenterDelta}px)`);
+    assert.ok(state.combo.musicCenterDelta <= 1, `${item.name}: 普通音乐加载骨架未水平居中 (${state.combo.musicCenterDelta}px)`);
     assert.ok(state.musicError.width <= item.width && state.musicError.scrollWidth <= state.musicError.width + 1 && state.musicError.retryVisible, `${item.name}: 长 URL 失败卡溢出或重试操作不可见 (${JSON.stringify(state.musicError)})`);
     assert.ok(['auto', 'scroll'].includes(state.table.overflowX), `${item.name}: 表格没有内部横滚规则`);
     assert.equal(state.code.overflowX, 'auto', `${item.name}: 代码块没有内部横滚规则`);
@@ -230,7 +230,66 @@ try {
   assert.equal(independent.orderPreserved, true, '包装成两栏后笔记块顺序必须保持');
   assert.equal(independent.parsedOrderPreserved, true, '解析保存时必须按左右列顺序还原原始笔记块');
   assert.equal(independent.flattened, true, '关闭模式后列包装应被移除');
-  assert.equal(independent.flattenedOrderPreserved, true, '关闭模式后线性 DOM 顺序必须恢复');
+  assert.equal(independent.flattenedOrderPreserved, true, '关闭模式后线性 DOM 顺序应恢复');
+
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.evaluate(() => { window.DOMPurify = { sanitize: value => value }; });
+  await page.addScriptTag({ path: path.join(ROOT, 'src/editor/editor.render.js') });
+  const layoutRoundTrip = await page.evaluate(() => {
+    const body = document.querySelector('.editor-body');
+    const doc = [
+      { id: 'persist-p0', type: 'paragraph', children: [{ text: '左栏短正文' }] },
+      { id: 'persist-h1', type: 'heading', attrs: { level: 2 }, children: [{ text: '左栏标题' }] },
+      { id: 'persist-music', type: 'musicCard', url: 'https://open.spotify.com/track/layout', status: 'ready', meta: { title: '左栏音乐卡', source: '测试' } },
+      { id: 'persist-todo', type: 'todo', attrs: { checked: false }, children: [{ text: '左栏待办' }] },
+      ...Array.from({ length: 16 }, (_, index) => ({ id: `persist-right-${index}`, type: 'paragraph', children: [{ text: `右栏长正文 ${index}：${'高度变化不应重新切分列成员。'.repeat(12)}` }] }))
+    ];
+    const ids = doc.map(node => node.id);
+    const requested = { version: 1, mode: 'independent', left: ids.slice(0, 4), right: ids.slice(4) };
+    const members = () => [...body.querySelectorAll(':scope > .editor-column')].map(column => [...column.children].map(block => block.dataset.blockid));
+    window.MynoteEditor.setEditorDocRef(doc);
+    body.innerHTML = window.MynoteEditor.renderDocToEditorHTML(doc);
+    const firstApplied = window.MynoteEditorColumns.setIndependentScroll(body, true, requested);
+    const firstMembers = members();
+    const rightParagraph = body.querySelector('.editor-column[data-editor-column="right"] p');
+    rightParagraph.textContent += ' '.repeat(1800);
+    const parsedAfterEdit = window.MynoteEditor.parseEditorDOM(body);
+    const savedLayout = window.MynoteEditorColumns.captureLayout(body, parsedAfterEdit, 'independent', firstApplied);
+    body.innerHTML = window.MynoteEditor.renderDocToEditorHTML(parsedAfterEdit);
+    window.MynoteEditor.setEditorDocRef(parsedAfterEdit);
+    window.MynoteEditorColumns.setIndependentScroll(body, true, savedLayout);
+    const reopenedMembers = members();
+    const left = body.querySelector('.editor-column[data-editor-column="left"]');
+    const inserted = document.createElement('p');
+    inserted.dataset.blockid = 'persist-inserted-left';
+    inserted.textContent = '插入在左栏';
+    left.appendChild(inserted);
+    const afterInsert = window.MynoteEditor.parseEditorDOM(body);
+    const afterInsertLayout = window.MynoteEditorColumns.captureLayout(body, afterInsert, 'independent', savedLayout);
+    body.innerHTML = window.MynoteEditor.renderDocToEditorHTML(afterInsert);
+    window.MynoteEditor.setEditorDocRef(afterInsert);
+    window.MynoteEditorColumns.setIndependentScroll(body, true, afterInsertLayout);
+    const afterInsertMembers = members();
+    window.MynoteEditorColumns.focusEditingHost(body, body.querySelector('.editor-column[data-editor-column="left"] p'));
+    return {
+      firstMembers,
+      reopenedMembers,
+      afterInsertMembers,
+      expectedLeft: ids.slice(0, 4),
+      expectedRight: ids.slice(4),
+      parsedOrder: window.MynoteEditor.parseEditorDOM(body).map(node => node.id),
+      preferredHostIsLeft: window.MynoteEditorColumns.getPreferredEditingHost(body) === body.querySelector('.editor-column[data-editor-column="left"]'),
+      layoutMode: afterInsertLayout.mode
+    };
+  });
+  assert.deepEqual(layoutRoundTrip.firstMembers[0], layoutRoundTrip.expectedLeft, '初始独立列成员应严格按显式映射建立');
+  assert.deepEqual(layoutRoundTrip.firstMembers[1], layoutRoundTrip.expectedRight, '右列成员不得受高度影响');
+  assert.deepEqual(layoutRoundTrip.reopenedMembers, layoutRoundTrip.firstMembers, '保存并模拟首页重开后列成员不得漂移');
+  assert.deepEqual(layoutRoundTrip.afterInsertMembers[0], [...layoutRoundTrip.expectedLeft, 'persist-inserted-left'], '左列插入的新块应留在左列');
+  assert.deepEqual(layoutRoundTrip.afterInsertMembers[1], layoutRoundTrip.expectedRight, '左列插入不应挤动右列成员');
+  assert.deepEqual(layoutRoundTrip.parsedOrder, [...layoutRoundTrip.expectedLeft, 'persist-inserted-left', ...layoutRoundTrip.expectedRight], '解析/保存顺序应保持左栏后右栏');
+  assert.equal(layoutRoundTrip.preferredHostIsLeft, true, '无选区插入兜底应优先最近编辑列');
+  assert.equal(layoutRoundTrip.layoutMode, 'independent', '布局模式应继续保持独立编辑');
 
   await page.setViewportSize({ width: 844, height: 430 });
   await page.setContent(html, { waitUntil: 'load' });

@@ -42,6 +42,8 @@
   --glass-content-bg: #ffffff;
   --glass-content-border: rgba(0, 0, 0, 0.16);
   --glass-content-filter: blur(24px) saturate(1.7);
+  --music-skeleton-base: #e9e9ee;
+  --music-skeleton-shimmer: rgba(255, 255, 255, 0.9);
   --glass-control-bg: #ffffff;
   --glass-control-border: rgba(0, 0, 0, 0.2);
   --glass-control-filter: blur(12px) saturate(1.5);
@@ -225,6 +227,8 @@
     --glass-content-bg: #202024;
     --glass-content-border: rgba(255, 255, 255, 0.16);
     --glass-content-filter: blur(24px) saturate(1.35);
+    --music-skeleton-base: #2a2a2e;
+    --music-skeleton-shimmer: rgba(255, 255, 255, 0.12);
     --glass-control-bg: #38383c;
     --glass-control-border: rgba(255, 255, 255, 0.24);
     --glass-control-filter: blur(12px) saturate(1.25);

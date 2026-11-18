@@ -450,15 +450,19 @@ const independentSave = await page.evaluate(async () => {
   const db = await window.MynoteIdb.getDB();
   const saved = (await window.MynoteIdb.loadMemosFromDB(db)).find(memo => memo.id === 'm_long');
   const texts = (saved?.doc || []).map(node => node.children?.[0]?.text || '');
+  const columns = [...body.querySelectorAll(':scope > .editor-column')].map(column => [...column.children].map(block => block.dataset.blockid).filter(Boolean));
   const parsed = window.MynoteEditor.parseEditorDOM(body).map(node => node.id || '');
   const current = (window.MynoteEditor.getEditorDocRef() || []).map(node => node.id || '');
   return {
     hasTypedText: texts.some(text => text.includes('INDEPENDENT_MODE_EDIT')),
     hasSlashHeading: saved?.doc?.some(node => node.type === 'heading' && node.attrs?.level === 1),
+    savedLayoutMatchesColumns: JSON.stringify(saved?.layout?.left || []) === JSON.stringify(columns[0] || []) && JSON.stringify(saved?.layout?.right || []) === JSON.stringify(columns[1] || []),
+    layoutLeft: saved?.layout?.left || [],
+    layoutRight: saved?.layout?.right || [],
     parsedOrderMatches: JSON.stringify(parsed) === JSON.stringify(current)
   };
 });
-check('两列输入与斜杠命令按正文顺序保存到笔记', independentSave.hasTypedText && independentSave.hasSlashHeading && independentSave.parsedOrderMatches, JSON.stringify(independentSave));
+check('两列输入、斜杠命令及列成员按正文顺序保存到笔记', independentSave.hasTypedText && independentSave.hasSlashHeading && independentSave.savedLayoutMatchesColumns && independentSave.parsedOrderMatches, JSON.stringify(independentSave));
 
 await page.locator('.editor-fab.right').click();
 await page.getByRole('button', { name: '导出笔记' }).click();
@@ -478,6 +482,22 @@ const independentHtmlCheck = await page.evaluate(html => {
   };
 }, independentHtmlContent);
 check('独立模式下 HTML 导出保留正文但不导出列包装', independentHtmlCheck.columnWrappers === 0 && independentHtmlCheck.hasMarker && independentHtmlCheck.hasSlashHeading, JSON.stringify(independentHtmlCheck));
+
+await page.getByRole('button', { name: '返回笔记列表' }).click();
+await page.waitForSelector('.editor-body', { state: 'detached' });
+await page.locator('.list-item').filter({ hasText: '长文' }).click();
+await page.waitForSelector('.editor-body', { timeout: 10000 });
+await page.waitForFunction(() => {
+  const body = document.querySelector('.editor-body');
+  return body?.classList.contains('is-independent-scroll') && body.querySelectorAll(':scope > .editor-column').length === 2 && body.innerText.includes('INDEPENDENT_MODE_EDIT');
+}, { timeout: 10000 });
+await page.waitForTimeout(900);
+const reopenedIndependentColumns = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const columns = [...body.querySelectorAll(':scope > .editor-column')].map(column => [...column.children].map(block => block.dataset.blockid).filter(Boolean));
+  return { independent: body.classList.contains('is-independent-scroll'), columns };
+});
+check('真实应用返回首页再重开后左右列成员不漂移', reopenedIndependentColumns.independent && JSON.stringify(reopenedIndependentColumns.columns) === JSON.stringify([independentSave.layoutLeft || [], independentSave.layoutRight || []]), JSON.stringify(reopenedIndependentColumns));
 
 await page.locator('.editor-fab.right').click();
 await page.getByRole('switch', { name: '双栏独立滚动' }).click();

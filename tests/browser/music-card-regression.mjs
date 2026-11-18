@@ -119,49 +119,56 @@ const input = page.locator('.editor-body [data-music-url="pending"]');
 await input.waitFor({ state: 'visible' });
 await input.tap();
 const retargetedPaste = await page.evaluate(() => {
-  // Simulate mobile browsers losing the capsule selection and retargeting paste
-  // to the editor host while the last focused music capsule is still active.
-  const capsule = document.querySelector('.editor-body [data-music-url="pending"]');
-  const next = capsule && capsule.nextElementSibling;
-  if (next) {
-    const range = document.createRange();
-    range.selectNodeContents(next);
-    range.collapse(true);
-    const selection = getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  }
+  // Paste directly into the editable music capsule. This is the only paste path
+  // that should turn its loading skeleton from panoramic to square.
+  const input = document.querySelector('.editor-body [data-music-url="pending"]');
   const host = document.querySelector('.editor-body');
-  host.focus();
-  host.dispatchEvent(new InputEvent('input', { inputType: 'insertText', bubbles: true }));
   const markedBefore = document.querySelector('.editor-body')?.dataset.activeMusicInputId || null;
   const data = new DataTransfer();
   data.setData('text/plain', 'https://open.spotify.com/track/mobile-race-regression');
   const event = new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true });
-  document.querySelector('.editor-body').dispatchEvent(event);
+  input.dispatchEvent(event);
   return { prevented: event.defaultPrevented, target: event.target.className, active: document.activeElement?.dataset?.musicUrl || null, marked: markedBefore, markerAfter: document.querySelector('.editor-body')?.dataset.activeMusicInputId || null };
 });
 const pastedImmediately = await page.evaluate(() => {
   const card = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]');
+  const cover = card && card.querySelector('.link-card-skeleton-cover');
   const input = document.querySelector('.editor-body [data-music-url="pending"]');
   const rect = card && card.getBoundingClientRect();
-  return { skeleton: !!card, inputRemaining: !!input, ratio: rect && rect.height ? rect.width / rect.height : 0, width: rect?.width || 0, height: rect?.height || 0 };
+  return { skeleton: !!card, inputRemaining: !!input, pasteTransition: !!card?.classList.contains('music-card-paste-transition'), aspectAnimation: cover ? getComputedStyle(cover).animationName : '', shimmerAnimation: cover ? getComputedStyle(cover, '::after').animationName : '', ratio: rect && rect.height ? rect.width / rect.height : 0, width: rect?.width || 0, height: rect?.height || 0, loadingCaretHidden: !getSelection()?.rangeCount };
 });
-check('supported music URL paste immediately replaces the input with a square skeleton', retargetedPaste.prevented && pastedImmediately.skeleton && !pastedImmediately.inputRemaining && Math.abs(pastedImmediately.ratio - 1) < 0.02, JSON.stringify(pastedImmediately));
-await page.keyboard.press('Enter');
+check('pasting in the music edit capsule adds the square-transition and shimmer only to that loading card', retargetedPaste.prevented && pastedImmediately.skeleton && !pastedImmediately.inputRemaining && pastedImmediately.pasteTransition && pastedImmediately.aspectAnimation === 'mynoteMusicSkeletonSquareTransition' && pastedImmediately.shimmerAnimation === 'mynoteMusicSkeletonShimmer' && pastedImmediately.loadingCaretHidden, JSON.stringify({ retargetedPaste, pastedImmediately }));
+await page.waitForFunction(() => {
+  const card = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]');
+  if (!card) return false;
+  const rect = card.getBoundingClientRect();
+  return rect.height > 0 && Math.abs(rect.width / rect.height - 1) < 0.02;
+});
 
 const immediate = await page.evaluate(() => ({
   cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body [data-music-url="pending"]')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, pending: el.dataset.musicUrl, className: el.className })),
   loadingRatio: (() => { const el = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]'); const r = el && el.getBoundingClientRect(); return r && r.height ? r.width / r.height : 0; })(),
+  loadingCaretHidden: !getSelection()?.rangeCount,
   slashRows: document.querySelectorAll('.slash-row').length,
   bodyText: document.querySelector('.editor-body')?.innerText || ''
 }));
-check('retargeted paste uses the remembered capsule despite selection loss', retargetedPaste.prevented && !!retargetedPaste.marked, JSON.stringify(retargetedPaste));
-check('paste + immediate Enter preserves exactly one square loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton') && Math.abs(immediate.loadingRatio - 1) < 0.02, JSON.stringify(immediate));
+check('pasting in the edit capsule consumes the input and hides the caret during loading', retargetedPaste.prevented && !!retargetedPaste.marked && immediate.loadingCaretHidden, JSON.stringify({ retargetedPaste, immediate }));
+check('edit-capsule paste keeps exactly one square loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton') && immediate.cards[0].className.includes('music-card-paste-transition') && Math.abs(immediate.loadingRatio - 1) < 0.02, JSON.stringify(immediate));
 check('slash search closes and no stray slash remains', immediate.slashRows === 0 && !/(^|\n)\s*\/\s*(\n|$)/.test(immediate.bodyText), `rows=${immediate.slashRows}`);
 await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
 const resolved = await page.evaluate(() => [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText, hasCover: !!el.querySelector('.lkc-cover img') })));
 check('async completion preserves one resolved music card with artwork', resolved.length === 1 && resolved[0].text.includes('Regression Song') && resolved[0].hasCover, JSON.stringify(resolved));
+const caretAfterLoad = await page.evaluate(() => {
+  const card = document.querySelector('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]');
+  const next = card && card.nextElementSibling;
+  const selection = getSelection();
+  const range = selection && selection.rangeCount ? selection.getRangeAt(0) : null;
+  const focusNode = selection && selection.focusNode;
+  const inNext = !!(next && focusNode && (focusNode === next || next.contains(focusNode)));
+  const atStart = !!(range && range.collapsed && (range.startContainer === next && range.startOffset === 0 || next && range.startContainer === next.firstChild && range.startOffset === 0));
+  return { nextTag: next?.tagName || '', inNext, atStart, rangeCount: selection?.rangeCount || 0 };
+});
+check('after loading the caret returns at the start of the line below the music card', caretAfterLoad.nextTag === 'P' && caretAfterLoad.inNext && caretAfterLoad.atStart, JSON.stringify(caretAfterLoad));
 const mobileMusicLayout = await measureMusicCover();
 await page.setViewportSize({ width: 1280, height: 844 });
 const desktopMusicLayout = await measureMusicCover();
@@ -249,20 +256,22 @@ const nativePasteFallback = await page.evaluate(url => {
   return {
     pastePrevented: paste.defaultPrevented,
     skeleton: !!skeleton,
+    pasteTransition: !!skeleton?.classList.contains('music-card-paste-transition'),
+    aspectAnimation: skeleton ? getComputedStyle(skeleton.querySelector('.link-card-skeleton-cover')).animationName : '',
+    shimmerAnimation: skeleton ? getComputedStyle(skeleton.querySelector('.link-card-skeleton-cover'), '::after').animationName : '',
     pendingInputs: document.querySelectorAll('.editor-body [data-music-url="pending"]').length,
     ratio: rect && rect.height ? rect.width / rect.height : 0,
     corner: skeleton ? getComputedStyle(skeleton).borderTopLeftRadius : '',
     paragraphLeak: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.includes(url))
   };
 }, longAppleUrl);
-check('iOS-style paste without readable clipboard text immediately creates a square Apple Music skeleton', nativePasteFallback.skeleton && nativePasteFallback.pendingInputs === 0 && Math.abs(nativePasteFallback.ratio - 1) < 0.02 && nativePasteFallback.corner === '26px' && !nativePasteFallback.paragraphLeak, JSON.stringify(nativePasteFallback));
-await page.keyboard.press('Enter');
+check('pasting within the music capsule without readable clipboard text gets the square transition fallback', nativePasteFallback.skeleton && nativePasteFallback.pasteTransition && nativePasteFallback.aspectAnimation === 'mynoteMusicSkeletonSquareTransition' && nativePasteFallback.shimmerAnimation === 'mynoteMusicSkeletonShimmer' && nativePasteFallback.pendingInputs === 0 && nativePasteFallback.corner === '26px' && !nativePasteFallback.paragraphLeak, JSON.stringify(nativePasteFallback));
 const fallbackAfterEnter = await page.evaluate(url => ({
   cardCount: document.querySelectorAll('.editor-body [data-type="musicCard"][data-url="' + url + '"]').length,
   pendingCount: document.querySelectorAll('.editor-body [data-music-url="pending"]').length,
   paragraphLeak: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.includes(url))
 }), longAppleUrl);
-check('immediate Enter after fallback paste leaves one card and no raw URL paragraph', fallbackAfterEnter.cardCount === 1 && fallbackAfterEnter.pendingCount === 0 && !fallbackAfterEnter.paragraphLeak, JSON.stringify(fallbackAfterEnter));
+check('native fallback paste leaves one card and no raw URL paragraph without an extra keypress', fallbackAfterEnter.cardCount === 1 && fallbackAfterEnter.pendingCount === 0 && !fallbackAfterEnter.paragraphLeak, JSON.stringify(fallbackAfterEnter));
 await page.locator('.editor-body a.music-card-link[href^="https://music.apple.com/hk/album/"]').waitFor({ state: 'visible', timeout: 10000 });
 
 await page.locator('.editor-body').click();
@@ -290,6 +299,8 @@ const retargetedNativePaste = await page.evaluate(url => {
   const rect = skeleton && skeleton.getBoundingClientRect();
   return {
     skeleton: !!skeleton,
+    pasteTransition: !!skeleton?.classList.contains('music-card-paste-transition'),
+    aspectAnimation: skeleton ? getComputedStyle(skeleton.querySelector('.link-card-skeleton-cover')).animationName : '',
     ratio: rect && rect.height ? rect.width / rect.height : 0,
     corner: skeleton ? getComputedStyle(skeleton).borderTopLeftRadius : '',
     pendingInputs: host.querySelectorAll('[data-music-url="pending"]').length,
@@ -297,14 +308,20 @@ const retargetedNativePaste = await page.evaluate(url => {
     paragraphLeak: [...host.querySelectorAll('p')].some(p => p.textContent.includes(url))
   };
 }, longAppleUrl + '&redirected=paragraph');
-check('retargeted paste landing in a paragraph restores its text and immediately creates a square music skeleton', retargetedNativePaste.skeleton && Math.abs(retargetedNativePaste.ratio - 1) < 0.02 && retargetedNativePaste.corner === '26px' && retargetedNativePaste.pendingInputs === 0 && retargetedNativePaste.paragraphRestored && !retargetedNativePaste.paragraphLeak, JSON.stringify(retargetedNativePaste));
+check('retargeted paste landing in a paragraph keeps the ordinary panoramic skeleton', retargetedNativePaste.skeleton && !retargetedNativePaste.pasteTransition && retargetedNativePaste.aspectAnimation === 'none' && Math.abs(retargetedNativePaste.ratio - 2.4) < 0.03 && retargetedNativePaste.corner === '26px' && retargetedNativePaste.pendingInputs === 0 && retargetedNativePaste.paragraphRestored && !retargetedNativePaste.paragraphLeak, JSON.stringify(retargetedNativePaste));
+await page.waitForFunction(url => {
+  const card = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"][data-url="' + url + '"]');
+  if (!card) return false;
+  const rect = card.getBoundingClientRect();
+  return rect.height > 0 && Math.abs(rect.width / rect.height - 2.4) < 0.03;
+}, longAppleUrl + '&redirected=paragraph');
 if (retargetedNativePaste.skeleton) await page.locator('.editor-body a.music-card-link[href*="redirected=paragraph"]').waitFor({ state: 'visible', timeout: 10000 });
 
 const coverLayoutsMobile = await measureRenderedCoverLayouts(390);
 const coverLayoutsDesktop = await measureRenderedCoverLayouts(1280);
 const isPanoramic = layout => !!layout && Math.abs(layout.ratio - 2.4) < 0.02 && layout.fill >= 0.99;
 for (const [name, layouts] of [['narrow', coverLayoutsMobile], ['desktop', coverLayoutsDesktop]]) {
-  check(`music artwork stays panoramic while its loading card stays square (${name})`, isPanoramic(layouts.music) && Math.abs(layouts.loading.ratio - 1) < 0.02 && layouts.loading.width <= 321 && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
+  check(`music artwork and ordinary loading skeleton both stay panoramic (${name})`, isPanoramic(layouts.music) && Math.abs(layouts.loading.ratio - 2.4) < 0.03 && layouts.loading.width <= 321 && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
   check(`ordinary link cover remains panoramic (${name})`, isPanoramic(layouts.link) && layouts.link.imageMargin === '0px' && layouts.link.imageBorderRadius === '0px' && layouts.link.objectFit === 'cover', JSON.stringify(layouts.link));
 }
 
@@ -373,6 +390,28 @@ const desktopDefaultResolved = await page.evaluate(url => {
   };
 }, desktopDefaultUrl);
 check('default two-column async completion keeps one resolved music card and removes every paste artifact', desktopDefaultResolved.matchingCards === 1 && desktopDefaultResolved.resolvedLink && desktopDefaultResolved.pendingInputs === 0 && desktopDefaultResolved.loadingCards === 0 && desktopDefaultResolved.rawUrlBlocks === 0, JSON.stringify(desktopDefaultResolved));
+
+await page.emulateMedia({ reducedMotion: 'reduce' });
+const reducedMotionLayout = await page.evaluate(() => {
+  const host = document.createElement('div');
+  host.className = 'editor-body';
+  host.style.cssText = 'position:fixed;left:0;top:0;width:320px;visibility:hidden;pointer-events:none;';
+  host.innerHTML = window.MynoteEditor.renderAtomicHTML({ id: 'reduced-motion-music', type: 'musicCard', url: 'https://open.spotify.com/track/reduced-motion', status: 'loading' }, {}, { pasteSquareTransition: true });
+  document.body.appendChild(host);
+  const card = host.querySelector('.link-card-skeleton');
+  const cover = card && card.querySelector('.link-card-skeleton-cover');
+  const rect = card && card.getBoundingClientRect();
+  const result = {
+    ratio: rect && rect.height ? rect.width / rect.height : 0,
+    aspectAnimation: cover ? getComputedStyle(cover).animationName : '',
+    shimmerAnimation: cover ? getComputedStyle(cover, '::after').animationName : '',
+    shimmerBackground: cover ? getComputedStyle(cover, '::after').backgroundImage : ''
+  };
+  host.remove();
+  return result;
+});
+check('reduced-motion paste keeps square end state and disables both animations', Math.abs(reducedMotionLayout.ratio - 1) < 0.02 && reducedMotionLayout.aspectAnimation === 'none' && reducedMotionLayout.shimmerAnimation === 'none' && reducedMotionLayout.shimmerBackground === 'none', JSON.stringify(reducedMotionLayout));
+await page.emulateMedia({ reducedMotion: 'no-preference' });
 
 check('no browser JavaScript errors', failures.length === 0, failures.join(' | '));
 await browser.close();

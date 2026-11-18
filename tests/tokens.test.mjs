@@ -119,7 +119,6 @@ test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', ()
   assert.doesNotMatch(css, /brightness\s*\(/i);
   assert.doesNotMatch(css, /contrast\s*\(/i);
   assert.doesNotMatch(css, /glass-edge|glass-caustic/i);
-  assert.doesNotMatch(css, /shimmer/i);
   assert.doesNotMatch(css, /box-shadow\s*:/i);
   assert.doesNotMatch(css, /text-shadow\s*:/i);
   assert.match(css, /--glass-highlight\s*:\s*none;/);
@@ -133,6 +132,30 @@ test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', ()
   assert.doesNotMatch(js, /\btextShadow\s*:/i);
   const preview = read('glass-preview.html');
   assert.doesNotMatch(preview, /box-shadow|text-shadow|brightness\s*\(|contrast\s*\(|glass-edge|glass-caustic/i);
+});
+
+test('普通音乐骨架保持横向，仅音乐卡片编辑态粘贴才过渡为方形并扫光', () => {
+  const tokens = read('src/styles/tokens.css');
+  const cards = read('src/styles/cards.css');
+  const renderer = read('src/editor/editor.render.js');
+  const runtime = read('src/app/runtime.js');
+  const editor = read('src/app/editor.js');
+  assert.match(tokens, /--music-skeleton-base:\s*#e9e9ee;[\s\S]*--music-skeleton-shimmer:\s*rgba\(255, 255, 255, 0\.9\);/);
+  assert.match(tokens, /@media \(prefers-color-scheme: dark\)[\s\S]*--music-skeleton-base:\s*#2a2a2e;[\s\S]*--music-skeleton-shimmer:\s*rgba\(255, 255, 255, 0\.12\);/);
+  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\] \.link-card-skeleton-cover\s*\{\s*aspect-ratio:\s*2\.4\s*\/\s*1;/);
+  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover\s*\{[\s\S]*?animation:\s*mynoteMusicSkeletonSquareTransition 280ms ease-out both;/);
+  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover::after\s*\{[\s\S]*?animation:\s*mynoteMusicSkeletonShimmer 1\.35s ease-in-out infinite;/);
+  assert.equal((cards.match(/animation:\s*mynoteMusicSkeletonShimmer/g) || []).length, 1, '扫光动画只能有一个限定作用域');
+  assert.match(cards, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.editor-body \.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover\s*\{\s*animation:\s*none;\s*aspect-ratio:\s*1\s*\/\s*1;/);
+  assert.match(cards, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.editor-body \.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover::after\s*\{\s*animation:\s*none;\s*background-image:\s*none;/);
+  assert.match(renderer, /options && options\.pasteSquareTransition \? ' music-card-paste-transition'/);
+  assert.match(runtime, /function renderAtomicHTML\(node, files, options\)/);
+  assert.match(runtime, /window\.MynoteEditor\.renderAtomicHTML\(node, files, options\)/);
+  assert.match(editor, /shouldAnimatePasteSquare = !!\(transaction && transaction\.pasteIntoMusicInput\)/);
+  assert.match(editor, /pasteIntoMusicInput: pasteIntoMusicInput/);
+  assert.doesNotMatch(editor, /insertLinkCardAtDOM\(embeddedUrl,\s*true\)/);
+  assert.match(editor, /function focusCaretBelowResolvedCard\(\)/);
+  assert.match(editor, /loadingSelection\.removeAllRanges\(\)/);
 });
 
 

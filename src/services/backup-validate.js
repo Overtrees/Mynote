@@ -154,13 +154,31 @@
       if (memo.title != null && typeof memo.title !== 'string') throw new Error('笔记标题格式无效');
       if (memo.doc != null && !Array.isArray(memo.doc)) throw new Error('笔记正文格式无效');
       if (memo.doc && memo.doc.length > 20000) throw new Error('单篇笔记内容过多');
+      var blockIds = Object.create(null);
       if (memo.doc) {
-        var blockIds = Object.create(null);
         memo.doc.forEach(function (block) {
           validateNode(block, 0);
           if (block.id && blockIds[block.id]) throw new Error('笔记包含重复正文块 ID');
           if (block.id) blockIds[block.id] = true;
         });
+      }
+      if (memo.layout != null) {
+        var layout = memo.layout;
+        if (!layout || typeof layout !== 'object' || Array.isArray(layout) || layout.version !== 1 || !['flow', 'independent'].includes(layout.mode) || !Array.isArray(layout.left) || !Array.isArray(layout.right)) throw new Error('笔记列布局格式无效');
+        if (layout.left.length > 20000 || layout.right.length > 20000) throw new Error('笔记列布局内容过多');
+        var layoutIds = Object.create(null);
+        var orderedLayoutIds = [];
+        [layout.left, layout.right].forEach(function (columnIds) {
+          columnIds.forEach(function (id) {
+            if (!validId(id, 128, false)) throw new Error('笔记列布局块 ID 无效');
+            if (layoutIds[id]) throw new Error('笔记列布局包含重复块 ID');
+            if (!blockIds[id]) throw new Error('笔记列布局引用了不存在的正文块');
+            layoutIds[id] = true;
+            orderedLayoutIds.push(id);
+          });
+        });
+        var docIds = (memo.doc || []).map(function (block) { return block && block.id || ''; });
+        if (docIds.some(function (id) { return !id; }) || orderedLayoutIds.length !== docIds.length || orderedLayoutIds.some(function (id, index) { return id !== docIds[index]; })) throw new Error('笔记列布局与正文块顺序不匹配');
       }
     });
     if (backup.avatars != null) {

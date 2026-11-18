@@ -12,6 +12,7 @@
     var recordUndoTransaction = opts.recordUndoTransaction;
     var setEditorDocRef = opts.setEditorDocRef;
     var parseEditorDOM = opts.parseEditorDOM || (w.MynoteEditor && w.MynoteEditor.parseEditorDOM);
+    var captureLayout = opts.captureLayout;
     var isComposingRef = opts.isComposingRef;
     var triggerAutoSave = opts.triggerAutoSave;
     var mdCheckTimerRef = opts.mdCheckTimerRef;
@@ -378,6 +379,7 @@
         docRef.current = parseEditorDOM(el);
         if (typeof setEditorDocRef === 'function') setEditorDocRef(docRef.current);
       }
+      var beforeLayout = typeof captureLayout === 'function' ? captureLayout(docRef.current) : null;
       var beforeDoc = JSON.parse(JSON.stringify(docRef.current || []));
       var blockEl = slashTargetBlockRef.current && el.contains(slashTargetBlockRef.current) ? slashTargetBlockRef.current : null;
       if (!blockEl && slashTargetBlockId) blockEl = el.querySelector('[data-blockid="' + slashTargetBlockId + '"]');
@@ -473,8 +475,9 @@
         blockEl.replaceWith(inlineTemplate.content.firstChild);
         if (typeof parseEditorDOM === 'function') docRef.current = parseEditorDOM(el);
         if (typeof setEditorDocRef === 'function') setEditorDocRef(docRef.current);
+        var inlineAfterLayout = typeof captureLayout === 'function' ? captureLayout(docRef.current) : null;
         if (typeof recordUndoTransaction === 'function') {
-          recordUndoTransaction(beforeDoc, docRef.current, beforeSelection, { blockId: blkId, column: activeColumnName, offset: inlineCaretOffset });
+          recordUndoTransaction(beforeDoc, docRef.current, beforeSelection, { blockId: blkId, column: activeColumnName, offset: inlineCaretOffset }, beforeLayout, inlineAfterLayout);
         } else if (typeof recordUndoPoint === 'function') recordUndoPoint();
         setShowSlash(false);
         setSlashQuery('');
@@ -557,6 +560,7 @@
       blockEl.replaceWith(...insertedNodes);
       if (typeof parseEditorDOM === 'function') docRef.current = parseEditorDOM(el);
       if (typeof setEditorDocRef === 'function') setEditorDocRef(docRef.current);
+      var afterLayout = typeof captureLayout === 'function' ? captureLayout(docRef.current) : null;
       var markdownPrefixLength = type === 'code_block' ? codeFence.length + 1
         : type === 'unordered_list' ? 2
         : type === 'ordered_list' ? String(1).length + 2
@@ -564,7 +568,7 @@
       var targetOffset = type === 'musicCard' ? '粘贴音乐链接到这里...'.length : markdownPrefixLength + commandCaretOffset;
       var afterSelection = { blockId: insertedFocusId, column: activeColumnName, offset: insertedFocusId === blkId ? targetOffset : 0 };
       if (typeof recordUndoTransaction === 'function') {
-        recordUndoTransaction(beforeDoc, docRef.current, beforeSelection, afterSelection);
+        recordUndoTransaction(beforeDoc, docRef.current, beforeSelection, afterSelection, beforeLayout, afterLayout);
       } else if (typeof recordUndoPoint === 'function') recordUndoPoint();
       setShowSlash(false);
       setSlashQuery('');
@@ -606,7 +610,10 @@
           } else if (editorBodyRef.current) {
             // 兜底：找不到目标块时新建段落聚焦，绝不把光标留在容器上
             var hostEl = editorBodyRef.current;
-            var appendColumn = activeColumn && hostEl.contains(activeColumn) ? activeColumn : hostEl.querySelector('.editor-column[data-editor-column="right"]') || hostEl;
+            var preferredHost = w.MynoteEditorColumns && w.MynoteEditorColumns.getPreferredEditingHost
+              ? w.MynoteEditorColumns.getPreferredEditingHost(hostEl)
+              : hostEl;
+            var appendColumn = activeColumn && hostEl.contains(activeColumn) ? activeColumn : preferredHost || hostEl;
             var tailP = appendColumn.lastElementChild;
             if (!tailP || tailP.contentEditable === 'false' || tailP.tagName === 'HR' || !tailP.dataset || !tailP.dataset.blockid) {
               tailP = w.document.createElement('p');

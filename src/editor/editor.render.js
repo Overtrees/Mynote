@@ -110,9 +110,25 @@
     return column && containerEl.contains(column) ? column : containerEl;
   }
 
+  function getPreferredEditingHost(containerEl, contextNode) {
+    if (!containerEl) return null;
+    var candidates = [contextNode, w.document && w.document.activeElement];
+    var selection = w.getSelection && w.getSelection();
+    if (selection && selection.focusNode) candidates.push(selection.focusNode);
+    for (var i = 0; i < candidates.length; i++) {
+      var host = getEditingHost(containerEl, candidates[i]);
+      if (host && host !== containerEl) return host;
+    }
+    var last = containerEl.dataset && containerEl.dataset.lastEditorColumn;
+    var remembered = last && containerEl.querySelector('.' + EDITOR_COLUMN_CLASS + '[data-editor-column="' + last + '"]');
+    if (remembered) return remembered;
+    return containerEl.querySelector('.' + EDITOR_COLUMN_CLASS + '[data-editor-column="left"]') || containerEl;
+  }
+
   function focusEditingHost(containerEl, node) {
     var host = getEditingHost(containerEl, node);
     if (!host || typeof host.focus !== 'function') return null;
+    if (host !== containerEl && host.dataset && containerEl.dataset) containerEl.dataset.lastEditorColumn = host.dataset.editorColumn || '';
     try { host.focus({ preventScroll: true }); }
     catch (_) { try { host.focus(); } catch (__) {} }
     return host;
@@ -127,7 +143,63 @@
       column.setAttribute('aria-multiline', 'true');
       column.setAttribute('aria-label', index === 0 ? '左栏正文' : '右栏正文');
       column.setAttribute('tabindex', '0');
+      column.onfocus = function () { containerEl.dataset.lastEditorColumn = column.dataset.editorColumn || (index === 0 ? 'left' : 'right'); };
     });
+  }
+
+  function normalizeColumnLayout(doc, layout) {
+    if (!layout || typeof layout !== 'object' || !Array.isArray(layout.left) || !Array.isArray(layout.right)) return null;
+    var ids = (Array.isArray(doc) ? doc : []).map(function (node) { return node && typeof node.id === 'string' ? node.id : ''; }).filter(Boolean);
+    var uniqueIds = [];
+    var seenIds = Object.create(null);
+    ids.forEach(function (id) { if (!seenIds[id]) { seenIds[id] = true; uniqueIds.push(id); } });
+    var leftSet = Object.create(null), rightSet = Object.create(null);
+    layout.left.forEach(function (id) { if (typeof id === 'string' && seenIds[id]) leftSet[id] = true; });
+    layout.right.forEach(function (id) { if (typeof id === 'string' && seenIds[id] && !leftSet[id]) rightSet[id] = true; });
+    var firstRight = -1, lastLeft = -1;
+    uniqueIds.forEach(function (id, index) {
+      if (rightSet[id] && firstRight < 0) firstRight = index;
+      if (leftSet[id]) lastLeft = index;
+    });
+    var boundary = firstRight >= 0 ? firstRight : lastLeft + 1;
+    var left = uniqueIds.slice(0, boundary);
+    var right = uniqueIds.slice(boundary);
+    return {
+      version: 1,
+      mode: layout.mode === 'flow' ? 'flow' : 'independent',
+      left: left,
+      right: right
+    };
+  }
+
+  function captureColumnLayout(containerEl, doc, mode, previousLayout) {
+    if (!containerEl) return normalizeColumnLayout(doc, previousLayout);
+    var columns = Array.prototype.filter.call(containerEl.children || [], function (child) {
+      return child.classList && child.classList.contains(EDITOR_COLUMN_CLASS);
+    });
+    if (columns.length !== 2) {
+      var previous = normalizeColumnLayout(doc, previousLayout);
+      if (previous && mode) previous.mode = mode === 'flow' ? 'flow' : 'independent';
+      return previous;
+    }
+    var layout = {
+      version: 1,
+      mode: mode === 'flow' ? 'flow' : 'independent',
+      left: Array.prototype.map.call(columns[0].children || [], function (block) { return block.dataset && block.dataset.blockid || ''; }).filter(Boolean),
+      right: Array.prototype.map.call(columns[1].children || [], function (block) { return block.dataset && block.dataset.blockid || ''; }).filter(Boolean)
+    };
+    return normalizeColumnLayout(doc, layout);
+  }
+
+  function applyColumnMembership(containerEl, columns, layout) {
+    var blocks = getEditorBlocks(containerEl);
+    var doc = blocks.map(function (block) { return { id: block.dataset && block.dataset.blockid || '' }; });
+    var normalized = normalizeColumnLayout(doc, layout);
+    if (!normalized) return false;
+    var leftSet = Object.create(null);
+    normalized.left.forEach(function (id) { leftSet[id] = true; });
+    blocks.forEach(function (block) { (leftSet[block.dataset && block.dataset.blockid] ? columns[0] : columns[1]).appendChild(block); });
+    return true;
   }
 
   function flattenEditorColumns(containerEl, restoreEditableHost) {
@@ -155,6 +227,7 @@
     });
     containerEl.appendChild(fragment);
     if (containerEl.classList) containerEl.classList.remove('is-independent-scroll');
+    if (containerEl.dataset) delete containerEl.dataset.lastEditorColumn;
     if (restoreEditableHost !== false) {
       containerEl.setAttribute('contenteditable', 'true');
       containerEl.setAttribute('tabindex', '0');
@@ -173,7 +246,7 @@
     return 28 + lines * 25;
   }
 
-  function setIndependentScroll(containerEl, enabled) {
+  function setIndependentScroll(containerEl, enabled, layout) {
     if (!containerEl) return;
     if (!enabled) {
       flattenEditorColumns(containerEl);
@@ -185,7 +258,8 @@
     if (existing.length === 2) {
       containerEl.classList.add('is-independent-scroll');
       configureIndependentHosts(containerEl, existing);
-      return;
+      if (layout) applyColumnMembership(containerEl, existing, layout);
+      return captureColumnLayout(containerEl, getEditorBlocks(containerEl).map(function (block) { return { id: block.dataset && block.dataset.blockid || '' }; }), layout && layout.mode, layout);
     }
 
     var nodes = Array.prototype.slice.call(containerEl.childNodes || []).filter(function (node) {
@@ -212,7 +286,10 @@
     var blocks = Array.prototype.filter.call(left.children || [], function (child) {
       return !(child.classList && child.classList.contains(EDITOR_COLUMN_CLASS));
     });
-    if (blocks.length < 2) return;
+    if (layout && applyColumnMembership(containerEl, [left, right], layout)) {
+      return captureColumnLayout(containerEl, getEditorBlocks(containerEl).map(function (block) { return { id: block.dataset && block.dataset.blockid || '' }; }), layout.mode, layout);
+    }
+    if (blocks.length < 2) return captureColumnLayout(containerEl, getEditorBlocks(containerEl).map(function (block) { return { id: block.dataset && block.dataset.blockid || '' }; }), 'independent', null);
     var weights = blocks.map(editorBlockHeight);
     var total = weights.reduce(function (sum, value) { return sum + value; }, 0);
     var running = 0;
@@ -232,6 +309,7 @@
       if (node === rightStart) moving = true;
       if (moving) right.appendChild(node);
     });
+    return captureColumnLayout(containerEl, getEditorBlocks(containerEl).map(function (block) { return { id: block.dataset && block.dataset.blockid || '' }; }), 'independent', null);
   }
 
   function parseEditorDOM(containerEl) {
@@ -350,7 +428,7 @@
     return doc;
   }
 
-  function renderAtomicHTMLUnsafe(node, files) {
+  function renderAtomicHTMLUnsafe(node, files, options) {
     if (node.type === 'attachment') {
       var f = files && files[node.fileId];
       if (f && f.type && f.type.startsWith('image/') && f.url) {
@@ -389,7 +467,8 @@
         return muHtml2;
       }
       if (muStatus === 'loading' && muUrl) {
-        return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
+        var skeletonClass = 'link-card-skeleton' + (options && options.pasteSquareTransition ? ' music-card-paste-transition' : '');
+        return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '" class="' + skeletonClass + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       }
       if (muUrl && muStatus === 'error') {
         var safeMusicUrl = safeHttpUrl(muUrl);
@@ -402,8 +481,8 @@
     return '';
   }
 
-  function renderAtomicHTML(node, files) {
-    return sanitizeRenderedHTML(renderAtomicHTMLUnsafe(node || {}, files));
+  function renderAtomicHTML(node, files, options) {
+    return sanitizeRenderedHTML(renderAtomicHTMLUnsafe(node || {}, files, options));
   }
 
   w.MynoteEditor = {
@@ -418,8 +497,12 @@
   w.MynoteEditorColumns = {
     getBlocks: getEditorBlocks,
     getEditingHost: getEditingHost,
+    getPreferredEditingHost: getPreferredEditingHost,
     focusEditingHost: focusEditingHost,
     flatten: flattenEditorColumns,
+    normalizeLayout: normalizeColumnLayout,
+    captureLayout: captureColumnLayout,
+    applyLayout: applyColumnMembership,
     setIndependentScroll: setIndependentScroll
   };
 })(window);
