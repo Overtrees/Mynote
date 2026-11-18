@@ -131,6 +131,9 @@ const retargetedPaste = await page.evaluate(() => {
     selection.removeAllRanges();
     selection.addRange(range);
   }
+  const host = document.querySelector('.editor-body');
+  host.focus();
+  host.dispatchEvent(new InputEvent('input', { inputType: 'insertText', bubbles: true }));
   const markedBefore = document.querySelector('.editor-body')?.dataset.activeMusicInputId || null;
   const data = new DataTransfer();
   data.setData('text/plain', 'https://open.spotify.com/track/mobile-race-regression');
@@ -223,6 +226,80 @@ const retried = await page.evaluate(() => {
   return { count: document.querySelectorAll('.editor-body [data-type="musicCard"]').length, href: link?.href || '', title: link?.querySelector('.lkc-title')?.textContent || '', loading: document.querySelectorAll('.editor-body .link-card-skeleton[data-type="musicCard"]').length, retry: document.querySelectorAll('.editor-body .music-card-retry').length };
 });
 check('retry re-runs metadata parsing and replaces the skeleton with the same music URL', retried.count === 1 && retried.href === 'https://open.spotify.com/track/mobile-race-fail' && retried.title === 'Retry Recovered Song' && retried.loading === 0 && retried.retry === 0, JSON.stringify(retried));
+
+// iOS Safari may deliver paste without readable text/plain and put text into the
+// editable capsule via beforeinput/input. The card must still become a skeleton
+// immediately, without waiting for Enter or blur.
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first().tap();
+await page.locator('.editor-body [data-music-url="pending"]').waitFor({ state: 'visible' });
+const longAppleUrl = 'https://music.apple.com/hk/album/%E6%9C%88%E4%B8%8B%E7%85%AE%E8%8C%B6-%E4%B9%8B%E9%97%B4%E7%9A%84%E5%BF%83%E6%83%85/6768579330?i=6768579331';
+const nativePasteFallback = await page.evaluate(url => {
+  const input = document.querySelector('.editor-body [data-music-url="pending"]');
+  const emptyClipboard = new DataTransfer();
+  const paste = new ClipboardEvent('paste', { clipboardData: emptyClipboard, bubbles: true, cancelable: true });
+  input.dispatchEvent(paste);
+  input.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste', bubbles: true, cancelable: true }));
+  input.textContent = '粘贴音乐链接到这里...' + url;
+  input.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true }));
+  const skeleton = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"][data-url="' + url + '"]');
+  const rect = skeleton && skeleton.getBoundingClientRect();
+  return {
+    pastePrevented: paste.defaultPrevented,
+    skeleton: !!skeleton,
+    pendingInputs: document.querySelectorAll('.editor-body [data-music-url="pending"]').length,
+    ratio: rect && rect.height ? rect.width / rect.height : 0,
+    corner: skeleton ? getComputedStyle(skeleton).borderTopLeftRadius : '',
+    paragraphLeak: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.includes(url))
+  };
+}, longAppleUrl);
+check('iOS-style paste without readable clipboard text immediately creates a square Apple Music skeleton', nativePasteFallback.skeleton && nativePasteFallback.pendingInputs === 0 && Math.abs(nativePasteFallback.ratio - 1) < 0.02 && nativePasteFallback.corner === '26px' && !nativePasteFallback.paragraphLeak, JSON.stringify(nativePasteFallback));
+await page.keyboard.press('Enter');
+const fallbackAfterEnter = await page.evaluate(url => ({
+  cardCount: document.querySelectorAll('.editor-body [data-type="musicCard"][data-url="' + url + '"]').length,
+  pendingCount: document.querySelectorAll('.editor-body [data-music-url="pending"]').length,
+  paragraphLeak: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.includes(url))
+}), longAppleUrl);
+check('immediate Enter after fallback paste leaves one card and no raw URL paragraph', fallbackAfterEnter.cardCount === 1 && fallbackAfterEnter.pendingCount === 0 && !fallbackAfterEnter.paragraphLeak, JSON.stringify(fallbackAfterEnter));
+await page.locator('.editor-body a.music-card-link[href^="https://music.apple.com/hk/album/"]').waitFor({ state: 'visible', timeout: 10000 });
+
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first().tap();
+await page.locator('.editor-body [data-music-url="pending"]').waitFor({ state: 'visible' });
+const retargetedNativePaste = await page.evaluate(url => {
+  const host = document.querySelector('.editor-body');
+  const musicInput = host.querySelector('[data-music-url="pending"]');
+  const paragraph = document.createElement('p');
+  paragraph.dataset.blockid = 'ios-retargeted-paste-block';
+  paragraph.textContent = 'Existing paragraph text that must remain unchanged';
+  host.appendChild(paragraph);
+  const originalText = paragraph.textContent;
+  host.dataset.activeMusicInputId = musicInput.dataset.blockid;
+  host.focus();
+  window.getSelection().removeAllRanges();
+  const emptyClipboard = new DataTransfer();
+  host.dispatchEvent(new ClipboardEvent('paste', { clipboardData: emptyClipboard, bubbles: true, cancelable: true }));
+  host.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste', bubbles: true, cancelable: true }));
+  paragraph.textContent = originalText + url;
+  host.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true }));
+  const skeleton = host.querySelector('.link-card-skeleton[data-type="musicCard"][data-url="' + url + '"]');
+  const rect = skeleton && skeleton.getBoundingClientRect();
+  return {
+    skeleton: !!skeleton,
+    ratio: rect && rect.height ? rect.width / rect.height : 0,
+    corner: skeleton ? getComputedStyle(skeleton).borderTopLeftRadius : '',
+    pendingInputs: host.querySelectorAll('[data-music-url="pending"]').length,
+    paragraphRestored: paragraph.textContent === originalText,
+    paragraphLeak: [...host.querySelectorAll('p')].some(p => p.textContent.includes(url))
+  };
+}, longAppleUrl + '&redirected=paragraph');
+check('retargeted paste landing in a paragraph restores its text and immediately creates a square music skeleton', retargetedNativePaste.skeleton && Math.abs(retargetedNativePaste.ratio - 1) < 0.02 && retargetedNativePaste.corner === '26px' && retargetedNativePaste.pendingInputs === 0 && retargetedNativePaste.paragraphRestored && !retargetedNativePaste.paragraphLeak, JSON.stringify(retargetedNativePaste));
+if (retargetedNativePaste.skeleton) await page.locator('.editor-body a.music-card-link[href*="redirected=paragraph"]').waitFor({ state: 'visible', timeout: 10000 });
+
 const coverLayoutsMobile = await measureRenderedCoverLayouts(390);
 const coverLayoutsDesktop = await measureRenderedCoverLayouts(1280);
 const isPanoramic = layout => !!layout && Math.abs(layout.ratio - 2.4) < 0.02 && layout.fill >= 0.99;
@@ -230,6 +307,73 @@ for (const [name, layouts] of [['narrow', coverLayoutsMobile], ['desktop', cover
   check(`music artwork stays panoramic while its loading card stays square (${name})`, isPanoramic(layouts.music) && Math.abs(layouts.loading.ratio - 1) < 0.02 && layouts.loading.width <= 321 && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
   check(`ordinary link cover remains panoramic (${name})`, isPanoramic(layouts.link) && layouts.link.imageMargin === '0px' && layouts.link.imageBorderRadius === '0px' && layouts.link.objectFit === 'cover', JSON.stringify(layouts.link));
 }
+
+await page.locator('.editor-body').click();
+await page.keyboard.press('Control+End');
+await page.keyboard.type('/');
+await page.locator('.slash-row').filter({ hasText: '音乐卡片' }).first().tap();
+await page.locator('.editor-body [data-music-url="pending"]').waitFor({ state: 'visible' });
+const ordinaryTextPaste = await page.evaluate(text => {
+  const input = document.querySelector('.editor-body [data-music-url="pending"]');
+  const clipboard = new DataTransfer();
+  clipboard.setData('text/plain', text);
+  const paste = new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true });
+  input.dispatchEvent(paste);
+  input.textContent = '粘贴音乐链接到这里...' + text;
+  input.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true }));
+  return {
+    pastePrevented: paste.defaultPrevented,
+    inputRemains: !!document.querySelector('.editor-body [data-music-url="pending"]'),
+    pastedText: input.textContent.includes(text),
+    skeletonCreated: !!document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]')
+  };
+}, 'ordinary copied notes should remain editable');
+check('non-URL text pasted into the music capsule remains editable and is not consumed', !ordinaryTextPaste.pastePrevented && ordinaryTextPaste.inputRemains && ordinaryTextPaste.pastedText && !ordinaryTextPaste.skeletonCreated, JSON.stringify(ordinaryTextPaste));
+
+await page.setViewportSize({ width: 820, height: 1180 });
+const desktopDefaultUrl = 'https://music.apple.com/hk/album/default-columns-retargeted';
+const desktopDefaultColumnPaste = await page.evaluate(url => {
+  const host = document.querySelector('.editor-body');
+  const input = host.querySelector('[data-music-url="pending"]');
+  const id = input.dataset.blockid;
+  input.textContent = '粘贴音乐链接到这里...';
+  host.dataset.activeMusicInputId = id;
+  host.focus();
+  window.getSelection().removeAllRanges();
+  const emptyClipboard = new DataTransfer();
+  host.dispatchEvent(new ClipboardEvent('paste', { clipboardData: emptyClipboard, bubbles: true, cancelable: true }));
+  host.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertFromPaste', bubbles: true, cancelable: true }));
+  const pastedBlock = document.createElement('p');
+  pastedBlock.textContent = url;
+  host.appendChild(pastedBlock);
+  host.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true }));
+  const skeleton = host.querySelector('.link-card-skeleton[data-blockid="' + id + '"]');
+  return {
+    columns: getComputedStyle(host).columnCount,
+    sameIdSkeleton: !!skeleton,
+    skeletonSpan: skeleton ? getComputedStyle(skeleton).columnSpan : '',
+    pendingInputs: host.querySelectorAll('[data-music-url="pending"]').length,
+    rawUrlBlocks: [...host.querySelectorAll('p')].filter(p => p.textContent.includes(url)).length,
+    newBlockText: pastedBlock.textContent,
+    visibleOldCapsule: !!host.querySelector('[data-music-url="pending"]')
+  };
+}, desktopDefaultUrl);
+check('default two-column paste into a newly created paragraph replaces the original music capsule immediately', desktopDefaultColumnPaste.columns === '2' && desktopDefaultColumnPaste.sameIdSkeleton && desktopDefaultColumnPaste.pendingInputs === 0 && desktopDefaultColumnPaste.rawUrlBlocks === 0 && !desktopDefaultColumnPaste.visibleOldCapsule, JSON.stringify(desktopDefaultColumnPaste));
+if (desktopDefaultColumnPaste.sameIdSkeleton) await page.locator(`.editor-body a.music-card-link[href="${desktopDefaultUrl}"]`).waitFor({ state: 'visible', timeout: 10000 });
+const desktopDefaultResolved = await page.evaluate(url => {
+  const host = document.querySelector('.editor-body');
+  const matchingCards = [...host.querySelectorAll('[data-type="musicCard"]')].filter(card => card.dataset.url === url);
+  return {
+    matchingCards: matchingCards.length,
+    className: matchingCards[0]?.className || '',
+    pendingInputs: host.querySelectorAll('[data-music-url="pending"]').length,
+    loadingCards: host.querySelectorAll('.link-card-skeleton[data-type="musicCard"]').length,
+    rawUrlBlocks: [...host.querySelectorAll('p')].filter(p => p.textContent.includes(url)).length,
+    resolvedLink: !!host.querySelector(`a.music-card-link[href="${url}"]`)
+  };
+}, desktopDefaultUrl);
+check('default two-column async completion keeps one resolved music card and removes every paste artifact', desktopDefaultResolved.matchingCards === 1 && desktopDefaultResolved.resolvedLink && desktopDefaultResolved.pendingInputs === 0 && desktopDefaultResolved.loadingCards === 0 && desktopDefaultResolved.rawUrlBlocks === 0, JSON.stringify(desktopDefaultResolved));
+
 check('no browser JavaScript errors', failures.length === 0, failures.join(' | '));
 await browser.close();
 if (results.some(result => !result.ok)) process.exitCode = 1;

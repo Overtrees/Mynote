@@ -67,16 +67,16 @@
         case 'gallery':
           var gItems = node.attrs && node.attrs.items || [];
           var gHtml = gItems.length > 0
-            ? '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;border-radius:var(--radius-12);corner-shape:squircle;">' + gItems.map(function(s) {
+            ? '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:4px;border-radius:var(--radius-12);corner-shape: round;">' + gItems.map(function(s) {
                 var u = s && s.fileId && files && files[s.fileId] && files[s.fileId].url || s && s.url || s;
-                return '<img src="' + safeImageUrl(u) + '" style="width:100%;height:366px;object-fit:cover;border-radius:var(--radius-22);corner-shape:squircle;">';
+                return '<img src="' + safeImageUrl(u) + '" style="width:100%;height:366px;object-fit:cover;border-radius:var(--radius-22);corner-shape: round;">';
               }).join('') + '</div>'
-            : '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:6px 0 14px;"><div style="height:366px;background:var(--fill-subtle);border-radius:var(--radius-22);corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.4;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.5;">\u70B9\u51FB\u6DFB\u52A0</span></div><div style="height:366px;background:var(--fill-subtle-2);border-radius:var(--radius-22);corner-shape:squircle;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.3;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.4;">\u591A\u5F20\u56FE\u7247</span></div></div>';
+            : '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;padding:6px 0 14px;"><div style="height:366px;background:var(--fill-subtle);border-radius:var(--radius-22);corner-shape: round;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.4;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.5;">\u70B9\u51FB\u6DFB\u52A0</span></div><div style="height:366px;background:var(--fill-subtle-2);border-radius:var(--radius-22);corner-shape: round;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--color-placeholder);"><span style="font-size:var(--font-18);opacity:0.3;">\uD83D\uDDBC</span><span style="font-size:var(--font-11);margin-top:4px;opacity:0.4;">\u591A\u5F20\u56FE\u7247</span></div></div>';
           return '<div class="atomic" data-blockid="' + escapeHTML(node.id) + '" data-type="gallery" contenteditable="false">' + gHtml + '</div>';
         case 'image':
           var iFid = node.attrs && node.attrs.fileId;
           var iSrc = iFid && files && files[iFid] && files[iFid].url || '';
-          var iHtml = iSrc ? '<img src="' + safeImageUrl(iSrc) + '" style="max-width:100%;max-height:668px;border-radius:var(--radius-22);corner-shape:squircle;display:block;margin:8px auto;object-fit:contain;">' : '<div style="height:566px;border-radius:var(--radius-22);corner-shape:squircle;background:var(--card-bg);border:0.5px solid var(--border-color);display:flex;align-items:center;justify-content:center;color:var(--color-placeholder);font-size:var(--font-13);margin:8px 0;">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
+          var iHtml = iSrc ? '<img src="' + safeImageUrl(iSrc) + '" style="max-width:100%;max-height:668px;border-radius:var(--radius-22);corner-shape: round;display:block;margin:8px auto;object-fit:contain;">' : '<div style="height:566px;border-radius:var(--radius-22);corner-shape: round;background:var(--card-bg);border:0.5px solid var(--border-color);display:flex;align-items:center;justify-content:center;color:var(--color-placeholder);font-size:var(--font-13);margin:8px 0;">\uD83D\uDCF7 \u70B9\u51FB\u6DFB\u52A0\u56FE\u7247</div>';
           return '<div class="atomic" data-blockid="' + escapeHTML(node.id) + '" data-type="image" contenteditable="false">' + iHtml + '</div>';
         case 'divider':
           return '<hr data-blockid="' + escapeHTML(node.id) + '">';
@@ -354,7 +354,7 @@
     if (node.type === 'attachment') {
       var f = files && files[node.fileId];
       if (f && f.type && f.type.startsWith('image/') && f.url) {
-        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + escapeHTML(node.id) + '" data-fileid="' + escapeHTML(node.fileId) + '"><img src="' + safeImageUrl(f.url) + '" alt="' + w.MynoteEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:var(--radius-32);corner-shape:squircle;display:block"></div>';
+        return '<div contenteditable="false" class="atomic attachment" data-blockid="' + escapeHTML(node.id) + '" data-fileid="' + escapeHTML(node.fileId) + '"><img src="' + safeImageUrl(f.url) + '" alt="' + w.MynoteEditor.escapeHTML(f.name || '') + '" style="max-width:100%;border-radius:var(--radius-32);corner-shape: round;display:block"></div>';
       }
       return '<div contenteditable="false" class="atomic attachment" data-blockid="' + escapeHTML(node.id) + '" data-fileid="' + escapeHTML(node.fileId) + '"><div class="attachment-file"><span class="att-icon">\uD83D\uDCCE</span><span class="att-name">' + w.MynoteEditor.escapeHTML(f ? f.name : '\u9644\u4EF6') + '</span><span class="att-hint">\u70B9\u51FB\u6253\u5F00</span></div></div>';
     }

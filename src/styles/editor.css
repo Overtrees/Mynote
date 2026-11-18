@@ -60,18 +60,48 @@
 .markdown-render .callout-body { font-size: var(--font-14); color: var(--text-main); line-height: 1.65; }
 .markdown-render .callout code { background: var(--md-callout-code-bg); padding: 1px 5px; border-radius: var(--radius-4); font-size: 0.9em; overflow-wrap: anywhere; }
 .markdown-render pre, .editor-body pre { box-sizing: border-box; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; white-space: pre; background: var(--code-bg); border: 1px solid var(--border-color); border-radius: var(--radius-12); padding: 12px 14px; font-size: var(--font-13); line-height: 1.6; margin: 0.75em 0; font-family: var(--font-family-mono); }
-.editor-body .img-text-card { box-sizing: border-box; max-width: 100%; border-radius: var(--radius-22); corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+.editor-body .img-text-card { box-sizing: border-box; max-width: 100%; border-radius: var(--radius-22); corner-shape: round; overflow: hidden; margin: 8px 0; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
 .editor-body .img-text-card .itc-img-wrap { width: 100%; line-height: 0; max-height: 468px; overflow: hidden; }
 .editor-body .img-text-card .itc-img-wrap img { width: 100%; height: auto; display: block; }
-.editor-body .img-text-card .itc-text { padding: 12px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; max-width: 100%; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; cursor: pointer; }
+.editor-body .img-text-card .itc-text { box-sizing: border-box; width: 100%; min-width: 0; padding: 12px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; max-width: 100%; word-break: normal; overflow-wrap: anywhere; white-space: pre-wrap; cursor: pointer; }
 .editor-body .img-text-card .itc-text:empty::before { content: '点击查看完整文本'; color: var(--color-placeholder); }
-.editor-body .img-text-row { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; display: flex; gap: 10px; border-radius: var(--radius-22); corner-shape: squircle; overflow: hidden; margin: 8px 0; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); min-height: 181px; max-height: 196px; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+.editor-body .img-text-row { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; display: flex; gap: 10px; border-radius: var(--radius-22); corner-shape: round; overflow: hidden; margin: 8px 0; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); min-height: 181px; max-height: 196px; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
 .editor-body .img-text-row .itr-img { flex: 0 0 50%; min-width: 0; background: var(--fill-subtle); display: flex; align-items: center; justify-content: center; }
 .editor-body .img-text-row .itr-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .editor-body .img-text-row .itr-placeholder { font-size: var(--font-24); opacity: 0.3; }
-.editor-body .img-text-row .itr-text { flex: 1; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; padding: 10px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; word-break: break-word; overflow-wrap: break-word; white-space: pre-wrap; cursor: pointer; }
+.editor-body .img-text-row .itr-text { box-sizing: border-box; flex: 1 1 0; min-width: 0; max-width: 100%; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 6; overflow: hidden; padding: 10px 14px; font-size: var(--font-14); line-height: 1.7; color: var(--text-main,#1a1a1a); min-height: 44px; outline: none; word-break: normal; overflow-wrap: anywhere; white-space: pre-wrap; cursor: pointer; }
 .editor-body .img-text-row .itr-text:empty::before { content: '点击查看完整文本'; color: var(--color-placeholder); }
 .editor-body .itc-text:focus-visible, .editor-body .itr-text:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: -3px; }
+
+/* Every editable block may shrink within a narrow phone or an independent column. */
+.editor-body,
+.editor-body > *,
+.editor-body .editor-column > * {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+}
+.editor-body > *,
+.editor-body .editor-column > * { overflow-wrap: anywhere; }
+.editor-body [data-type="todo"] .todo-text { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; }
+.editor-body .atomic,
+.editor-body .img-text-card,
+.editor-body .img-text-row,
+.editor-body .attachment-file,
+.editor-body .link-card-block,
+.editor-body .link-card-err,
+.editor-body .link-card-skeleton { box-sizing: border-box; min-width: 0; max-width: 100%; }
+.editor-body .link-card-block .lkc-body,
+.editor-body .link-card-err .lkc-body,
+.editor-body .link-card-body { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; }
+.editor-body .lkc-title,
+.editor-body .lkc-subtitle,
+.editor-body .link-card-title,
+.editor-body .link-card-subtitle { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; }
+.editor-body [data-type="musicCard"] { box-sizing: border-box; min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+.editor-body [data-type="musicCard"] > * { box-sizing: border-box; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; }
+.editor-body [data-type="musicCard"] > :first-child { flex: 0 0 auto; }
+.editor-body [data-music-url="pending"] { min-width: 0; max-width: 100%; }
 
 /* Shared reading rhythm: preview and contentEditable use the same Markdown scale. */
 .markdown-render, .editor-body {
@@ -179,7 +209,7 @@
     max-height: 400px;
     overflow: hidden;
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
 }
 .lazy-img-thumb {
     width: 100%;
@@ -187,7 +217,7 @@
     display: block;
     object-fit: cover;
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
     max-height: 400px;
 }
 .lazy-img-full {
@@ -198,7 +228,7 @@
     height: 100%;
     object-fit: cover;
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
     opacity: 0;
     transition: opacity 0.3s ease;
 }

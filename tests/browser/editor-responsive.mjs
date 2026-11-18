@@ -9,6 +9,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const css = ['tokens.css', 'base.css', 'editor.css', 'cards.css', 'editor-shell.css']
   .map(name => fs.readFileSync(path.join(ROOT, 'src/styles', name), 'utf8'))
   .join('\n');
+const renderer = fs.readFileSync(path.join(ROOT, 'src/editor/editor.render.js'), 'utf8');
+assert.doesNotMatch(`${css}\n${renderer}`, /corner-shape\s*:\s*squircle/i, '源码和内联渲染样式不能依赖设备支持不一致的 squircle 曲线');
 const CHROME = process.env.CHROME || '/usr/bin/chromium';
 const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>${css}</style><style>html,body{margin:0;min-height:100%;}body{background:var(--color-editor-bg,Canvas)}.editor-spread{padding:84px 16px 32px}.fixture-caption{padding:12px 14px}</style></head><body>
 <div class="editor-spread"><div class="editor-body" contenteditable="true">
@@ -30,7 +32,14 @@ function preview() { return longLine; }</code></pre></div>
   <div class="img-text-card"><div class="itc-img-wrap"><img alt="图文卡片" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></div><div class="itc-text">图文说明长文本用于检查全文按钮区域的间距与换行表现。</div></div>
   <div class="img-text-row"><div class="itr-img"><img alt="横排图" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></div><div class="itr-text">横排图文卡片的说明文本较长，检查图像比例、文字栏宽与跨栏后的高度。</div></div>
   <div class="atomic link-card-block"><div class="lkc-cover"><img alt="链接封面" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></div><div class="lkc-body"><div class="lkc-title">链接卡标题：用于检查栏内标题层级与断行</div><div class="lkc-subtitle">副标题保持两行以内，不让长文本把卡片撑出栏宽。</div><div class="lkc-source"><span class="lkc-source-icon">↗</span><span class="lkc-source-dot"></span><span class="lkc-source-text">a-very-long-source-name.example/path/without/spaces</span></div></div></div>
-  <div data-type="musicCard" style="padding:12px 16px;border-radius:999px;display:flex;align-items:center;gap:10px"><span>🎵</span><span>https://example.com/music/very/long/path/without/a/space/that/should/wrap/within/the/card</span></div>
+  <div data-type="musicCard" data-music-url="pending" style="padding:12px 16px;border-radius:999px;display:flex;align-items:center;gap:10px"><span>🎵</span><span>https://example.com/music/very/long/path/without/a/space/that/should/wrap/within/the/card</span></div>
+  <div class="link-card-skeleton" data-type="musicCard" data-url="https://music.apple.com/hk/album/long"><div class="link-card-skeleton-cover"></div></div>
+  <div class="link-card-block music-card-error" data-type="musicCard" data-url="https://music.apple.com/hk/album/error"><span class="music-card-error-icon">🎵</span><a class="music-card-error-url" href="https://music.apple.com/hk/album/error">https://music.apple.com/hk/album/error</a><button class="music-card-retry">重试</button></div>
+  <p data-layout-case="before">混排前正文保持一个完整片段，并在窄栏中自然换行。</p>
+  <div class="atomic link-card-block" data-layout-case="card"><div class="lkc-body"><div class="lkc-title">混排中的链接卡片标题</div><div class="lkc-subtitle">正文—卡片—媒体—后续正文顺序回归。</div></div></div>
+  <div class="img-text-card" data-layout-case="media"><div class="itc-img-wrap"><img alt="组合媒体" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="></div><div class="itc-text">媒体块跨栏后仍应完整，并保留后续文本的阅读顺序。</div></div>
+  <p data-layout-case="after">混排后正文仍应位于媒体卡之后，不与前文或卡片重叠。</p>
+  <div class="link-card-skeleton" data-layout-case="link-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%"></div><div class="link-card-skeleton-line" style="width:50%"></div></div></div>
 </div></div></body></html>`;
 
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox', '--proxy-server=direct://', '--proxy-bypass-list=*'] });
@@ -48,6 +57,14 @@ try {
     await page.setViewportSize({ width: item.width, height: item.height });
     await page.setContent(html, { waitUntil: 'load' });
     await page.evaluate(() => {
+      const body = document.querySelector('.editor-body');
+      const longToken = 'LongCardTextWithoutSpaces0123456789'.repeat(16);
+      const appendText = selector => { const node = body.querySelector(selector); if (node) node.textContent += longToken; };
+      ['p', 'h1', 'blockquote p', '.todo-text', '.itc-text', '.itr-text', '.lkc-title', '.lkc-subtitle', '.music-card-error-url'].forEach(appendText);
+      const source = body.querySelector('.lkc-source-text');
+      if (source) source.textContent = longToken;
+      const musicText = body.querySelector('[data-music-url="pending"] span:last-child');
+      if (musicText) musicText.textContent = longToken + ' https://music.apple.com/hk/album/' + longToken;
       const toggle = document.createElement('button');
       toggle.className = 'editor-column-mode-toggle';
       toggle.style.display = 'flex';
@@ -69,6 +86,12 @@ try {
       const columnModeToggle = document.querySelector('.editor-column-mode-toggle');
       const media = [...body.querySelectorAll(':scope > .atomic[data-type="image"], :scope > .atomic[data-type="gallery"], :scope > .img-text-card, :scope > .img-text-row, :scope > .atomic.attachment:has(> img)')];
       const checkedText = body.querySelector('[data-type="todo"].is-checked .todo-text');
+      const musicSkeleton = body.querySelector('.link-card-skeleton[data-type="musicCard"]');
+      const linkSkeleton = body.querySelector('.link-card-skeleton[data-layout-case="link-skeleton"]');
+      const combo = ['before', 'card', 'media', 'after'].map(key => body.querySelector(`[data-layout-case="${key}"]`));
+      const musicErrorUrl = body.querySelector('.music-card-error-url');
+      const widthBoundCards = [...body.querySelectorAll('.atomic, .img-text-card, .img-text-row, .attachment-file, .link-card-block, .link-card-err, .link-card-skeleton, [data-music-url="pending"]')].map(el => ({ type: el.dataset.type || el.className, width: rect(el).width, parent: el.parentElement ? el.parentElement.clientWidth : 0 }));
+      const wrappedTexts = [...body.querySelectorAll('p, h1, h2, blockquote, .todo-text, .itc-text, .itr-text, .lkc-title, .lkc-subtitle, .music-card-error-url, [data-music-url="pending"] span')].map(el => ({ className: el.className || el.tagName, client: el.clientWidth, scroll: el.scrollWidth }));
       return {
         columns: style.columnCount === '2' ? 2 : 1,
         toggleDisplay: getComputedStyle(columnModeToggle).display,
@@ -81,10 +104,25 @@ try {
         todoCircle: getComputedStyle(checkbox, '::before').width,
         checked: { color: getComputedStyle(checkedText).color, decoration: getComputedStyle(checkedText).textDecorationLine },
         link: { width: rect(link).width, span: getComputedStyle(link).columnSpan },
+        buttonAppearance: getComputedStyle(columnModeToggle).appearance,
+        combo: {
+          order: combo.map(el => el.dataset.layoutCase),
+          fragments: combo.map(el => el.getClientRects().length),
+          breakInside: combo.map(el => getComputedStyle(el).breakInside),
+          mediaSpan: getComputedStyle(combo[2]).columnSpan,
+          mediaWidth: rect(combo[2]).width,
+          skeleton: { present: !!linkSkeleton, animation: getComputedStyle(linkSkeleton.querySelector('.link-card-skeleton-cover'), '::after').animationName, breakInside: getComputedStyle(linkSkeleton).breakInside },
+          musicCenterDelta: Math.abs((rect(musicSkeleton).left + rect(musicSkeleton).width / 2) - (rect(body).left + rect(body).width / 2)),
+          markdownBreakInside: getComputedStyle(body.querySelector('.md-preview.block[data-mdtext="table"]')).breakInside
+        },
         mediaSpans: media.map(el => getComputedStyle(el).columnSpan),
         table: { overflowX: getComputedStyle(table).overflowX, width: rect(table).width, clientWidth: table.clientWidth, scrollWidth: table.scrollWidth },
         code: { overflowX: getComputedStyle(pre).overflowX, width: rect(pre).width, clientWidth: pre.clientWidth, scrollWidth: pre.scrollWidth },
         music: rect(body.querySelector('[data-type="musicCard"]')),
+        musicSkeleton: { ratio: rect(musicSkeleton).width / rect(musicSkeleton).height, radius: getComputedStyle(musicSkeleton).borderTopLeftRadius },
+        musicError: { width: rect(musicErrorUrl).width, scrollWidth: musicErrorUrl.scrollWidth, retryVisible: !!body.querySelector('.music-card-error .music-card-retry') },
+        widthBoundCards,
+        wrappedTexts,
         spread: rect(spread)
       };
     });
@@ -93,18 +131,39 @@ try {
     assert.ok(state.pageWidth <= state.viewportWidth + 1, `${item.name}: 页面横向溢出 ${state.pageWidth}/${state.viewportWidth}`);
     assert.ok(state.todoHit.width >= 44 && state.todoHit.height >= 44, `${item.name}: 待办命中区小于44px`);
     assert.equal(state.todoCircle, '22px', `${item.name}: 待办可见圆圈不是22px`);
+    assert.equal(state.buttonAppearance, 'none', `${item.name}: 自定义按钮仍保留设备原生外观`);
     assert.ok(state.checked.decoration.includes('line-through'), `${item.name}: 完成态待办缺少删除线`);
     assert.ok(state.link.width <= state.columnWidth + 1, `${item.name}: 链接卡超过栏宽`);
+    assert.ok(state.widthBoundCards.every(card => card.width <= card.parent + 1), `${item.name}: 至少一张 atomic/媒体卡超出父级宽度 ${JSON.stringify(state.widthBoundCards)}`);
+    assert.ok(state.wrappedTexts.every(text => text.scroll <= text.client + 1), `${item.name}: 长文本仍存在横向溢出 ${JSON.stringify(state.wrappedTexts.filter(text => text.scroll > text.client + 1))}`);
+    assert.ok(Math.abs(state.musicSkeleton.ratio - 1) < 0.02, `${item.name}: 音乐加载骨架不是正方形 (${JSON.stringify(state.musicSkeleton)})`);
+    assert.equal(state.musicSkeleton.radius, '26px', `${item.name}: 音乐加载骨架圆角不是26px`);
+    assert.equal(state.combo.skeleton.present, true, `${item.name}: 普通链接骨架未被引用`);
+    assert.equal(state.combo.skeleton.animation, 'mynoteSkeletonSpin', `${item.name}: 链接骨架旋转加载动画未生效`);
+    assert.equal(state.combo.skeleton.breakInside, 'avoid', `${item.name}: 链接骨架允许在内容流中被拆分`);
+    assert.ok(state.combo.musicCenterDelta <= 1, `${item.name}: 音乐正方形骨架未水平居中 (${state.combo.musicCenterDelta}px)`);
+    assert.ok(state.musicError.width <= item.width && state.musicError.scrollWidth <= state.musicError.width + 1 && state.musicError.retryVisible, `${item.name}: 长 URL 失败卡溢出或重试操作不可见 (${JSON.stringify(state.musicError)})`);
     assert.ok(['auto', 'scroll'].includes(state.table.overflowX), `${item.name}: 表格没有内部横滚规则`);
     assert.equal(state.code.overflowX, 'auto', `${item.name}: 代码块没有内部横滚规则`);
     if (item.columns === 2) {
       assert.ok(state.columnGap >= 28 && state.columnGap <= 52, `${item.name}: 栏间距不在舒适范围内 (${state.columnGap})`);
       assert.equal(state.mediaSpans.every(value => value === 'all'), true, `${item.name}: 媒体块未保持跨栏`);
+      assert.deepEqual(state.combo.order, ['before', 'card', 'media', 'after'], `${item.name}: 混排内容 DOM 阅读顺序改变`);
+      assert.ok(state.combo.fragments.every(count => count === 1), `${item.name}: 正文/卡片/媒体出现分片 ${JSON.stringify(state.combo.fragments)}`);
+      assert.ok(state.combo.breakInside.every(value => value === 'avoid'), `${item.name}: 混排块未启用完整分页规则 ${JSON.stringify(state.combo.breakInside)}`);
+      assert.equal(state.combo.mediaSpan, 'all', `${item.name}: 组合媒体卡未跨越两栏`);
+      assert.ok(state.combo.mediaWidth >= state.body.width - 1, `${item.name}: 组合媒体卡没有占满书页宽度`);
+      assert.equal(state.combo.markdownBreakInside, 'avoid', `${item.name}: Markdown 表格预览可能在两栏间拆开`);
       assert.ok(state.music.width <= state.body.width + 1, `${item.name}: 音乐卡超过正文宽度`);
       if (item.width <= 820) assert.ok(state.table.scrollWidth > state.table.clientWidth, `${item.name}: 多列 Markdown 表格未进入内部横滚`);
     }
     report.push({ name: item.name, columns: state.columns, toggleDisplay: state.toggleDisplay, columnWidth: Math.round(state.columnWidth), columnGap: Math.round(state.columnGap), noPageOverflow: true, todoHit: `${Math.round(state.todoHit.width)}x${Math.round(state.todoHit.height)}`, mediaSpans: state.mediaSpans.length, tableScroll: state.table.scrollWidth > state.table.clientWidth, codeScroll: state.code.scrollWidth > state.code.clientWidth });
   }
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setContent(html, { waitUntil: 'load' });
+  const reducedMotionAnimation = await page.locator('.link-card-skeleton[data-layout-case="link-skeleton"] .link-card-skeleton-cover').evaluate(el => getComputedStyle(el, '::after').animationName);
+  assert.equal(reducedMotionAnimation, 'none', '减少动态效果设置下骨架旋转动画必须关闭');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   await page.setViewportSize({ width: 1024, height: 768 });
   await page.setContent(html, { waitUntil: 'load' });
   await page.addScriptTag({ path: path.join(ROOT, 'src/editor/editor.render.js') });
@@ -147,6 +206,8 @@ try {
       overflows: columns.map(column => column.scrollHeight > column.clientHeight),
       scrollIndependence,
       noHorizontalPageOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      skeletonInIndependentColumn: !!body.querySelector('.link-card-skeleton[data-layout-case="link-skeleton"]')?.closest('.editor-column'),
+      skeletonAnimation: getComputedStyle(body.querySelector('.link-card-skeleton[data-layout-case="link-skeleton"] .link-card-skeleton-cover'), '::after').animationName,
       orderPreserved: JSON.stringify(orderedIds()) === JSON.stringify(before),
       parsedOrderPreserved: JSON.stringify(window.MynoteEditor.parseEditorDOM(body).map(node => node.id || '')) === JSON.stringify(before),
       firstLast: [orderedIds()[0], orderedIds().at(-1)]
@@ -164,6 +225,8 @@ try {
   assert.deepEqual(independent.overflows, [true, true], '左右两栏都应拥有自己的垂直溢出');
   assert.equal(independent.scrollIndependence, true, '滚动左栏不能带动右栏');
   assert.equal(independent.noHorizontalPageOverflow, true, '独立列不能造成页面横向溢出');
+  assert.equal(independent.skeletonInIndependentColumn, true, '链接骨架必须保留在独立列内');
+  assert.equal(independent.skeletonAnimation, 'mynoteSkeletonSpin', '独立双栏中的骨架旋转加载动画未生效');
   assert.equal(independent.orderPreserved, true, '包装成两栏后笔记块顺序必须保持');
   assert.equal(independent.parsedOrderPreserved, true, '解析保存时必须按左右列顺序还原原始笔记块');
   assert.equal(independent.flattened, true, '关闭模式后列包装应被移除');

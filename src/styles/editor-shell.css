@@ -10,37 +10,38 @@
     .editor-body [data-type="todo"] .todo-checkbox:checked::before { background: var(--md-checkbox-checked); border-color: var(--md-checkbox-checked); }
     .editor-body [data-type="todo"] .todo-checkbox:checked::after { content: ""; grid-area: 1 / 1; justify-self: center; align-self: center; width: 5px; height: 9px; margin-top: -2px; border: solid var(--md-checkbox-check); border-width: 0 2px 2px 0; transform: rotate(45deg); }
     .editor-body [data-type="todo"] .todo-checkbox:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 1px; }
-    .editor-body .atomic { user-select: none; -webkit-user-select: none; cursor: default; }
-    .editor-body .atomic.attachment { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; }
+    .editor-body .atomic { box-sizing: border-box; min-width: 0; max-width: 100%; user-select: none; -webkit-user-select: none; cursor: default; }
+    .editor-body .atomic.attachment { margin: 8px 0; border-radius: var(--radius-32); corner-shape: round; overflow: hidden; }
     .editor-body .atomic[data-type="image"],
     .editor-body .atomic[data-type="gallery"] { margin: 8px 36px; }
 
-    .editor-body .atomic.attachment img { max-width: 100%; border-radius: var(--radius-32); corner-shape: squircle; display: block; }
-    .editor-body .attachment-file { padding: 16px 20px; background: var(--glass-content-bg); border-radius: var(--radius-32); color: var(--glass-label-color); border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: opacity 0.15s; touch-action: manipulation; -webkit-touch-callout: none; }
+    .editor-body .atomic.attachment img { max-width: 100%; border-radius: var(--radius-32); corner-shape: round; display: block; }
+    .editor-body .attachment-file { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 16px 20px; background: var(--glass-content-bg); border-radius: var(--radius-32); color: var(--glass-label-color); border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: opacity 0.15s; touch-action: manipulation; -webkit-touch-callout: none; }
     .editor-body .attachment-file:active { opacity: 0.6; }
     .editor-body .attachment-file .att-icon { font-size: 1.5rem; flex-shrink: 0; }
     .editor-body .attachment-file .att-name { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .editor-body .attachment-file .att-hint { font-size: 0.6875rem; color: var(--text-secondary); flex-shrink: 0; background: var(--fill-hover-strong); padding: 2px 10px; border-radius: var(--radius-999); }
-    .editor-body .atomic-placeholder { padding: 24px; text-align: center; background: var(--glass-content-bg); border-radius: var(--radius-32); corner-shape: squircle; color: var(--text-secondary); font-size: 0.9375rem; border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
-    .editor-body .link-card-block, .editor-body .link-card-err { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); cursor: pointer; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
-    .editor-body .link-card-skeleton { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; cursor: pointer; }
+    .editor-body .atomic-placeholder { padding: 24px; text-align: center; background: var(--glass-content-bg); border-radius: var(--radius-32); corner-shape: round; color: var(--text-secondary); font-size: 0.9375rem; border: 0.5px solid var(--glass-content-border); backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+    .editor-body .link-card-block, .editor-body .link-card-err { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; margin: 8px 0; border-radius: var(--radius-32); corner-shape: round; overflow: hidden; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); cursor: pointer; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
+    .editor-body .link-card-skeleton { box-sizing: border-box; min-width: 0; max-width: 100%; margin: 8px 0; border-radius: var(--radius-32); corner-shape: round; overflow: hidden; cursor: pointer; break-inside: avoid; page-break-inside: avoid; }
+    .editor-body .link-card-skeleton[data-type="musicCard"] { width: min(100%, 320px); margin-left: auto; margin-right: auto; border-radius: var(--radius-26); }
     .editor-body a.link-card-block { display: block; color: inherit; text-decoration: none; }
     .editor-body .music-card-error { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: default; }
     .editor-body .music-card-error-icon { flex: 0 0 auto; }
-    .editor-body .music-card-error-url { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .editor-body .music-card-error-url { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; color: var(--text-main); cursor: pointer; }
     .editor-body .music-card-error-url:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
     .editor-body .music-card-retry { box-sizing: border-box; flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--radius-999); background: var(--fill-hover-strong); color: var(--color-accent); font: inherit; font-size: var(--font-13); font-weight: 600; cursor: pointer; }
     .editor-body .music-card-retry:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
-    .editor-body .lkc-cover { width: 100%; aspect-ratio: 2.4/1; overflow: hidden; background: var(--border-color); }
+    .editor-body .lkc-cover { box-sizing: border-box; width: 100%; max-width: 100%; aspect-ratio: 2.4/1; overflow: hidden; background: var(--border-color); }
     .editor-body .lkc-cover img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; border-radius: 0; }
-    .editor-body .lkc-body { padding: 10px 14px 12px; }
+    .editor-body .lkc-body { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; padding: 10px 14px 12px; }
     .editor-body .lkc-body.has-cover { padding-top: 6px; }
-    .editor-body .lkc-title { font-size: 0.875rem; font-weight: 600; line-height: 1.4; color: var(--text-main); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .editor-body .lkc-subtitle { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .editor-body .lkc-source { font-size: 0.6875rem; color: var(--text-secondary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
+    .editor-body .lkc-title { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; font-size: 0.875rem; font-weight: 600; line-height: 1.4; color: var(--text-main); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .editor-body .lkc-subtitle { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: normal; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.3; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .editor-body .lkc-source { min-width: 0; max-width: 100%; font-size: 0.6875rem; color: var(--text-secondary); margin-top: 4px; display: flex; align-items: center; gap: 5px; }
     .editor-body .lkc-source-icon { flex-shrink: 0; }
     .editor-body .lkc-source-dot { width: 3px; height: 3px; border-radius: var(--radius-circle); background: var(--text-secondary); opacity: 0.4; flex-shrink: 0; }
-    .editor-body .lkc-source-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .editor-body .lkc-source-text { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .editor-body .lke-inner { padding: 12px 14px; font-size: 0.8125rem; color: var(--text-secondary); display: flex; align-items: center; gap: 6px; }
     @keyframes toastSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @keyframes toastSpin { to { transform: rotate(360deg); } }
@@ -205,7 +206,12 @@
   .editor-spread > .editor-body > .img-text-row,
   .editor-spread > .editor-body > .link-card-block,
   .editor-spread > .editor-body > .link-card-err,
-  .editor-spread > .editor-body > .attachment-file {
+  .editor-spread > .editor-body > .attachment-file,
+  .editor-spread > .editor-body > .link-card-skeleton {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .editor-spread > .editor-body :is(p, h1, h2, h3, h4, h5, h6, blockquote, ul, ol, pre, table, .md-preview.block, .atomic, .img-text-card, .img-text-row, .link-card-block, .link-card-err, .link-card-skeleton, .attachment-file) {
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -573,6 +579,7 @@
   .editor-spread > .editor-body.is-independent-scroll .editor-column > .link-card-block,
   .editor-spread > .editor-body.is-independent-scroll .editor-column > .link-card-err,
   .editor-spread > .editor-body.is-independent-scroll .editor-column > .attachment-file,
+  .editor-spread > .editor-body.is-independent-scroll .editor-column > .link-card-skeleton,
   .editor-spread > .editor-body.is-independent-scroll .editor-column > .md-preview.block {
     break-inside: avoid;
     page-break-inside: avoid;

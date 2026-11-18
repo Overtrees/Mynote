@@ -289,6 +289,7 @@ const initialDoc = memo.doc || [{
   var editorWrapperRef = useRef(null);
   var editorBodyRef = useRef(null);
   var inputTimerRef = useRef(null);
+  var musicPasteTransactionRef = useRef(null);
   const [independentColumns, setIndependentColumns] = useState(function () {
     try { return window.localStorage.getItem('sj_editor_independent_scroll') === '1'; }
     catch (_) { return false; }
@@ -1547,11 +1548,211 @@ const handleClose = async () => {
     Promise.resolve().then(function () { return fetchLinkMeta(url); }).then(finishRetry, function () { finishRetry(null); });
   }, [files, triggerAutoSave]);
 
+  var resolvePendingMusicUrl = useCallback(function (musicInput, rawText, transaction) {
+    var host = editorBodyRef.current;
+    if (!host || !musicInput || !host.contains(musicInput) || musicInput.dataset.musicUrl !== 'pending') return false;
+    var cardId = musicInput.dataset.blockid;
+    var doc = docRef.current || [];
+    var index = doc.findIndex(function (node) { return node.id === cardId; });
+    if (index < 0 || doc[index].type !== 'musicCard' || doc[index].status !== 'input') return false;
+
+    var candidateText = String(rawText || '').replace(/粘贴音乐链接到这里\.\.\./g, ' ').trim();
+    var url = extractUrlFromText(candidateText);
+    if (!url && /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:[/?#][^\s]*)?$/.test(candidateText)) url = candidateText;
+    if (!url) return false;
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try {
+      var parsedUrl = new URL(url);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return false;
+      url = parsedUrl.href;
+    } catch (_) { return false; }
+
+    var shouldAdvanceCaret = musicInput === document.activeElement || musicInput.contains(document.activeElement);
+    if (transaction && transaction.restoreTarget && transaction.targetBlock && transaction.targetBlock !== musicInput && host.contains(transaction.targetBlock) && (transaction.removeTarget || transaction.beforeHTML != null)) {
+      if (transaction.removeTarget) transaction.targetBlock.remove();
+      else transaction.targetBlock.innerHTML = transaction.beforeHTML;
+    }
+    clearTimeout(inputTimerRef.current);
+    inputTimerRef.current = null;
+    delete host.dataset.activeMusicInputId;
+    delete host.dataset.pendingMusicPasteId;
+    musicPasteTransactionRef.current = null;
+
+    var loadingNode = Object.assign({}, doc[index], { url: url, meta: null, status: 'loading' });
+    delete loadingNode.children;
+    doc[index] = loadingNode;
+    setEditorDocRef(doc);
+    musicInput.outerHTML = renderAtomicHTML(loadingNode, files);
+    var loadingCard = host.querySelector('[data-blockid="' + cardId + '"]');
+    if (shouldAdvanceCaret && loadingCard) {
+      var nextBlock = getAdjacentEditorBlock(host, loadingCard, 1);
+      if (nextBlock && nextBlock.contentEditable !== 'false') {
+        focusEditorBlock(host, nextBlock);
+        var nextRange = document.createRange();
+        nextRange.selectNodeContents(nextBlock);
+        nextRange.collapse(true);
+        var nextSelection = window.getSelection();
+        if (nextSelection) { nextSelection.removeAllRanges(); nextSelection.addRange(nextRange); }
+      }
+    }
+    triggerAutoSave();
+
+    function finishMusicLookup(meta) {
+      var latest = docRef.current || [];
+      var latestIndex = latest.findIndex(function (node) { return node.id === cardId; });
+      if (latestIndex < 0 || latest[latestIndex].url !== url || latest[latestIndex].status !== 'loading') return;
+      var ready = !!(meta && meta.title);
+      var resolvedNode = Object.assign({}, latest[latestIndex], { meta: ready ? meta : null, status: ready ? 'ready' : 'error' });
+      latest[latestIndex] = resolvedNode;
+      setEditorDocRef(latest);
+      var currentHost = editorBodyRef.current;
+      var currentCard = currentHost && currentHost.querySelector('[data-blockid="' + cardId + '"]');
+      if (currentCard && currentCard.classList.contains('link-card-skeleton')) {
+        currentCard.outerHTML = renderAtomicHTML(resolvedNode, files);
+      }
+      triggerAutoSave();
+    }
+    Promise.resolve().then(function () { return fetchLinkMeta(url); }).then(finishMusicLookup, function () { finishMusicLookup(null); });
+    return true;
+  }, [files, triggerAutoSave]);
+
   /* ===== DOM input handlers ===== */
+  var captureMusicPasteTransaction = useCallback(function (host, musicInput, eventTarget) {
+    if (!host || !musicInput) return null;
+    var originalBlocks = window.MynoteEditorColumns && window.MynoteEditorColumns.getBlocks
+      ? window.MynoteEditorColumns.getBlocks(host)
+      : Array.prototype.slice.call(host.children || []);
+    var selection = window.getSelection();
+    var focusNode = selection && selection.focusNode;
+    var focusElement = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
+    var targetBlock = eventTarget && eventTarget.closest && eventTarget.closest('[data-blockid]');
+    var selectionBlock = focusElement && focusElement.closest && focusElement.closest('[data-blockid]');
+    if (!targetBlock || targetBlock === host) targetBlock = selectionBlock;
+    var pasteTarget = targetBlock && targetBlock !== host && targetBlock !== musicInput && targetBlock.contentEditable !== 'false' ? targetBlock : null;
+    if (!pasteTarget && selectionBlock && selectionBlock !== musicInput && selectionBlock.contentEditable !== 'false') pasteTarget = selectionBlock;
+    var eventTargetsMusicInput = eventTarget && eventTarget.closest && eventTarget.closest('[data-music-url="pending"]') === musicInput;
+    var blockSnapshots = [];
+    if (!pasteTarget && !eventTargetsMusicInput && selectionBlock !== musicInput) {
+      Array.prototype.forEach.call(host.querySelectorAll('[data-blockid]'), function (block) {
+        if (block === musicInput || block.contentEditable === 'false') return;
+        blockSnapshots.push({ block: block, id: block.dataset.blockid, beforeHTML: block.innerHTML, beforeText: block.textContent || '' });
+      });
+    }
+    return {
+      blockId: musicInput.dataset.blockid,
+      targetBlock: pasteTarget,
+      beforeHTML: pasteTarget ? pasteTarget.innerHTML : null,
+      beforeText: pasteTarget ? pasteTarget.textContent || '' : '',
+      originalBlocks: originalBlocks,
+      blockSnapshots: blockSnapshots
+    };
+  }, []);
+
+  var handleEditorBeforeInput = useCallback(function (e) {
+    var nativeEvent = e && e.nativeEvent || e;
+    if (!nativeEvent || nativeEvent.inputType !== 'insertFromPaste') return;
+    var host = editorBodyRef.current;
+    if (!host) return;
+    var target = e && e.target;
+    var eventInput = target && target.closest && target.closest('[data-music-url="pending"]');
+    var activeInput = document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-music-url="pending"]');
+    var markedId = host.dataset.activeMusicInputId;
+    var musicInput = eventInput || activeInput || (markedId && host.querySelector('[data-blockid="' + markedId + '"][data-music-url="pending"]'));
+    if (!musicInput) return;
+    var id = musicInput.dataset.blockid;
+    host.dataset.pendingMusicPasteId = id;
+    musicPasteTransactionRef.current = captureMusicPasteTransaction(host, musicInput, target);
+  }, [captureMusicPasteTransaction]);
+
   var handleEditorInput = useCallback(function (e) {
     var inputTarget = e && e.target;
-    if (editorBodyRef.current && !(inputTarget && inputTarget.closest && inputTarget.closest('[data-music-url="pending"]'))) {
-      delete editorBodyRef.current.dataset.activeMusicInputId;
+    var host = editorBodyRef.current;
+    var transaction = musicPasteTransactionRef.current;
+    var eventInput = inputTarget && inputTarget.closest && inputTarget.closest('[data-music-url="pending"]');
+    var pendingId = host && (host.dataset.pendingMusicPasteId || transaction && transaction.blockId);
+    var pendingInput = eventInput || (pendingId && host && host.querySelector('[data-blockid="' + pendingId + '"][data-music-url="pending"]'));
+    if (pendingInput) {
+      var inputText = pendingInput.textContent || '';
+      var restoreTarget = null;
+      if (transaction && transaction.blockId === pendingInput.dataset.blockid && transaction.targetBlock && transaction.targetBlock !== pendingInput && host.contains(transaction.targetBlock)) {
+        var beforeText = transaction.beforeText || '';
+        var afterText = transaction.targetBlock.textContent || '';
+        if (afterText !== beforeText) {
+          var prefix = 0;
+          while (prefix < beforeText.length && prefix < afterText.length && beforeText.charAt(prefix) === afterText.charAt(prefix)) prefix++;
+          var beforeEnd = beforeText.length;
+          var afterEnd = afterText.length;
+          while (beforeEnd > prefix && afterEnd > prefix && beforeText.charAt(beforeEnd - 1) === afterText.charAt(afterEnd - 1)) { beforeEnd--; afterEnd--; }
+          var insertedText = afterText.slice(prefix, afterEnd);
+          if (extractUrlFromText(insertedText)) {
+            inputText = insertedText;
+            restoreTarget = Object.assign({}, transaction, { restoreTarget: true });
+          }
+        }
+      }
+      if (!restoreTarget && transaction && transaction.blockId === pendingInput.dataset.blockid && transaction.blockSnapshots && transaction.blockSnapshots.length) {
+        var preferredBlock = inputTarget && inputTarget.closest && inputTarget.closest('[data-blockid]');
+        var snapshots = transaction.blockSnapshots.slice();
+        if (preferredBlock && preferredBlock !== host) snapshots.sort(function (a, b) { return a.block === preferredBlock ? -1 : b.block === preferredBlock ? 1 : 0; });
+        for (var snapshotIndex = 0; snapshotIndex < snapshots.length; snapshotIndex++) {
+          var snapshot = snapshots[snapshotIndex];
+          var changedBlock = snapshot.block;
+          if (!changedBlock || !host.contains(changedBlock) || changedBlock === pendingInput) continue;
+          var priorText = snapshot.beforeText || '';
+          var changedText = changedBlock.textContent || '';
+          if (changedText === priorText) continue;
+          var sharedPrefix = 0;
+          while (sharedPrefix < priorText.length && sharedPrefix < changedText.length && priorText.charAt(sharedPrefix) === changedText.charAt(sharedPrefix)) sharedPrefix++;
+          var priorEnd = priorText.length;
+          var changedEnd = changedText.length;
+          while (priorEnd > sharedPrefix && changedEnd > sharedPrefix && priorText.charAt(priorEnd - 1) === changedText.charAt(changedEnd - 1)) { priorEnd--; changedEnd--; }
+          var pastedSegment = changedText.slice(sharedPrefix, changedEnd);
+          if (!extractUrlFromText(pastedSegment)) continue;
+          inputText = pastedSegment;
+          restoreTarget = { targetBlock: changedBlock, beforeHTML: snapshot.beforeHTML, restoreTarget: true };
+          break;
+        }
+      }
+      if (!restoreTarget && transaction && transaction.blockId === pendingInput.dataset.blockid) {
+        var originalBlocks = transaction.originalBlocks || (transaction.blockSnapshots || []).map(function (snapshot) { return snapshot.block; });
+        if (transaction.targetBlock && originalBlocks.indexOf(transaction.targetBlock) < 0) originalBlocks.push(transaction.targetBlock);
+        var currentBlocks = window.MynoteEditorColumns && window.MynoteEditorColumns.getBlocks
+          ? window.MynoteEditorColumns.getBlocks(host)
+          : Array.prototype.slice.call(host.children || []);
+        var preferredNewBlock = inputTarget && inputTarget.nodeType === 1
+          ? currentBlocks.find(function (block) { return block === inputTarget || block.contains(inputTarget); })
+          : null;
+        var candidates = preferredNewBlock ? [preferredNewBlock].concat(currentBlocks.filter(function (block) { return block !== preferredNewBlock; })) : currentBlocks;
+        for (var newBlockIndex = 0; newBlockIndex < candidates.length; newBlockIndex++) {
+          var newBlock = candidates[newBlockIndex];
+          if (!newBlock || newBlock === pendingInput || originalBlocks.indexOf(newBlock) >= 0 || newBlock.contentEditable === 'false') continue;
+          var newBlockText = newBlock.textContent || '';
+          if (!extractUrlFromText(newBlockText)) continue;
+          inputText = newBlockText;
+          restoreTarget = { targetBlock: newBlock, removeTarget: true, restoreTarget: true };
+          break;
+        }
+      }
+      if (resolvePendingMusicUrl(pendingInput, inputText, restoreTarget)) return;
+      var nativeInputEvent = e && e.nativeEvent || e;
+      if (transaction && nativeInputEvent && nativeInputEvent.inputType === 'insertFromPaste') {
+        musicPasteTransactionRef.current = null;
+        if (host) delete host.dataset.pendingMusicPasteId;
+      }
+    } else if (transaction && host && transaction.targetBlock && host.contains(transaction.targetBlock)) {
+      var transactionBefore = transaction.beforeText || '';
+      var currentText = transaction.targetBlock.textContent || '';
+      if (currentText !== transactionBefore) {
+        var transactionPrefix = 0;
+        while (transactionPrefix < transactionBefore.length && transactionPrefix < currentText.length && transactionBefore.charAt(transactionPrefix) === currentText.charAt(transactionPrefix)) transactionPrefix++;
+        var transactionBeforeEnd = transactionBefore.length;
+        var transactionAfterEnd = currentText.length;
+        while (transactionBeforeEnd > transactionPrefix && transactionAfterEnd > transactionPrefix && transactionBefore.charAt(transactionBeforeEnd - 1) === currentText.charAt(transactionAfterEnd - 1)) { transactionBeforeEnd--; transactionAfterEnd--; }
+        var transactionInserted = currentText.slice(transactionPrefix, transactionAfterEnd);
+        if (extractUrlFromText(transactionInserted) && resolvePendingMusicUrl(host.querySelector('[data-blockid="' + transaction.blockId + '"][data-music-url="pending"]'), transactionInserted, Object.assign({}, transaction, { restoreTarget: true }))) return;
+      }
+      musicPasteTransactionRef.current = null;
+      delete host.dataset.pendingMusicPasteId;
     }
     if (!hasTyped) setHasTyped(true);
     // Contenteditable may copy data-blockid when Enter splits a paragraph. Normalize
@@ -1715,7 +1916,7 @@ const handleClose = async () => {
       updateSlashStateFromSelection();
       triggerAutoSave();
     }, 80);
-  }, [triggerAutoSave, updateSlashStateFromSelection]);
+  }, [resolvePendingMusicUrl, triggerAutoSave, updateSlashStateFromSelection]);
   var handleEditorKeyDown = useCallback(function (e) {
     if (isComposingRef.current || e.isComposing || e.nativeEvent && e.nativeEvent.isComposing || e.keyCode === 229) return;
     var host = editorBodyRef.current;
@@ -1784,6 +1985,11 @@ const handleClose = async () => {
             var inText = el2.closest('.itc-text') || el2.closest('.itr-text');
             if (inText) return; // 让浏览器默认在 contentEditable 内换行
           }
+          if (blkEl2.dataset.musicUrl === 'pending' && host) {
+            delete host.dataset.activeMusicInputId;
+            delete host.dataset.pendingMusicPasteId;
+            musicPasteTransactionRef.current = null;
+          }
           e.preventDefault();
           var newP = document.createElement('p');
           newP.dataset.blockid = genId();
@@ -1832,120 +2038,51 @@ const handleClose = async () => {
     }
   }, [triggerAutoSave, showSlash, slashCommands, slashSelectedIndex, applySlashCommand, openImageTextSheet, closeSlashPanel, isComposingRef]);
   var handleEditorPaste = useCallback(function (e) {
-    var text = e.clipboardData && e.clipboardData.getData('text/plain');
-    if (!text) return;
+    var nativeEvent = e && e.nativeEvent || e;
+    var clipboard = e.clipboardData || nativeEvent && nativeEvent.clipboardData;
+    var text = clipboard && clipboard.getData && clipboard.getData('text/plain') || '';
     var trimmed = text.trim();
-
-    /* ---- 音乐卡片输入框内粘贴：立即处理链接，不依赖 blur ---- */
-    var sel = window.getSelection();
-    var focusNode = sel && sel.focusNode;
-    var focusEl = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
-    // React paste events can target the editable music placeholder before the browser selection updates.
-    var eventMusicInput = e.target && e.target.closest && e.target.closest('[data-music-url="pending"]');
-    // Mobile paste can be retargeted to the editor host while the capsule itself
-    // remains the focused editable. Prefer the real focused element before a stale selection.
-    var activeEl = document.activeElement;
-    var activeMusicInput = activeEl && activeEl.closest && activeEl.closest('[data-music-url="pending"]');
-    var markedMusicInput = null;
     var host = editorBodyRef.current;
-    var markedId = host && host.dataset.activeMusicInputId;
-    if (!eventMusicInput && e.target === host && markedId) {
-      markedMusicInput = host.querySelector('[data-blockid="' + markedId + '"][data-music-url="pending"]');
-    }
-    var musicInput = eventMusicInput || activeMusicInput || markedMusicInput || (focusEl && focusEl.closest('[data-music-url="pending"]'));
+    var selection = window.getSelection();
+    var focusNode = selection && selection.focusNode;
+    var focusElement = focusNode ? focusNode.nodeType === 1 ? focusNode : focusNode.parentElement : null;
+    var eventInput = e.target && e.target.closest && e.target.closest('[data-music-url="pending"]');
+    var activeEl = document.activeElement;
+    var activeInput = activeEl && activeEl.closest && activeEl.closest('[data-music-url="pending"]');
+    var transaction = musicPasteTransactionRef.current;
+    var markedId = host && (host.dataset.pendingMusicPasteId || host.dataset.activeMusicInputId || transaction && transaction.blockId);
+    var markedInput = markedId && host && host.querySelector('[data-blockid="' + markedId + '"][data-music-url="pending"]');
+    var focusInput = focusElement && focusElement.closest && focusElement.closest('[data-music-url="pending"]');
+    var musicInput = eventInput || activeInput || markedInput || focusInput;
     if (musicInput) {
-      e.preventDefault();
-      closeSlashPanel();
-      /* 从粘贴文本中提取 URL（支持文本混有链接），否则尝试补协议后直接使用 */
-      var muRaw = trimmed;
-      var muUrl = extractUrlFromText(muRaw);
-      if (!muUrl && /^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}/.test(muRaw)) muUrl = muRaw;
-      if (!muUrl) muUrl = muRaw;
-      if (!muUrl.startsWith('http')) muUrl = 'https://' + muUrl;
-      var mId = musicInput.dataset.blockid;
-      if (host && host.dataset.activeMusicInputId === mId) delete host.dataset.activeMusicInputId;
-      var mDoc = docRef.current;
-      var mIdx = mDoc.findIndex(function (n) {
-        return n.id === mId;
-      });
-      if (mIdx !== -1) {
-        mDoc[mIdx].url = muUrl;
-        mDoc[mIdx].status = 'loading';
-        mDoc[mIdx].type = 'musicCard';
-        delete mDoc[mIdx].children;
+      musicPasteTransactionRef.current = captureMusicPasteTransaction(host, musicInput, e.target);
+      if (text) {
+        if (resolvePendingMusicUrl(musicInput, trimmed, null)) {
+          e.preventDefault();
+          closeSlashPanel();
+          return;
+        }
+        return;
+      } else if (host) {
+        host.dataset.pendingMusicPasteId = musicInput.dataset.blockid || '';
       }
-      setEditorDocRef(docRef.current);
-      var mLoad = '<div contenteditable="false" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
-      musicInput.outerHTML = mLoad;
-      var musicCardEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + mId + '"]');
-      var afterMusicCard = musicCardEl && getAdjacentEditorBlock(editorBodyRef.current, musicCardEl, 1);
-      if (afterMusicCard && afterMusicCard.contentEditable !== 'false') {
-        focusEditorBlock(editorBodyRef.current, afterMusicCard);
-        var afterRange = document.createRange();
-        afterRange.selectNodeContents(afterMusicCard);
-        afterRange.collapse(true);
-        var afterSelection = window.getSelection();
-        if (afterSelection) { afterSelection.removeAllRanges(); afterSelection.addRange(afterRange); }
-      }
-      triggerAutoSave();
-      fetchLinkMeta(muUrl).then(function (meta) {
-        var d2 = docRef.current;
-        var i2 = d2.findIndex(function (n) {
-          return n.id === mId;
-        });
-        if (i2 !== -1) {
-          d2[i2].meta = meta;
-          d2[i2].status = meta && meta.title ? 'ready' : 'error';
-        }
-        var ce2 = editorBodyRef.current;
-        if (ce2) {
-          var el2 = ce2.querySelector('[data-blockid="' + mId + '"]');
-          if (el2) {
-            var cv = meta && meta.cover ? proxyImg(meta.cover) : '';
-            var tl = meta && meta.title || muUrl;
-            var sr = meta && meta.source || '音乐';
-            var hasCv = !!cv;
-            var rh = '<a contenteditable="false" aria-label="打开音乐链接" class="link-card-block music-card-link" href="' + escapeHTML(muUrl) + '" target="_blank" rel="noopener noreferrer" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '">';
-            if (hasCv) rh += '<div class="lkc-cover"><img src="' + escapeHTML(cv) + '" alt=""></div>';
-            rh += '<div class="lkc-body' + (hasCv ? ' has-cover' : '') + '">';
-            rh += '<div class="lkc-title">' + escapeHTML(tl) + '</div>';
-            if (meta && meta.subtitle) rh += '<div class="lkc-subtitle">' + escapeHTML(meta.subtitle) + '</div>';
-            rh += '<div class="lkc-source"><span class="lkc-source-icon">🎵</span><span class="lkc-source-dot"></span><span class="lkc-source-text">' + escapeHTML(sr) + '</span></div>';
-            rh += '</div></a>';
-            el2.outerHTML = rh;
-            triggerAutoSave();
-          }
-        }
-      }).catch(function () {
-        var ce2 = editorBodyRef.current;
-        var errIdx = docRef.current.findIndex(function (n) { return n.id === mId; });
-        if (errIdx !== -1) docRef.current[errIdx].status = 'error';
-        if (ce2) {
-          var el2 = ce2.querySelector('[data-blockid="' + mId + '"]');
-          if (el2) {
-            el2.outerHTML = renderAtomicHTML({ id: mId, type: 'musicCard', url: muUrl, meta: null, status: 'error' }, files);
-          }
-        }
-        triggerAutoSave();
-      });
-      return;
     }
     var isPureUrl = isUrl(trimmed);
     var embeddedUrl = isPureUrl ? null : extractUrlFromText(trimmed);
     var MUSIC_OR_MEDIA_RE = /music\.163\.com|163cn\.tv|y\.qq\.com|i\.y\.qq\.com|open\.spotify\.com|music\.apple\.com|b23\.tv|xiaohongshu\.com|xhslink\.com/i;
-    if (isPureUrl) {
+    if (trimmed && isPureUrl) {
       e.preventDefault();
       closeSlashPanel();
       insertLinkCardAtDOM(trimmed);
       return;
     }
-    if (embeddedUrl && MUSIC_OR_MEDIA_RE.test(embeddedUrl)) {
+    if (trimmed && embeddedUrl && MUSIC_OR_MEDIA_RE.test(embeddedUrl)) {
       e.preventDefault();
       closeSlashPanel();
       insertLinkCardAtDOM(embeddedUrl);
       return;
     }
-    if (embeddedUrl && !looksLikeMarkdown(trimmed)) {
+    if (trimmed && embeddedUrl && !looksLikeMarkdown(trimmed)) {
       // 文本里夹着普通链接：链接转链接卡，剩余文本保留原位
       e.preventDefault();
       closeSlashPanel();
@@ -1971,7 +2108,7 @@ const handleClose = async () => {
       return;
     }
     /* 截图 / 复制图片：直接作为附件插入，而不是把二进制当文本丢掉 */
-    var clipItems = e.clipboardData && e.clipboardData.items;
+    var clipItems = clipboard && clipboard.items;
     if (clipItems) {
       var imageFiles = [];
       for (var ci = 0; ci < clipItems.length; ci++) {
@@ -1987,6 +2124,7 @@ const handleClose = async () => {
         return;
       }
     }
+    if (!text) return;
     e.preventDefault();
     document.execCommand('insertText', false, text);
     clearTimeout(inputTimerRef.current);
@@ -1995,7 +2133,7 @@ const handleClose = async () => {
       docRef.current = parseEditorDOM(editorBodyRef.current);
       triggerAutoSave();
     }, 80);
-  }, [insertLinkCardAtDOM, triggerAutoSave, insertAttachmentAtCursor, closeSlashPanel]);
+  }, [insertLinkCardAtDOM, triggerAutoSave, insertAttachmentAtCursor, closeSlashPanel, resolvePendingMusicUrl, captureMusicPasteTransaction]);
 
   /* ===== Remove attachment ===== */
 
@@ -2991,6 +3129,7 @@ onPointerDown: function (e) {
     'aria-haspopup': showSlash ? 'listbox' : undefined,
     'aria-activedescendant': showSlash && slashCommands.length ? 'mynote-slash-option-' + slashSelectedIndex : undefined,
     suppressContentEditableWarning: true,
+    onBeforeInput: handleEditorBeforeInput,
     onInput: function(e) { if (!hasTyped) setHasTyped(true); if (isComposingRef.current) return; handleEditorInput(e); },
     onCompositionStart: function() { isComposingRef.current = true; },
     onCompositionEnd: function(e) { isComposingRef.current = false; handleEditorInput(e); },

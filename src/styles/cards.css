@@ -7,7 +7,7 @@
     -webkit-backdrop-filter: var(--glass-content-filter);
     border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
     overflow: hidden;
     margin: 10px 0;
     cursor: pointer;
@@ -82,7 +82,7 @@
     background: var(--glass-content-bg);
     border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
     overflow: hidden;
     margin: 10px 0;
 }
@@ -90,6 +90,25 @@
     width: 100%;
     aspect-ratio: 2.4 / 1;
     background: var(--border-color);
+}
+.editor-body .link-card-skeleton-cover {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.editor-body .link-card-skeleton-cover::after {
+    content: '';
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--glass-content-border);
+    border-top-color: var(--glass-label-color);
+    border-radius: 50%;
+    animation: mynoteSkeletonSpin 1s linear infinite;
+}
+@keyframes mynoteSkeletonSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .editor-body .link-card-skeleton-cover::after { animation: none; }
 }
 .link-card-skeleton[data-type="musicCard"] {
     box-sizing: border-box;
@@ -119,7 +138,7 @@
     -webkit-backdrop-filter: var(--glass-content-filter);
     border: 0.5px solid var(--glass-content-border);
     border-radius: var(--radius-32); overflow: hidden;
-    corner-shape: squircle;
+    corner-shape: round;
     padding: 12px 14px;
     margin: 10px 0;
     cursor: pointer;
