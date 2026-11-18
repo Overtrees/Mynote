@@ -47,6 +47,13 @@ try {
   for (const item of cases) {
     await page.setViewportSize({ width: item.width, height: item.height });
     await page.setContent(html, { waitUntil: 'load' });
+    await page.evaluate(() => {
+      const toggle = document.createElement('button');
+      toggle.className = 'editor-column-mode-toggle';
+      toggle.style.display = 'flex';
+      toggle.textContent = '双栏独立滚动';
+      document.body.appendChild(toggle);
+    });
     const state = await page.evaluate(() => {
       const body = document.querySelector('.editor-body');
       const style = getComputedStyle(body);
@@ -59,10 +66,12 @@ try {
       const columnWidth = style.columnCount === '2' ? (body.clientWidth - colGap) / 2 : body.clientWidth;
       const table = body.querySelector('table');
       const pre = body.querySelector('pre');
+      const columnModeToggle = document.querySelector('.editor-column-mode-toggle');
       const media = [...body.querySelectorAll(':scope > .atomic[data-type="image"], :scope > .atomic[data-type="gallery"], :scope > .img-text-card, :scope > .img-text-row, :scope > .atomic.attachment:has(> img)')];
       const checkedText = body.querySelector('[data-type="todo"].is-checked .todo-text');
       return {
         columns: style.columnCount === '2' ? 2 : 1,
+        toggleDisplay: getComputedStyle(columnModeToggle).display,
         columnGap: colGap,
         body: rect(body),
         columnWidth,
@@ -80,6 +89,7 @@ try {
       };
     });
     assert.equal(state.columns, item.columns, `${item.name}: 双栏状态错误 (${state.columns})`);
+    assert.equal(state.toggleDisplay, item.columns === 2 ? 'flex' : 'none', `${item.name}: 独立模式按钮显示状态与双栏支持条件不符 (${state.toggleDisplay})`);
     assert.ok(state.pageWidth <= state.viewportWidth + 1, `${item.name}: 页面横向溢出 ${state.pageWidth}/${state.viewportWidth}`);
     assert.ok(state.todoHit.width >= 44 && state.todoHit.height >= 44, `${item.name}: 待办命中区小于44px`);
     assert.equal(state.todoCircle, '22px', `${item.name}: 待办可见圆圈不是22px`);
@@ -93,8 +103,83 @@ try {
       assert.ok(state.music.width <= state.body.width + 1, `${item.name}: 音乐卡超过正文宽度`);
       if (item.width <= 820) assert.ok(state.table.scrollWidth > state.table.clientWidth, `${item.name}: 多列 Markdown 表格未进入内部横滚`);
     }
-    report.push({ name: item.name, columns: state.columns, columnWidth: Math.round(state.columnWidth), columnGap: Math.round(state.columnGap), noPageOverflow: true, todoHit: `${Math.round(state.todoHit.width)}x${Math.round(state.todoHit.height)}`, mediaSpans: state.mediaSpans.length, tableScroll: state.table.scrollWidth > state.table.clientWidth, codeScroll: state.code.scrollWidth > state.code.clientWidth });
+    report.push({ name: item.name, columns: state.columns, toggleDisplay: state.toggleDisplay, columnWidth: Math.round(state.columnWidth), columnGap: Math.round(state.columnGap), noPageOverflow: true, todoHit: `${Math.round(state.todoHit.width)}x${Math.round(state.todoHit.height)}`, mediaSpans: state.mediaSpans.length, tableScroll: state.table.scrollWidth > state.table.clientWidth, codeScroll: state.code.scrollWidth > state.code.clientWidth });
   }
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.addScriptTag({ path: path.join(ROOT, 'src/editor/editor.render.js') });
+  const independent = await page.evaluate(() => {
+    const body = document.querySelector('.editor-body');
+    for (let i = 0; i < 36; i++) {
+      const p = document.createElement('p');
+      p.dataset.blockid = `independent-test-${i}`;
+      p.textContent = `独立滚动压力段落 ${i}：${'长文本用于验证每一栏都能独立滚动，而不是整个正文一起移动。'.repeat(3)}`;
+      body.appendChild(p);
+    }
+    const orderedIds = () => window.MynoteEditorColumns.getBlocks(body).map(el => el.dataset.blockid || '');
+    const before = orderedIds();
+    window.MynoteEditorColumns.setIndependentScroll(body, true);
+    const columns = [...body.querySelectorAll(':scope > .editor-column')];
+    const left = columns[0], right = columns[1];
+    const editInColumn = (column, marker) => {
+      const target = column.querySelector('p');
+      const text = target && target.firstChild;
+      if (!target || !text || text.nodeType !== 3) return false;
+      window.MynoteEditorColumns.focusEditingHost(body, target);
+      const range = document.createRange();
+      range.setStart(text, text.length);
+      range.collapse(true);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return document.execCommand('insertText', false, marker);
+    };
+    const leftEdit = editInColumn(left, ' LEFT_HOST_EDIT');
+    const rightEdit = editInColumn(right, ' RIGHT_HOST_EDIT');
+    left.scrollTop = 48;
+    const scrollIndependence = left.scrollTop > 0 && right.scrollTop === 0;
+    const state = {
+      count: columns.length,
+      display: getComputedStyle(body).display,
+      columnDisplay: columns.map(column => getComputedStyle(column).display),
+      editorHosts: { body: body.contentEditable, columns: columns.map(column => column.contentEditable) },
+      separateEditing: leftEdit && rightEdit && left.textContent.includes('LEFT_HOST_EDIT') && right.textContent.includes('RIGHT_HOST_EDIT'),
+      overflows: columns.map(column => column.scrollHeight > column.clientHeight),
+      scrollIndependence,
+      noHorizontalPageOverflow: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      orderPreserved: JSON.stringify(orderedIds()) === JSON.stringify(before),
+      parsedOrderPreserved: JSON.stringify(window.MynoteEditor.parseEditorDOM(body).map(node => node.id || '')) === JSON.stringify(before),
+      firstLast: [orderedIds()[0], orderedIds().at(-1)]
+    };
+    window.MynoteEditorColumns.flatten(body);
+    state.flattened = !body.classList.contains('is-independent-scroll') && !body.querySelector(':scope > .editor-column');
+    state.flattenedOrderPreserved = JSON.stringify([...body.children].map(el => el.dataset.blockid || '')) === JSON.stringify(before);
+    return state;
+  });
+  assert.equal(independent.count, 2, '独立模式应建立两个滚动容器');
+  assert.equal(independent.display, 'grid', '独立模式应以双列网格承载两栏');
+  assert.deepEqual(independent.columnDisplay, ['block', 'block'], '桌面列容器应为独立块级滚动区');
+  assert.deepEqual(independent.editorHosts, { body: 'false', columns: ['true', 'true'] }, '外层正文不可编辑且两栏各自是编辑宿主');
+  assert.equal(independent.separateEditing, true, '键盘输入应分别写入左右列自己的编辑宿主');
+  assert.deepEqual(independent.overflows, [true, true], '左右两栏都应拥有自己的垂直溢出');
+  assert.equal(independent.scrollIndependence, true, '滚动左栏不能带动右栏');
+  assert.equal(independent.noHorizontalPageOverflow, true, '独立列不能造成页面横向溢出');
+  assert.equal(independent.orderPreserved, true, '包装成两栏后笔记块顺序必须保持');
+  assert.equal(independent.parsedOrderPreserved, true, '解析保存时必须按左右列顺序还原原始笔记块');
+  assert.equal(independent.flattened, true, '关闭模式后列包装应被移除');
+  assert.equal(independent.flattenedOrderPreserved, true, '关闭模式后线性 DOM 顺序必须恢复');
+
+  await page.setViewportSize({ width: 844, height: 430 });
+  await page.setContent(html, { waitUntil: 'load' });
+  await page.addScriptTag({ path: path.join(ROOT, 'src/editor/editor.render.js') });
+  const narrowFallback = await page.evaluate(() => {
+    const body = document.querySelector('.editor-body');
+    window.MynoteEditorColumns.setIndependentScroll(body, true);
+    const column = body.querySelector(':scope > .editor-column');
+    return { display: getComputedStyle(column).display, columns: getComputedStyle(body).columnCount };
+  });
+  assert.equal(narrowFallback.display, 'contents', '窄屏横屏不能留下两个互相挤压的滚动窗格');
+  assert.equal(narrowFallback.columns, '1', '窄屏手机横屏仍应回退为单栏');
   console.log(JSON.stringify(report, null, 2));
 } finally {
   await browser.close();

@@ -308,7 +308,7 @@ try {
     const caret = range.getBoundingClientRect();
     const box = container.getBoundingClientRect();
     const style = getComputedStyle(container);
-    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretLeft: caret.left, boxLeft: box.left, boxRight: box.right, caretHeight: caret.height, paddingLeft: style.paddingLeft, paddingRight: getComputedStyle(input).paddingRight, scrollPaddingInline: style.scrollPaddingInline, mask: style.maskImage, webkitMask: style.webkitMaskImage };
+    return { offset: selection.focusOffset, scrollLeft: container.scrollLeft, caretLeft: caret.left, boxLeft: box.left, boxRight: box.right, caretHeight: caret.height, paddingLeft: style.paddingLeft, paddingRight: style.paddingRight, scrollPaddingInline: style.scrollPaddingInline, mask: style.maskImage, webkitMask: style.webkitMaskImage };
   });
   check('长标题起始光标不受遮罩且两侧留出16px安全间距', startCaretState.offset === 0 && startCaretState.caretHeight > 0 && startCaretState.caretLeft >= startCaretState.boxLeft + 14 && startCaretState.caretLeft <= startCaretState.boxRight - 14 && startCaretState.paddingLeft === '16px' && startCaretState.paddingRight === '16px' && startCaretState.scrollPaddingInline === '16px' && startCaretState.mask === 'none' && startCaretState.webkitMask === 'none', JSON.stringify(startCaretState));
   await wikiPage.setViewportSize({ width: 390, height: 480 });
@@ -342,7 +342,7 @@ try {
     const panel = document.querySelector('.editor-menu-panel');
     const exportEntry = panel.querySelector('.editor-export-entry');
     const exportIcon = exportEntry.querySelector('span');
-    const otherIcon = panel.querySelector('button:not(.editor-export-entry) span');
+    const otherIcon = panel.querySelector('button:not(.editor-export-entry):not(.editor-column-mode-toggle) > span[aria-hidden="true"]');
     return { exportLeft: exportIcon.getBoundingClientRect().left, otherLeft: otherIcon.getBoundingClientRect().left };
   });
   check('更多菜单导出图标与其他项目图标左边缘对齐', Math.abs(menuAlignment.exportLeft - menuAlignment.otherLeft) <= 0.5, JSON.stringify(menuAlignment));
@@ -446,8 +446,12 @@ try {
     return {
       text: input.textContent,
       maxScroll: scroller.scrollWidth - scroller.clientWidth,
+      focusOffset: selection.focusOffset,
+      focusTextLength: selection.focusNode?.textContent?.length || 0,
       leftGap: caret.left - box.left,
       rightGap: box.right - caret.right,
+      paddingLeft: getComputedStyle(scroller).paddingLeft,
+      paddingRight: getComputedStyle(scroller).paddingRight,
       capsuleCenterDelta: capsuleBox.left + capsuleBox.width / 2 - innerWidth / 2,
       metaCenterDelta: metaBox && (metaBox.left + metaBox.width / 2 - (capsuleBox.left + capsuleBox.width / 2)),
       metaInsideCapsule: !!metaBox && metaBox.left >= capsuleBox.left && metaBox.right <= capsuleBox.right,
@@ -456,7 +460,38 @@ try {
       metaText: meta?.textContent.trim() || ''
     };
   });
-  check('新建笔记首次快速输入长标题时光标两侧留白，时间/计数完整并保持胶囊中轴', firstTitleLayout.text === firstLongTitle && firstTitleLayout.maxScroll > 0 && firstTitleLayout.leftGap >= 14 && firstTitleLayout.rightGap >= 14 && Math.abs(firstTitleLayout.capsuleCenterDelta) <= 1 && Math.abs(firstTitleLayout.metaCenterDelta) <= 1 && firstTitleLayout.metaInsideCapsule && firstTitleLayout.metaText.length > 0 && firstTitleLayout.metaScrollWidth <= firstTitleLayout.metaClientWidth, JSON.stringify(firstTitleLayout));
+  check('新建笔记首次快速输入长标题时左右 gutter 对称且末尾光标保留右侧安全区', firstTitleLayout.text === firstLongTitle && firstTitleLayout.maxScroll > 0 && firstTitleLayout.focusOffset === firstTitleLayout.focusTextLength && firstTitleLayout.rightGap >= 14 && firstTitleLayout.paddingLeft === '16px' && firstTitleLayout.paddingRight === '16px' && Math.abs(firstTitleLayout.capsuleCenterDelta) <= 1 && Math.abs(firstTitleLayout.metaCenterDelta) <= 1 && firstTitleLayout.metaInsideCapsule && firstTitleLayout.metaText.length > 0 && firstTitleLayout.metaScrollWidth <= firstTitleLayout.metaClientWidth, JSON.stringify(firstTitleLayout));
+  await wikiPage.locator('.editor-body').click();
+  await wikiPage.waitForTimeout(100);
+  await firstTitleInput.click();
+  await wikiPage.waitForFunction(value => document.querySelector('.editor-title-input')?.textContent === value, firstLongTitle, { timeout: 5000 });
+  await firstTitleInput.press('End');
+  await wikiPage.waitForTimeout(100);
+  const repeatedTitleLayout = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const scroller = input.parentElement;
+    const selection = getSelection();
+    const range = document.createRange();
+    range.setStart(selection.focusNode, selection.focusOffset);
+    range.collapse(true);
+    let caret = range.getBoundingClientRect();
+    let focusAtEnd = selection.focusNode?.nodeType === 3
+      ? selection.focusOffset === selection.focusNode.textContent.length
+      : selection.focusNode === input && selection.focusOffset === input.childNodes.length;
+    if ((!caret.height || !caret.right) && focusAtEnd) {
+      const text = input.lastChild;
+      if (text && text.nodeType === 3 && text.length) {
+        const glyphRange = document.createRange();
+        glyphRange.setStart(text, text.length - 1);
+        glyphRange.setEnd(text, text.length);
+        const glyph = glyphRange.getBoundingClientRect();
+        caret = { left: glyph.right, right: glyph.right, height: glyph.height };
+      }
+    }
+    const box = scroller.getBoundingClientRect();
+    return { text: input.textContent, focused: document.activeElement === input, focusAtEnd, caretRight: caret.right, rightGap: box.right - caret.right, paddingLeft: getComputedStyle(scroller).paddingLeft, paddingRight: getComputedStyle(scroller).paddingRight, scrollLeft: scroller.scrollLeft, maxScroll: scroller.scrollWidth - scroller.clientWidth };
+  });
+  check('标题提交失焦后再次编辑仍保持与首次编辑一致的对称 gutter 与末尾安全区', repeatedTitleLayout.text === firstLongTitle && repeatedTitleLayout.focused && repeatedTitleLayout.focusAtEnd && repeatedTitleLayout.maxScroll > 0 && repeatedTitleLayout.scrollLeft > 0 && repeatedTitleLayout.rightGap >= 14 && repeatedTitleLayout.paddingLeft === '16px' && repeatedTitleLayout.paddingRight === '16px' && Math.abs(firstTitleLayout.rightGap - repeatedTitleLayout.rightGap) <= 2, JSON.stringify({ first: { rightGap: firstTitleLayout.rightGap, paddingLeft: firstTitleLayout.paddingLeft, paddingRight: firstTitleLayout.paddingRight }, repeated: repeatedTitleLayout }));
   const boundaryCaretLayout = await wikiPage.evaluate(async () => {
     const input = document.querySelector('.editor-title-input');
     const scroller = input.parentElement;

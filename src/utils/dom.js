@@ -39,7 +39,9 @@
       Array.from(node.childNodes || []).forEach(function (child) {
         if (child.nodeType === Node.TEXT_NODE) {
           var parent = child.parentElement;
-          if (parent && !parent.closest('[contenteditable="false"]')) out.push(child);
+          // 独立列外层 editor-body 可能是 contenteditable=false，而列宿主本身
+          // 是可编辑岛；检查实际继承状态，不能让更外层 false 覆盖内层 true。
+          if (parent && parent.isContentEditable) out.push(child);
         } else if (child.nodeType === Node.ELEMENT_NODE && child.getAttribute('contenteditable') !== 'false') {
           collectTextNodes(child, out);
         }

@@ -89,12 +89,157 @@
     return sanitizeRenderedHTML(html);
   }
 
+  var EDITOR_COLUMN_CLASS = 'editor-column';
+  function getEditorBlocks(containerEl) {
+    if (!containerEl) return [];
+    var blocks = [];
+    Array.prototype.forEach.call(containerEl.children || [], function (child) {
+      if (child.classList && child.classList.contains(EDITOR_COLUMN_CLASS)) {
+        Array.prototype.forEach.call(child.children || [], function (block) { blocks.push(block); });
+      } else {
+        blocks.push(child);
+      }
+    });
+    return blocks;
+  }
+
+  function getEditingHost(containerEl, node) {
+    if (!containerEl) return null;
+    var element = node && (node.nodeType === 1 ? node : node.parentElement);
+    var column = element && element.closest ? element.closest('.' + EDITOR_COLUMN_CLASS) : null;
+    return column && containerEl.contains(column) ? column : containerEl;
+  }
+
+  function focusEditingHost(containerEl, node) {
+    var host = getEditingHost(containerEl, node);
+    if (!host || typeof host.focus !== 'function') return null;
+    try { host.focus({ preventScroll: true }); }
+    catch (_) { try { host.focus(); } catch (__) {} }
+    return host;
+  }
+
+  function configureIndependentHosts(containerEl, columns) {
+    containerEl.setAttribute('contenteditable', 'false');
+    containerEl.setAttribute('tabindex', '-1');
+    columns.forEach(function (column, index) {
+      column.setAttribute('contenteditable', 'true');
+      column.setAttribute('role', 'textbox');
+      column.setAttribute('aria-multiline', 'true');
+      column.setAttribute('aria-label', index === 0 ? '左栏正文' : '右栏正文');
+      column.setAttribute('tabindex', '0');
+    });
+  }
+
+  function flattenEditorColumns(containerEl, restoreEditableHost) {
+    if (!containerEl) return;
+    var columns = Array.prototype.filter.call(containerEl.children || [], function (child) {
+      return child.classList && child.classList.contains(EDITOR_COLUMN_CLASS);
+    });
+    if (!columns.length) {
+      if (containerEl.classList) containerEl.classList.remove('is-independent-scroll');
+      if (restoreEditableHost !== false) {
+        containerEl.setAttribute('contenteditable', 'true');
+        containerEl.setAttribute('tabindex', '0');
+      }
+      return;
+    }
+    var fragment = containerEl.ownerDocument.createDocumentFragment();
+    columns.forEach(function (column) {
+      while (column.firstChild) fragment.appendChild(column.firstChild);
+      column.removeAttribute('contenteditable');
+      column.removeAttribute('role');
+      column.removeAttribute('aria-multiline');
+      column.removeAttribute('aria-label');
+      column.removeAttribute('tabindex');
+      column.remove();
+    });
+    containerEl.appendChild(fragment);
+    if (containerEl.classList) containerEl.classList.remove('is-independent-scroll');
+    if (restoreEditableHost !== false) {
+      containerEl.setAttribute('contenteditable', 'true');
+      containerEl.setAttribute('tabindex', '0');
+    }
+  }
+
+  function editorBlockHeight(block) {
+    if (!block || block.nodeType !== 1) return 0;
+    var rect = block.getBoundingClientRect && block.getBoundingClientRect();
+    var measured = rect && rect.height || block.offsetHeight || 0;
+    if (measured > 0) return measured;
+    var text = String(block.textContent || '').trim();
+    var lines = Math.max(1, Math.ceil(text.length / 44));
+    if (block.matches && (block.matches('.atomic[data-type="image"], .atomic[data-type="gallery"], .img-text-card, .img-text-row') || block.matches('.atomic.attachment') && block.querySelector('img'))) return 280;
+    if (block.matches && block.matches('[data-type="musicCard"], .link-card-block, .link-card-err, .attachment-file')) return 120;
+    return 28 + lines * 25;
+  }
+
+  function setIndependentScroll(containerEl, enabled) {
+    if (!containerEl) return;
+    if (!enabled) {
+      flattenEditorColumns(containerEl);
+      return;
+    }
+    var existing = Array.prototype.filter.call(containerEl.children || [], function (child) {
+      return child.classList && child.classList.contains(EDITOR_COLUMN_CLASS);
+    });
+    if (existing.length === 2) {
+      containerEl.classList.add('is-independent-scroll');
+      configureIndependentHosts(containerEl, existing);
+      return;
+    }
+
+    var nodes = Array.prototype.slice.call(containerEl.childNodes || []).filter(function (node) {
+      if (node.nodeType === 3 && !String(node.textContent || '').trim()) {
+        node.remove();
+        return false;
+      }
+      return true;
+    });
+    var left = containerEl.ownerDocument.createElement('div');
+    var right = containerEl.ownerDocument.createElement('div');
+    left.className = EDITOR_COLUMN_CLASS;
+    right.className = EDITOR_COLUMN_CLASS;
+    left.dataset.editorColumn = 'left';
+    right.dataset.editorColumn = 'right';
+    left.setAttribute('aria-label', '左栏正文');
+    right.setAttribute('aria-label', '右栏正文');
+    containerEl.classList.add('is-independent-scroll');
+    containerEl.appendChild(left);
+    containerEl.appendChild(right);
+    nodes.forEach(function (node) { left.appendChild(node); });
+    configureIndependentHosts(containerEl, [left, right]);
+
+    var blocks = Array.prototype.filter.call(left.children || [], function (child) {
+      return !(child.classList && child.classList.contains(EDITOR_COLUMN_CLASS));
+    });
+    if (blocks.length < 2) return;
+    var weights = blocks.map(editorBlockHeight);
+    var total = weights.reduce(function (sum, value) { return sum + value; }, 0);
+    var running = 0;
+    var splitAt = 1;
+    var bestDifference = Infinity;
+    for (var i = 1; i < blocks.length; i++) {
+      running += weights[i - 1];
+      var difference = Math.abs(total - running * 2);
+      if (difference < bestDifference) {
+        bestDifference = difference;
+        splitAt = i;
+      }
+    }
+    var rightStart = blocks[splitAt];
+    var moving = false;
+    nodes.forEach(function (node) {
+      if (node === rightStart) moving = true;
+      if (moving) right.appendChild(node);
+    });
+  }
+
   function parseEditorDOM(containerEl) {
     var doc = [];
     var prevDoc = getEditorDocRef() || [];
     var prevMap = {};
     for (var i = 0; i < prevDoc.length; i++) prevMap[prevDoc[i].id] = prevDoc[i];
-    var children = containerEl.children;
+    var children = getEditorBlocks(containerEl);
     for (var i = 0; i < children.length; i++) {
       var el = children[i];
       // children 是元素集合，nodeType 恒为 1（原先的文本节点分支不可达，已删除）
@@ -265,5 +410,12 @@
     renderAtomicHTML: renderAtomicHTML,
     parseEditorDOM: parseEditorDOM,
     __core_inline: true
+  };
+  w.MynoteEditorColumns = {
+    getBlocks: getEditorBlocks,
+    getEditingHost: getEditingHost,
+    focusEditingHost: focusEditingHost,
+    flatten: flattenEditorColumns,
+    setIndependentScroll: setIndependentScroll
   };
 })(window);

@@ -10,12 +10,20 @@
   function isFenceLine(text) { return FENCE_RE.test(text); }
   function isListLine(text) { return LIST_RE.test(text); }
 
+  function flowContainer(node) {
+    return node && node.closest ? node.closest('.editor-column') || node.parentElement : node && node.parentElement;
+  }
+
+  function adjacentInSameFlow(previous, current) {
+    return !!previous && !!current && flowContainer(previous) === flowContainer(current) && previous.nextElementSibling === current;
+  }
+
   /* 从 i 开始收集一个 ``` 围栏组：含「单段落里已含完整围栏 → 不再向下收集」的既有规则 */
   function collectFenceGroup(ps, i) {
     var texts = [(ps[i].textContent || '').trim()];
     var end = i + 1;
     if (texts[0].indexOf('```', 3) < 0) {
-      while (end < ps.length) {
+      while (end < ps.length && adjacentInSameFlow(ps[end - 1], ps[end])) {
         var nt = (ps[end].textContent || '').trim();
         texts.push(nt);
         end++;
@@ -29,7 +37,7 @@
   function collectListGroup(ps, i) {
     var texts = [];
     var end = i;
-    while (end < ps.length) {
+    while (end < ps.length && (end === i || adjacentInSameFlow(ps[end - 1], ps[end]))) {
       var nt = (ps[end].textContent || '').trim();
       if (!LIST_RE.test(nt)) break;
       texts.push(nt);
@@ -71,6 +79,9 @@
   function replaceGroupWithPreview(pEls, merged, html) {
     var first = pEls[0];
     if (!first || !first.parentNode) return null;
+    for (var check = 1; check < pEls.length; check++) {
+      if (!adjacentInSameFlow(pEls[check - 1], pEls[check])) return null;
+    }
     var dv = makePreviewBlock(first.dataset.blockid, merged, html);
     first.replaceWith(dv);
     for (var i = pEls.length - 1; i >= 1; i--) {

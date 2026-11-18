@@ -17,6 +17,46 @@
     var lastSnapshotRef = R.useRef(null);
     var lastPushAtRef = R.useRef(0);
 
+    function restoreEditorSelection(descriptor) {
+      var el = editorBodyRef.current;
+      if (!el || !descriptor) return;
+      var blocks = Array.prototype.slice.call(el.querySelectorAll('[data-blockid]'));
+      var target = descriptor.blockId ? blocks.find(function (node) { return node.dataset.blockid === descriptor.blockId; }) : null;
+      if (!target || target.contentEditable === 'false') {
+        var column = descriptor.column && el.querySelector('.editor-column[data-editor-column="' + descriptor.column + '"]');
+        var candidates = column ? Array.prototype.slice.call(column.querySelectorAll('[data-blockid]')) : blocks;
+        target = candidates.slice().reverse().find(function (node) {
+          return node.contentEditable !== 'false' && node.tagName !== 'HR' && node.dataset.musicUrl !== 'pending';
+        }) || candidates.find(function (node) { return node.contentEditable !== 'false' && node.tagName !== 'HR'; });
+      }
+      if (!target) return;
+      try {
+        if (w.MynoteEditorColumns && typeof w.MynoteEditorColumns.focusEditingHost === 'function') {
+          w.MynoteEditorColumns.focusEditingHost(el, target);
+        } else if (typeof target.focus === 'function') target.focus({ preventScroll: true });
+        if (w.MynoteDom && typeof w.MynoteDom.focusEditableWithCaret === 'function') {
+          w.MynoteDom.focusEditableWithCaret(target, descriptor.offset || 0);
+        }
+      } catch (_) {}
+    }
+
+    var recordUndoTransaction = R.useCallback(function (before, after, beforeSelection, afterSelection) {
+      var beforeDoc = JSON.parse(JSON.stringify(before || []));
+      var afterDoc = JSON.parse(JSON.stringify(after || docRef.current || []));
+      if (JSON.stringify(beforeDoc) === JSON.stringify(afterDoc)) return false;
+      var h = history.current;
+      h.past.push({
+        snapshot: beforeDoc,
+        restoreSelection: beforeSelection ? JSON.parse(JSON.stringify(beforeSelection)) : null,
+        redoSelection: afterSelection ? JSON.parse(JSON.stringify(afterSelection)) : null
+      });
+      if (h.past.length > 100) h.past.shift();
+      h.future = [];
+      lastSnapshotRef.current = afterDoc;
+      lastPushAtRef.current = 0;
+      return true;
+    }, [docRef]);
+
     var recordOp = R.useCallback(function (patch) {
       txOps.current.push(patch);
       clearTimeout(txTimer.current);
@@ -86,9 +126,13 @@
         setEditorDocRef(restoreTo);
         lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
         var el = editorBodyRef.current;
-        if (el) el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
+        if (el) {
+          el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
+          if (el.classList.contains('is-independent-scroll') && w.MynoteEditorColumns) w.MynoteEditorColumns.setIndependentScroll(el, true);
+        }
         setRenderKey(function (p) { return p + 1; });
-        h.future.push({ snapshot: current });
+        if (last.restoreSelection) w.requestAnimationFrame(function () { restoreEditorSelection(last.restoreSelection); });
+        h.future.push({ snapshot: current, restoreSelection: last.redoSelection || null, undoSelection: last.restoreSelection || null });
         lastPushAtRef.current = 0;
         triggerAutoSave();
         return;
@@ -111,9 +155,13 @@
         setEditorDocRef(restoreTo);
         lastSnapshotRef.current = JSON.parse(JSON.stringify(restoreTo));
         var el = editorBodyRef.current;
-        if (el) el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
+        if (el) {
+          el.innerHTML = w.MynoteEditor.renderDocToEditorHTML(restoreTo, filesRef.current);
+          if (el.classList.contains('is-independent-scroll') && w.MynoteEditorColumns) w.MynoteEditorColumns.setIndependentScroll(el, true);
+        }
         setRenderKey(function (p) { return p + 1; });
-        h.past.push({ snapshot: current });
+        if (nxt.restoreSelection) w.requestAnimationFrame(function () { restoreEditorSelection(nxt.restoreSelection); });
+        h.past.push({ snapshot: current, restoreSelection: nxt.undoSelection || null, redoSelection: nxt.restoreSelection || null });
         lastPushAtRef.current = 0;
         triggerAutoSave();
         return;
@@ -161,6 +209,7 @@
       recordOp: recordOp,
       applyPatch: applyPatch,
       recordUndoPoint: recordUndoPoint,
+      recordUndoTransaction: recordUndoTransaction,
       undo: undo,
       redo: redo
     };

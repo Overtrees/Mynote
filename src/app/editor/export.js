@@ -298,6 +298,9 @@
             else clonedChecks[i].removeAttribute('checked');
           }
         }
+        if (w.MynoteEditorColumns && typeof w.MynoteEditorColumns.flatten === 'function') {
+          w.MynoteEditorColumns.flatten(clone, false);
+        }
         html = clone.innerHTML;
       } catch (_) { html = body.innerHTML || ''; }
     } else if (body && typeof body.innerHTML === 'string') {

@@ -46,6 +46,14 @@
     var escapeHTML = opts.escapeHTML;
     var onOpenWikiLink = opts.onOpenWikiLink;
 
+  function focusEditableBlock(host, block) {
+    if (w.MynoteEditorColumns && typeof w.MynoteEditorColumns.focusEditingHost === 'function') {
+      return w.MynoteEditorColumns.focusEditingHost(host, block);
+    }
+    if (host && typeof host.focus === 'function') host.focus();
+    return host;
+  }
+
   var handleEditorClick = useCallback(function (e) {
     var host = editorBodyRef.current;
     if (host) {
@@ -95,13 +103,13 @@
       p.dataset.blockid = bid;
       p.textContent = mdtext;
       mdBlock.replaceWith(p);
+      focusEditableBlock(editorBodyRef.current, p);
       // 聚焦到新段落
       var r = document.createRange();
       r.selectNodeContents(p);
       r.collapse(false);
       var s = window.getSelection();
       if (s) { s.removeAllRanges(); s.addRange(r); }
-      if (editorBodyRef.current) editorBodyRef.current.focus();
       clearTimeout(mdCheckTimerRef.current);
       return;
     }
@@ -120,6 +128,7 @@
           newP.dataset.blockid = window.MynoteId.genId();
           newP.innerHTML = '<br>';
           cardImg.parentNode.insertBefore(newP, cardImg.nextSibling);
+          focusEditableBlock(editorBodyRef.current, newP);
           var r2 = document.createRange();
           r2.setStart(newP, 0);
           r2.collapse(true);
@@ -196,6 +205,7 @@
         }
       }
       /* 光标放到最后一个可编辑段落末尾 */
+      focusEditableBlock(editorBodyRef.current, targetP);
       var range = document.createRange();
       range.selectNodeContents(targetP);
       range.collapse(false);
@@ -204,7 +214,6 @@
         sel.removeAllRanges();
         sel.addRange(range);
       }
-      targetP.focus();
       setEditorDocRef(docRef.current);
       docRef.current = parseEditorDOM(editorBodyRef.current);
       triggerAutoSave();
@@ -241,15 +250,16 @@
         if (mcIdx !== -1) {
           docMc[mcIdx].status = 'input';
         }
+        inputDiv.focus();
         var r3 = document.createRange();
         r3.selectNodeContents(inputDiv);
         r3.collapse(false);
+        inputDiv.focus();
         var s3 = window.getSelection();
         if (s3) {
           s3.removeAllRanges();
           s3.addRange(r3);
         }
-        inputDiv.focus();
       }
       if (url2) {
         // Chromium can retarget clicks inside contenteditable to the editing host; open the link explicitly.
@@ -270,6 +280,7 @@
         newP.dataset.blockid = window.MynoteId.genId();
         newP.innerHTML = '<br>';
         atomic.before(newP);
+        focusEditableBlock(el, newP);
         var range = document.createRange();
         range.selectNodeContents(newP);
         range.collapse(true);
@@ -278,7 +289,6 @@
           sel.removeAllRanges();
           sel.addRange(range);
         }
-        el.focus();
         setEditorDocRef(docRef.current);
         docRef.current = parseEditorDOM(el);
         triggerAutoSave();
@@ -296,6 +306,7 @@
           // 空段落加零宽空格确保光标可见
           next.innerHTML = '<br>';
         }
+        focusEditableBlock(el, next);
         var range = document.createRange();
         range.selectNodeContents(next);
         range.collapse(true);
@@ -304,7 +315,6 @@
           sel.removeAllRanges();
           sel.addRange(range);
         }
-        el.focus(); // 聚焦编辑器容器而非段落
       } else if (e.target.closest('.att-hint')) {
         e.preventDefault();
         e.stopPropagation();
@@ -375,7 +385,7 @@
         // 光标定位到文字末尾
         var textEl = todoBlock.querySelector('span:last-of-type');
         if (e.detail !== 0 && textEl && textEl !== checkbox && editorBodyRef.current) {
-          editorBodyRef.current.focus();
+          focusEditableBlock(editorBodyRef.current, todoBlock);
           var r = document.createRange();
           r.selectNodeContents(textEl);
           r.collapse(false);
@@ -388,11 +398,20 @@
 
   /* ===== Markdown 自动渲染（blur 时触发，延迟防抖） ===== */
 
-  var handleEditorBlur = useCallback(function () {
+  var handleEditorBlur = useCallback(function (e) {
+    var editorHost = editorBodyRef.current;
+    if (e && e.relatedTarget && editorHost && editorHost.contains(e.relatedTarget)) {
+      editorFocusedRef.current = true;
+      return;
+    }
     editorFocusedRef.current = false;
     // 等待焦点转移完成；若正文只是把焦点交给标题，键盘并未收起，不重置顶栏。
     requestAnimationFrame(function () {
       var active = document.activeElement;
+      if (editorHost && active && editorHost.contains(active)) {
+        editorFocusedRef.current = true;
+        return;
+      }
       var titleHasFocus = isEditingTitleRef.current || active && active.closest && active.closest('.editor-title-dock');
       if (titleHasFocus) return;
       if (window.visualViewport) window.scrollTo(0, 0);
@@ -410,6 +429,10 @@
     clearTimeout(mdCheckTimerRef.current);
     if (blurApplyingRef.current) return;
     mdCheckTimerRef.current = setTimeout(function () {
+      if (editorHost && document.activeElement && editorHost.contains(document.activeElement)) {
+        editorFocusedRef.current = true;
+        return;
+      }
       if (blurApplyingRef.current || closedRef.current || slashApplyingRef.current) return;
       blurApplyingRef.current = true;
       var el = editorBodyRef.current;

@@ -26,6 +26,71 @@ function memoWikiTargets(memo) {
   });
   return targets;
 }
+function restoreIndependentEditorLayout(element) {
+  if (!element || !element.classList || !element.classList.contains('is-independent-scroll')) return;
+  if (window.MynoteEditorColumns && typeof window.MynoteEditorColumns.setIndependentScroll === 'function') {
+    window.MynoteEditorColumns.setIndependentScroll(element, true);
+  }
+}
+function getAdjacentEditorBlock(host, block, direction) {
+  if (!host || !block) return null;
+  var blocks = window.MynoteEditorColumns && typeof window.MynoteEditorColumns.getBlocks === 'function'
+    ? window.MynoteEditorColumns.getBlocks(host)
+    : Array.prototype.slice.call(host.children || []);
+  var index = blocks.indexOf(block);
+  if (index >= 0) return blocks[index + direction] || null;
+  return direction < 0 ? block.previousElementSibling : block.nextElementSibling;
+}
+function focusEditorBlock(host, block) {
+  if (!host) return null;
+  if (window.MynoteEditorColumns && typeof window.MynoteEditorColumns.focusEditingHost === 'function') {
+    return window.MynoteEditorColumns.focusEditingHost(host, block);
+  }
+  if (typeof host.focus === 'function') host.focus();
+  return host;
+}
+function moveCaretAcrossEditorColumns(host, event) {
+  if (!host || !event || !['ArrowLeft', 'ArrowRight'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false;
+  var columns = window.MynoteEditorColumns;
+  if (!columns || typeof columns.getBlocks !== 'function' || !host.querySelector('.editor-column')) return false;
+  var selection = window.getSelection();
+  if (!selection || !selection.isCollapsed || !selection.focusNode) return false;
+  var focusNode = selection.focusNode;
+  var focusElement = focusNode.nodeType === 1 ? focusNode : focusNode.parentElement;
+  var block = focusElement && focusElement.closest ? focusElement.closest('[data-blockid]') : null;
+  var currentColumn = block && block.closest('.editor-column');
+  if (!block || !currentColumn || block.contentEditable === 'false' || block.dataset.musicUrl === 'pending') return false;
+  var offset;
+  try {
+    var measure = document.createRange();
+    measure.selectNodeContents(block);
+    measure.setEnd(focusNode, selection.focusOffset);
+    offset = measure.toString().length;
+  } catch (_) { return false; }
+  var textLength = (block.textContent || '').length;
+  var direction = event.key === 'ArrowLeft' ? -1 : 1;
+  if (direction < 0 ? offset !== 0 : offset !== textLength) return false;
+  var blocks = columns.getBlocks(host);
+  var index = blocks.indexOf(block);
+  if (index < 0) return false;
+  var candidate = null;
+  for (var i = index + direction; i >= 0 && i < blocks.length; i += direction) {
+    if (blocks[i].contentEditable === 'false' || blocks[i].tagName === 'HR') continue;
+    candidate = blocks[i];
+    break;
+  }
+  if (!candidate) return false;
+  var targetColumn = candidate.closest('.editor-column');
+  if (!targetColumn || targetColumn === currentColumn) return false;
+  event.preventDefault();
+  focusEditorBlock(host, candidate);
+  var targetRange = document.createRange();
+  targetRange.selectNodeContents(candidate);
+  targetRange.collapse(direction > 0);
+  selection.removeAllRanges();
+  selection.addRange(targetRange);
+  return true;
+}
 function Editor({
   memo,
   onClose,
@@ -86,6 +151,7 @@ const initialDoc = memo.doc || [{
           var el = editorBodyRef.current;
           if (el && domInited.current) {
             el.innerHTML = renderDocToEditorHTML(draft.doc, files);
+            restoreIndependentEditorLayout(el);
           }
         }
       }
@@ -223,6 +289,18 @@ const initialDoc = memo.doc || [{
   var editorWrapperRef = useRef(null);
   var editorBodyRef = useRef(null);
   var inputTimerRef = useRef(null);
+  const [independentColumns, setIndependentColumns] = useState(function () {
+    try { return window.localStorage.getItem('sj_editor_independent_scroll') === '1'; }
+    catch (_) { return false; }
+  });
+  var toggleIndependentColumns = useCallback(function () {
+    var next = !independentColumns;
+    var body = editorBodyRef.current;
+    if (body && window.MynoteEditorColumns) window.MynoteEditorColumns.setIndependentScroll(body, next);
+    try { window.localStorage.setItem('sj_editor_independent_scroll', next ? '1' : '0'); }
+    catch (_) {}
+    setIndependentColumns(next);
+  }, [independentColumns]);
 
   /* ---------- DOM contentEditable 输入管理（替代 textarea） ---------- */
   var dragState = useRef({
@@ -282,7 +360,7 @@ const initialDoc = memo.doc || [{
   var domInited = useRef(false);
   // 块级/原子块渲染后补一个可编辑空段落，保证光标有落点（集中一处，避免多份拷贝漂移）
   function ensureTrailingParagraphBlock(blockEl) {
-    var nx = blockEl.nextElementSibling;
+    var nx = getAdjacentEditorBlock(editorBodyRef.current, blockEl, 1);
     if (!nx || nx.contentEditable === 'false' || nx.tagName === 'HR' || nx.classList.contains('atomic')) {
       var tp = document.createElement('p');
       tp.dataset.blockid = genId();
@@ -310,6 +388,7 @@ const initialDoc = memo.doc || [{
       el.appendChild(trailP);
       docRef.current.push({ id: trailId, type: 'paragraph', children: [{ text: '' }] });
     }
+    restoreIndependentEditorLayout(el);
     /* 首次加载：应用渲染缓存 + 懒加载未缓存段落 */
     var pendingCache = {};
     /* 异步加载缓存，不阻塞 init render */
@@ -406,10 +485,19 @@ const initialDoc = memo.doc || [{
     // 自动聚焦
     if (autoFocus) {
       setTimeout(function () {
-        el.focus();
+        var firstBlock = window.MynoteEditorColumns && window.MynoteEditorColumns.getBlocks
+          ? window.MynoteEditorColumns.getBlocks(el)[0]
+          : el.firstElementChild;
+        focusEditorBlock(el, firstBlock);
       }, 200);
     }
   }, [files, memo.id]);
+
+  useEffect(function () {
+    var body = editorBodyRef.current;
+    if (!body || !domInited.current || !window.MynoteEditorColumns) return;
+    window.MynoteEditorColumns.setIndependentScroll(body, independentColumns);
+  }, [independentColumns, memo.id]);
 
   // 附件/卡片文件加载完成后更新编辑器中的原子块展示
   useEffect(function () {
@@ -522,6 +610,7 @@ useEffect(() => {
   titleValueRef.current = title;
 }, [title]);
 const TITLE_CAPSULE_MAX_CONTENT_W = 148;
+const TITLE_CARET_GUTTER = 16;
 function syncTitleCompositionLayout(el) {
   if (!el || !editingStyleSnapshot.current) return;
   const textLength = (el.textContent || '').length;
@@ -540,14 +629,15 @@ function syncTitleCompositionLayout(el) {
   scroller.style.minWidth = '0';
   scroller.style.maxWidth = '100%';
   scroller.style.boxSizing = 'border-box';
-  scroller.style.paddingLeft = isOverflow ? '16px' : '0px';
-  scroller.style.scrollPaddingInline = isOverflow ? '16px' : '0px';
+  scroller.style.paddingLeft = isOverflow ? TITLE_CARET_GUTTER + 'px' : '0px';
+  scroller.style.paddingRight = isOverflow ? TITLE_CARET_GUTTER + 'px' : '0px';
+  scroller.style.scrollPaddingInline = isOverflow ? TITLE_CARET_GUTTER + 'px' : '0px';
   el.style.fontSize = isLong ? '11px' : '14px';
   el.style.whiteSpace = isOverflow ? 'nowrap' : isLong ? 'normal' : 'nowrap';
   el.style.wordBreak = !isOverflow && isLong ? 'break-all' : 'normal';
   el.style.textAlign = isOverflow ? 'left' : 'center';
   el.style.minWidth = isOverflow ? 'max-content' : 'auto';
-  el.style.paddingRight = isOverflow ? '16px' : '0px';
+  el.style.paddingRight = '0px';
 }
 function commitTitleFromDOM(el) {
   if (!el) return titleValueRef.current;
@@ -646,6 +736,7 @@ var doSave = useCallback(d => {
   var lastSnapshotRef = History.lastSnapshotRef;
   var recordOp = History.recordOp;
   var recordUndoPoint = History.recordUndoPoint;
+  var recordUndoTransaction = History.recordUndoTransaction;
   var undo = History.undo;
   var redo = History.redo;
   var openImageTextSheet = useCallback(function (textArea) {
@@ -660,7 +751,7 @@ var doSave = useCallback(d => {
     if (!activeSheet || value === activeSheet.text) return;
     setImageTextSheet(function (current) { return current ? Object.assign({}, current, { text: value }) : current; });
     var body = editorBodyRef.current;
-    var block = body && Array.prototype.find.call(body.children, function (child) { return child.dataset.blockid === activeSheet.blockId; });
+    var block = body && body.querySelector('[data-blockid="' + activeSheet.blockId + '"]');
     var caption = block && block.querySelector(activeSheet.selector);
     if (!caption) return;
     caption.textContent = value;
@@ -675,8 +766,12 @@ var doSave = useCallback(d => {
     docRef: docRef,
     files: files,
     recordUndoPoint: recordUndoPoint,
+    recordUndoTransaction: recordUndoTransaction,
+    setEditorDocRef: setEditorDocRef,
+    isComposingRef: isComposingRef,
     triggerAutoSave: triggerAutoSave,
     mdCheckTimerRef: mdCheckTimerRef,
+    inputTimerRef: inputTimerRef,
     blurApplyingRef: blurApplyingRef,
     closedRef: closedRef,
     slashCommandDefs: window.MynoteSlashCommands || []
@@ -698,10 +793,36 @@ var doSave = useCallback(d => {
   var suppressPointerClickRef = Slash.suppressPointerClickRef;
   var pointerClickTimerRef = Slash.pointerClickTimerRef;
   var slashCommands = Slash.slashCommands;
+  var pendingLinkCommand = Slash.pendingLinkCommand;
+  var slashLinkUrl = Slash.slashLinkUrl;
+  var setSlashLinkUrl = Slash.setSlashLinkUrl;
+  var slashLinkError = Slash.slashLinkError;
+  var submitSlashLink = Slash.submitSlashLink;
+  var cancelSlashLink = Slash.cancelSlashLink;
   var setSlashTargetBlockId = function (v) { if (!v) Slash.slashTargetBlockRef.current = null; };
   var updateSlashStateFromSelection = Slash.updateSlashStateFromSelection;
   var applySlashCommand = Slash.applySlashCommand;
   var SlashSVGIcons = Slash.SVG_ICONS;
+
+  useEffect(function () {
+    var body = editorBodyRef.current;
+    if (!body) return;
+    var hosts = [body].concat(Array.prototype.slice.call(body.querySelectorAll('.editor-column[contenteditable="true"]')));
+    hosts.forEach(function (host) {
+      if (showSlash) {
+        host.setAttribute('aria-controls', 'mynote-slash-listbox');
+        host.setAttribute('aria-expanded', 'true');
+        host.setAttribute('aria-haspopup', pendingLinkCommand ? 'dialog' : 'listbox');
+        if (!pendingLinkCommand && slashCommands.length) host.setAttribute('aria-activedescendant', 'mynote-slash-option-' + slashSelectedIndex);
+        else host.removeAttribute('aria-activedescendant');
+      } else {
+        host.removeAttribute('aria-controls');
+        host.removeAttribute('aria-expanded');
+        host.removeAttribute('aria-haspopup');
+        host.removeAttribute('aria-activedescendant');
+      }
+    });
+  }, [showSlash, pendingLinkCommand, slashSelectedIndex, slashCommands.length, independentColumns]);
 
 const handleClose = async () => {
   if (isEditingTitleRef.current) {
@@ -967,7 +1088,8 @@ const handleClose = async () => {
       var endP = document.createElement('p');
       endP.dataset.blockid = genId();
       endP.innerHTML = '<br>';
-      el.appendChild(endP);
+      var appendColumn = el.querySelector('.editor-column[data-editor-column="right"]') || el;
+      appendColumn.appendChild(endP);
       insertBeforeEl = endP;
     }
     var temp = document.createElement('div');
@@ -983,6 +1105,7 @@ const handleClose = async () => {
       atomicEl.after(trailP);
       insertBeforeEl = trailP;
     }
+    focusEditorBlock(el, insertBeforeEl);
     var newRange = document.createRange();
     newRange.setStart(insertBeforeEl, 0);
     newRange.collapse(true);
@@ -1358,7 +1481,21 @@ const handleClose = async () => {
     if (curEl) {
       var seenBlockIds = Object.create(null);
       var repairedBlockIds = false;
-      Array.prototype.forEach.call(curEl.children, function (block) {
+      var editableColumns = curEl.querySelectorAll(':scope > .editor-column[contenteditable="true"]');
+      Array.prototype.forEach.call(editableColumns, function (column) {
+        Array.prototype.slice.call(column.childNodes || []).forEach(function (child) {
+          if (child.nodeType !== 3 || !child.textContent) return;
+          var paragraph = document.createElement('p');
+          paragraph.dataset.blockid = genId();
+          column.replaceChild(paragraph, child);
+          paragraph.appendChild(child);
+          repairedBlockIds = true;
+        });
+      });
+      var editorBlocks = window.MynoteEditorColumns && window.MynoteEditorColumns.getBlocks
+        ? window.MynoteEditorColumns.getBlocks(curEl)
+        : Array.prototype.slice.call(curEl.children || []);
+      editorBlocks.forEach(function (block) {
         if (!block || !block.dataset) return;
         var blockId = block.dataset.blockid;
         if (!blockId || seenBlockIds[blockId]) {
@@ -1492,6 +1629,7 @@ const handleClose = async () => {
             }
           } else {
             el.innerHTML = renderDocToEditorHTML(doc, filesRef.current);
+            restoreIndependentEditorLayout(el);
           }
         }
       }
@@ -1500,6 +1638,7 @@ const handleClose = async () => {
     }, 80);
   }, [triggerAutoSave, updateSlashStateFromSelection]);
   var handleEditorKeyDown = useCallback(function (e) {
+    if (isComposingRef.current || e.isComposing || e.nativeEvent && e.nativeEvent.isComposing || e.keyCode === 229) return;
     var host = editorBodyRef.current;
     var mdPreview = e.target && e.target.closest && e.target.closest('.md-preview.block[data-mdtext], .md-preview-inline[data-mdtext]');
     if (mdPreview && (e.key === 'Enter' || e.key === ' ')) {
@@ -1545,10 +1684,12 @@ const handleClose = async () => {
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        closeSlashPanel();
+        closeSlashPanel(true);
         return;
       }
     }
+
+    if (moveCaretAcrossEditorColumns(host, e)) return;
 
     /* ---- Enter 在非段落块中新建行 ---- */
     if (e.key === 'Enter' && !e.shiftKey && !showSlash) {
@@ -1592,35 +1733,25 @@ const handleClose = async () => {
       if (!blockEl || blockEl.contentEditable === 'false') return;
       var text = blockEl.textContent || '';
       if (sel.focusOffset === 0 && text === '') {
+        var hostEl = editorBodyRef.current;
+        var target = getAdjacentEditorBlock(hostEl, blockEl, -1);
+        while (target && target.contentEditable === 'false') target = getAdjacentEditorBlock(hostEl, target, -1);
+        // 首块或前面只有原子块时保留空段落，避免删除后选区失焦。
+        if (!target) { e.preventDefault(); return; }
         e.preventDefault();
-        var prevEl = blockEl.previousElementSibling;
         blockEl.remove();
-        /* 空段落 Backspace 不再连带删除前一个原子块（图片/附件/链接卡），只合拢光标 */
-        if (prevEl && prevEl.contentEditable === 'false') {
-          var target = prevEl.previousElementSibling;
-          while (target && target.contentEditable === 'false') target = target.previousElementSibling;
-          if (target) {
-            var range = document.createRange();
-            range.selectNodeContents(target);
-            range.collapse(false);
-            sel.removeAllRanges();
-            sel.addRange(range);
-            if (target.contentEditable !== 'false') target.focus();
-          }
-        } else if (prevEl) {
-          var range = document.createRange();
-          range.selectNodeContents(prevEl);
-          range.collapse(false);
-          sel.removeAllRanges();
-          sel.addRange(range);
-          if (prevEl.contentEditable !== 'false') prevEl.focus();
-        }
+        focusEditorBlock(hostEl, target);
+        var range = document.createRange();
+        range.selectNodeContents(target);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
         setEditorDocRef(docRef.current);
         docRef.current = parseEditorDOM(editorBodyRef.current);
         triggerAutoSave();
       }
     }
-  }, [triggerAutoSave, showSlash, slashCommands, slashSelectedIndex, applySlashCommand, openImageTextSheet]);
+  }, [triggerAutoSave, showSlash, slashCommands, slashSelectedIndex, applySlashCommand, openImageTextSheet, closeSlashPanel, isComposingRef]);
   var handleEditorPaste = useCallback(function (e) {
     var text = e.clipboardData && e.clipboardData.getData('text/plain');
     if (!text) return;
@@ -1668,14 +1799,14 @@ const handleClose = async () => {
       var mLoad = '<div contenteditable="false" data-blockid="' + mId + '" data-type="musicCard" data-url="' + escapeHTML(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
       musicInput.outerHTML = mLoad;
       var musicCardEl = editorBodyRef.current && editorBodyRef.current.querySelector('[data-blockid="' + mId + '"]');
-      var afterMusicCard = musicCardEl && musicCardEl.nextElementSibling;
+      var afterMusicCard = musicCardEl && getAdjacentEditorBlock(editorBodyRef.current, musicCardEl, 1);
       if (afterMusicCard && afterMusicCard.contentEditable !== 'false') {
+        focusEditorBlock(editorBodyRef.current, afterMusicCard);
         var afterRange = document.createRange();
         afterRange.selectNodeContents(afterMusicCard);
         afterRange.collapse(true);
         var afterSelection = window.getSelection();
         if (afterSelection) { afterSelection.removeAllRanges(); afterSelection.addRange(afterRange); }
-        afterMusicCard.focus();
       }
       triggerAutoSave();
       fetchLinkMeta(muUrl).then(function (meta) {
@@ -1744,12 +1875,13 @@ const handleClose = async () => {
         if (remain) {
           var el = editorBodyRef.current;
           if (!el) return;
-          var lastP = el.lastElementChild;
+          var appendColumn = el.querySelector('.editor-column[data-editor-column="right"]') || el;
+          var lastP = appendColumn.lastElementChild;
           if (!lastP || lastP.contentEditable === 'false' || lastP.tagName === 'HR') {
             lastP = document.createElement('p');
             lastP.dataset.blockid = window.MynoteId.genId();
             lastP.innerHTML = '<br>';
-            el.appendChild(lastP);
+            appendColumn.appendChild(lastP);
           }
           lastP.textContent = remain;
           setEditorDocRef(docRef.current);
@@ -1922,7 +2054,10 @@ const handleClose = async () => {
     setTimeout(function () {
       var el = editorBodyRef.current;
       if (el) {
-        el.focus();
+        var firstBlock = window.MynoteEditorColumns && window.MynoteEditorColumns.getBlocks
+          ? window.MynoteEditorColumns.getBlocks(el)[0]
+          : el.firstElementChild;
+        focusEditorBlock(el, firstBlock);
       }
     }, 300);
   }, [autoFocus]);
@@ -2114,7 +2249,8 @@ onPointerDown: function (e) {
         overflowX: "scroll",
         overflowY: "hidden",
         boxSizing: "border-box",
-        paddingLeft: isOverflow ? 16 : 0,
+        paddingLeft: isOverflow ? TITLE_CARET_GUTTER : 0,
+        paddingRight: isOverflow ? TITLE_CARET_GUTTER : 0,
         scrollPaddingInline: isOverflow ? 16 : 0,
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "none",
@@ -2139,6 +2275,8 @@ onPointerDown: function (e) {
       },
       onFocus: e => {
         isEditingTitleRef.current = true;
+        const titleScroller = e.currentTarget.parentElement;
+        if (titleScroller) titleScroller.scrollLeft = 0;
         const full = title || "";
         setEditingTitle(full);
         // 记录初始布局模式；文字变长时仅单向升级，避免频繁切换布局重置光标。
@@ -2230,8 +2368,8 @@ onPointerDown: function (e) {
         display: "block",
         // 编辑期间最小宽度撑开容器，保证 scrollLeft 可以正常工作
         minWidth: isOverflow ? "max-content" : "auto",
-        // 末尾留出空间，避免光标顶在滚动视口裁切边缘。
-        paddingRight: isOverflow ? 16 : 0
+        // 末尾安全区由滚动视口的对称内边距提供，避免右侧额外叠加。
+        paddingRight: 0
       }
     })), !editorScrolled && /*#__PURE__*/React.createElement("div", {
       className: "editor-title-meta",
@@ -2323,7 +2461,44 @@ onPointerDown: function (e) {
     style: {
       padding: 7
     }
-  }, /*#__PURE__*/React.createElement("button", {
+  }, React.createElement("button", {
+    type: "button",
+    className: "editor-column-mode-toggle",
+    role: "switch",
+    "aria-checked": independentColumns,
+    "aria-label": "双栏独立滚动",
+    onClick: toggleIndependentColumns,
+    style: {
+      width: "100%",
+      minHeight: 56,
+      border: "none",
+      background: "transparent",
+      borderRadius: "var(--radius-17)",
+      display: "flex",
+      alignItems: "center",
+      gap: 11,
+      padding: "8px 10px",
+      color: "var(--text-main)",
+      fontFamily: "inherit",
+      cursor: "pointer",
+      textAlign: "left"
+    }
+  }, React.createElement("span", {
+    style: { width: 24, height: 24, display: "grid", placeItems: "center", flex: "none", color: "var(--color-accent)" },
+    "aria-hidden": "true"
+  }, React.createElement("svg", {
+    viewBox: "0 0 24 24", width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round"
+  }, React.createElement("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }), React.createElement("path", { d: "M12 4v16" }))), React.createElement("span", {
+    style: { minWidth: 0, flex: 1 }
+  }, React.createElement("span", {
+    style: { display: "block", fontSize: "var(--font-14)", fontWeight: 650, letterSpacing: "-0.1px" }
+  }, "双栏独立滚动"), React.createElement("span", {
+    style: { display: "block", marginTop: 2, color: "var(--text-secondary)", fontSize: "var(--font-11)" }
+  }, "平板与 PC 可分别滚动两栏")), React.createElement("span", {
+    className: "editor-column-toggle-track",
+    "aria-hidden": "true",
+    "aria-checked": independentColumns ? "true" : "false"
+  }, React.createElement("span", { className: "editor-column-toggle-knob" }))), /*#__PURE__*/React.createElement("button", {
     onClick: function() { closeEditorMenu(); var h = history.current; if (h.past.length > 0) undo(); },
     style: {
       width: "100%",
@@ -2746,8 +2921,12 @@ onPointerDown: function (e) {
     }
   }, /*#__PURE__*/React.createElement("div", {
     ref: editorBodyRef,
-    className: "editor-body" + (!hasTyped && docRef.current && docRef.current.length === 1 && docRef.current[0].type === 'paragraph' && !(docRef.current[0].children && docRef.current[0].children[0] && docRef.current[0].children[0].text) ? ' show-placeholder' : ''),
-    contentEditable: true,
+    className: "editor-body" + (!hasTyped && docRef.current && docRef.current.length === 1 && docRef.current[0].type === 'paragraph' && !(docRef.current[0].children && docRef.current[0].children[0] && docRef.current[0].children[0].text) ? ' show-placeholder' : '') + (independentColumns ? ' is-independent-scroll' : ''),
+    contentEditable: independentColumns ? false : true,
+    'aria-controls': showSlash ? 'mynote-slash-listbox' : undefined,
+    'aria-expanded': showSlash ? 'true' : undefined,
+    'aria-haspopup': showSlash ? 'listbox' : undefined,
+    'aria-activedescendant': showSlash && slashCommands.length ? 'mynote-slash-option-' + slashSelectedIndex : undefined,
     suppressContentEditableWarning: true,
     onInput: function(e) { if (!hasTyped) setHasTyped(true); if (isComposingRef.current) return; handleEditorInput(e); },
     onCompositionStart: function() { isComposingRef.current = true; },
@@ -2757,7 +2936,7 @@ onPointerDown: function (e) {
     onClick: function(e) { handleEditorClick(e); handleTodoClick(e); },
     onBlur: handleEditorBlur,
     onFocus: handleEditorFocus,
-    tabIndex: 0,
+    tabIndex: independentColumns ? -1 : 0,
     style: {
       caretColor: "var(--text-main)",
       outline: "none"
@@ -2794,9 +2973,16 @@ onPointerDown: function (e) {
     slashSelectedIndex: slashSelectedIndex,
     setSlashSelectedIndex: setSlashSelectedIndex,
     applySlashCommand: applySlashCommand,
+    closeSlashPanel: closeSlashPanel,
     slashApplyingRef: slashApplyingRef,
     suppressPointerClickRef: suppressPointerClickRef,
     pointerClickTimerRef: pointerClickTimerRef,
+    pendingLinkCommand: pendingLinkCommand,
+    slashLinkUrl: slashLinkUrl,
+    setSlashLinkUrl: setSlashLinkUrl,
+    slashLinkError: slashLinkError,
+    submitSlashLink: submitSlashLink,
+    cancelSlashLink: cancelSlashLink,
     SVG_ICONS: SlashSVGIcons
   }), showColorPicker && /*#__PURE__*/React.createElement(BgSheet, {
     currentColor: bgColor,

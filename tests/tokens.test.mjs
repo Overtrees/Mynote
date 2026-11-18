@@ -197,6 +197,8 @@ test('编辑器大屏采用跨页双栏，窄屏手机横屏维持单栏，媒�
   assert.match(shell, /\.editor-spread > \.editor-body > \.atomic,[\s\S]*?break-inside:\s*avoid;/);
   assert.match(shell, /\.editor-spread > \.editor-body > \[data-type="musicCard"\][\s\S]*?column-span:\s*all;/);
   assert.match(shell, /@media \(orientation: landscape\) and \(max-height: 560px\) and \(max-width: 1099px\)[\s\S]*?column-count:\s*1;/);
+  assert.match(shell, /\.editor-column-mode-toggle\s*\{[^}]*display:\s*none\s*!important;/);
+  assert.match(shell, /@media \(min-width: 768px\) and \(min-height: 600px\), \(min-width: 1100px\)\s*\{[\s\S]*?\.editor-column-mode-toggle\s*\{\s*display:\s*flex\s*!important;/);
 });
 
 
@@ -214,6 +216,10 @@ test('双栏编辑模块的窄栏排版与控件适配有回归覆盖', () => {
   assert.match(editorCss, /\.editor-body \[data-type="todo"\] \.todo-checkbox::before\s*\{\s*width:\s*22px;\s*height:\s*22px/);
   assert.match(editor, /className: "editor-menu-panel"/);
   assert.match(editor, /aria-label": "打开更多菜单"/);
+  assert.match(editor, /className: "editor-column-mode-toggle"[\s\S]*?role: "switch"[\s\S]*?aria-checked": independentColumns/);
+  assert.match(editor, /sj_editor_independent_scroll/);
+  assert.match(read('src/editor/editor.render.js'), /function getEditorBlocks[\s\S]*?function setIndependentScroll[\s\S]*?var children = getEditorBlocks\(containerEl\)/);
+  assert.match(read('src/app/editor/export.js'), /MynoteEditorColumns\.flatten\(clone,\s*false\)/);
   assert.match(slash, /className: 'slash-panel'/);
   assert.match(slash, /className: 'slash-recent-pill'/);
   assert.match(slash, /className: 'slash-shortcut'/);

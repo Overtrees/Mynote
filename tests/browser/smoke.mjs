@@ -267,6 +267,208 @@ const menuLabels = await (async () => {
 })();
 check('编辑器菜单五项入口可见', menuLabels.length === 5 && ['撤销','重做','添加附件','导出笔记','更换背景色'].every(x => menuLabels.some(t => t.includes(x))), JSON.stringify(menuLabels));
 
+// ---- 双栏独立滚动模式真实菜单切换、偏好、编辑与历史回放 ----
+await page.setViewportSize({ width: 1024, height: 768 });
+await page.locator('.editor-fab.right').click();
+const columnModeSwitch = page.getByRole('switch', { name: '双栏独立滚动' });
+await columnModeSwitch.waitFor({ state: 'visible' });
+const defaultColumnMode = await columnModeSwitch.getAttribute('aria-checked');
+await columnModeSwitch.click();
+await page.waitForFunction(() => document.querySelector('.editor-body')?.classList.contains('is-independent-scroll'));
+const enabledColumnMode = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  return {
+    checked: document.querySelector('[role="switch"][aria-label="双栏独立滚动"]')?.getAttribute('aria-checked'),
+    stored: localStorage.getItem('sj_editor_independent_scroll'),
+    display: getComputedStyle(body).display,
+    columns: body.querySelectorAll(':scope > .editor-column').length,
+    hosts: { body: body.contentEditable, columns: [...body.querySelectorAll(':scope > .editor-column')].map(column => column.contentEditable) }
+  };
+});
+check('更多菜单可启用并保存双栏独立滚动偏好', defaultColumnMode === 'false' && enabledColumnMode.checked === 'true' && enabledColumnMode.stored === '1' && enabledColumnMode.display === 'grid' && enabledColumnMode.columns === 2 && enabledColumnMode.hosts.body === 'false' && enabledColumnMode.hosts.columns.every(value => value === 'true'), JSON.stringify({ defaultColumnMode, ...enabledColumnMode }));
+await page.locator('.editor-fab.right').click();
+await page.locator('.editor-menu-panel').waitFor({ state: 'hidden' });
+const crossColumnBackspaceSetup = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const left = body?.querySelector('.editor-column[data-editor-column="left"]');
+  const right = body?.querySelector('.editor-column[data-editor-column="right"]');
+  const target = right?.firstElementChild;
+  const previous = left?.lastElementChild;
+  if (!body || !target || !previous || target.tagName !== 'P') return null;
+  target.innerHTML = '<br>';
+  window.MynoteEditorColumns.focusEditingHost(body, target);
+  const range = document.createRange();
+  range.setStart(target, 0);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return { targetId: target.dataset.blockid, previousId: previous.dataset.blockid, previousText: previous.textContent };
+});
+if (!crossColumnBackspaceSetup) throw new Error('Could not prepare right-column leading empty paragraph');
+await page.keyboard.press('Backspace');
+await page.waitForFunction(id => !document.querySelector(`[data-blockid="${id}"]`), crossColumnBackspaceSetup.targetId);
+const crossColumnBackspace = await page.evaluate(expected => {
+  const body = document.querySelector('.editor-body');
+  const selection = window.getSelection();
+  const focusNode = selection?.focusNode;
+  const focusElement = focusNode?.nodeType === 1 ? focusNode : focusNode?.parentElement;
+  const focusBlock = focusElement?.closest('[data-blockid]');
+  let caretOffset = -1;
+  if (focusBlock && focusNode) {
+    const range = document.createRange();
+    range.selectNodeContents(focusBlock);
+    range.setEnd(focusNode, selection.focusOffset);
+    caretOffset = range.toString().length;
+  }
+  return {
+    targetRemoved: !body.querySelector(`[data-blockid="${expected.targetId}"]`),
+    focusBlockId: focusBlock?.dataset.blockid || '',
+    caretOffset,
+    expectedCaretOffset: expected.previousText.length,
+    columns: body.querySelectorAll(':scope > .editor-column').length
+  };
+}, crossColumnBackspaceSetup);
+check('右列首个空段落 Backspace 跨栏接回左列末块末尾', crossColumnBackspace.targetRemoved && crossColumnBackspace.focusBlockId === crossColumnBackspaceSetup.previousId && crossColumnBackspace.caretOffset === crossColumnBackspace.expectedCaretOffset && crossColumnBackspace.columns === 2, JSON.stringify(crossColumnBackspace));
+
+const crossColumnArrowSetup = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const left = body.querySelector('.editor-column[data-editor-column="left"]');
+  const right = body.querySelector('.editor-column[data-editor-column="right"]');
+  const previous = left.lastElementChild;
+  const target = right.firstElementChild;
+  const textNode = target && target.firstChild;
+  if (!previous || !target || !textNode || textNode.nodeType !== 3) return null;
+  window.MynoteEditorColumns.focusEditingHost(body, target);
+  const range = document.createRange();
+  range.setStart(textNode, 0);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return { previousId: previous.dataset.blockid, previousText: previous.textContent };
+});
+if (!crossColumnArrowSetup) throw new Error('Could not prepare cross-column arrow navigation');
+await page.keyboard.press('ArrowLeft');
+const crossColumnArrow = await page.evaluate(expected => {
+  const selection = window.getSelection();
+  const focusNode = selection?.focusNode;
+  const focusElement = focusNode?.nodeType === 1 ? focusNode : focusNode?.parentElement;
+  const focusBlock = focusElement?.closest('[data-blockid]');
+  let caretOffset = -1;
+  if (focusBlock && focusNode) {
+    const range = document.createRange();
+    range.selectNodeContents(focusBlock);
+    range.setEnd(focusNode, selection.focusOffset);
+    caretOffset = range.toString().length;
+  }
+  return { focusBlockId: focusBlock?.dataset.blockid || '', caretOffset, expectedCaretOffset: expected.previousText.length };
+}, crossColumnArrowSetup);
+check('左箭头从右列首块可按正文顺序跨栏导航', crossColumnArrow.focusBlockId === crossColumnArrowSetup.previousId && crossColumnArrow.caretOffset === crossColumnArrow.expectedCaretOffset, JSON.stringify(crossColumnArrow));
+
+const independentCaret = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const right = body.querySelector('.editor-column[data-editor-column="right"]');
+  const target = [...right.children].reverse().find(block => block.contentEditable !== 'false' && block.tagName !== 'HR' && block.tagName !== 'BR');
+  if (!target) return null;
+  window.MynoteEditorColumns.focusEditingHost(body, target);
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  range.collapse(false);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return { column: target.closest('.editor-column')?.dataset.editorColumn, blockId: target.dataset.blockid };
+});
+if (!independentCaret || independentCaret.column !== 'right') throw new Error('Could not focus the right-column editing host');
+await page.keyboard.type('INDEPENDENT_MODE_EDIT');
+await page.waitForTimeout(800);
+const independentTyped = await page.locator('.editor-body').innerText();
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(300);
+const independentUndo = await page.evaluate(() => ({
+  text: document.querySelector('.editor-body').innerText,
+  columns: document.querySelectorAll('.editor-body > .editor-column').length
+}));
+await page.keyboard.press('Control+Shift+z');
+await page.waitForTimeout(300);
+const independentRedo = await page.evaluate(() => ({
+  text: document.querySelector('.editor-body').innerText,
+  columns: document.querySelectorAll('.editor-body > .editor-column').length
+}));
+check('独立列内编辑及撤销/重做均保留列布局', independentTyped.includes('INDEPENDENT_MODE_EDIT') && !independentUndo.text.includes('INDEPENDENT_MODE_EDIT') && independentUndo.columns === 2 && independentRedo.text.includes('INDEPENDENT_MODE_EDIT') && independentRedo.columns === 2, JSON.stringify({ undoColumns: independentUndo.columns, redoColumns: independentRedo.columns }));
+
+const slashCaret = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const right = body.querySelector('.editor-column[data-editor-column="right"]');
+  const target = [...right.children].reverse().find(block => block.contentEditable !== 'false' && block.tagName === 'P');
+  if (!target) return false;
+  window.MynoteEditorColumns.focusEditingHost(body, target);
+  const range = document.createRange();
+  range.selectNodeContents(target);
+  range.collapse(false);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  return document.activeElement === right;
+});
+if (!slashCaret) throw new Error('Could not prepare slash command in the right-column editing host');
+await page.keyboard.press('Enter');
+await page.keyboard.type('/');
+await page.locator('.slash-row').first().waitFor({ state: 'visible', timeout: 5000 });
+await page.locator('.slash-row').filter({ hasText: '标题 1' }).first().click();
+await page.locator('.editor-body > .editor-column h1').last().waitFor({ state: 'visible', timeout: 5000 });
+const independentSlash = await page.evaluate(() => ({
+  columns: document.querySelectorAll('.editor-body > .editor-column').length,
+  headingInsideColumn: !!document.querySelector('.editor-body > .editor-column h1')
+}));
+check('独立列内斜杠命令可插入标题', independentSlash.columns === 2 && independentSlash.headingInsideColumn, JSON.stringify(independentSlash));
+await page.waitForTimeout(900);
+const independentSave = await page.evaluate(async () => {
+  const body = document.querySelector('.editor-body');
+  const db = await window.MynoteIdb.getDB();
+  const saved = (await window.MynoteIdb.loadMemosFromDB(db)).find(memo => memo.id === 'm_long');
+  const texts = (saved?.doc || []).map(node => node.children?.[0]?.text || '');
+  const parsed = window.MynoteEditor.parseEditorDOM(body).map(node => node.id || '');
+  const current = (window.MynoteEditor.getEditorDocRef() || []).map(node => node.id || '');
+  return {
+    hasTypedText: texts.some(text => text.includes('INDEPENDENT_MODE_EDIT')),
+    hasSlashHeading: saved?.doc?.some(node => node.type === 'heading' && node.attrs?.level === 1),
+    parsedOrderMatches: JSON.stringify(parsed) === JSON.stringify(current)
+  };
+});
+check('两列输入与斜杠命令按正文顺序保存到笔记', independentSave.hasTypedText && independentSave.hasSlashHeading && independentSave.parsedOrderMatches, JSON.stringify(independentSave));
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('button', { name: '导出笔记' }).click();
+await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+const independentHtmlDownloadPromise = page.waitForEvent('download');
+await page.getByRole('button', { name: '导出为 HTML' }).click();
+const independentHtmlDownload = await independentHtmlDownloadPromise;
+const independentHtmlStream = await independentHtmlDownload.createReadStream();
+let independentHtmlContent = '';
+for await (const chunk of independentHtmlStream) independentHtmlContent += chunk.toString();
+const independentHtmlCheck = await page.evaluate(html => {
+  const exported = new DOMParser().parseFromString(html, 'text/html');
+  return {
+    columnWrappers: exported.querySelectorAll('.editor-column').length,
+    hasMarker: exported.body.innerText.includes('INDEPENDENT_MODE_EDIT'),
+    hasSlashHeading: exported.querySelector('.editor-body h1')?.textContent || ''
+  };
+}, independentHtmlContent);
+check('独立模式下 HTML 导出保留正文但不导出列包装', independentHtmlCheck.columnWrappers === 0 && independentHtmlCheck.hasMarker && independentHtmlCheck.hasSlashHeading, JSON.stringify(independentHtmlCheck));
+
+await page.locator('.editor-fab.right').click();
+await page.getByRole('switch', { name: '双栏独立滚动' }).click();
+await page.waitForFunction(() => !document.querySelector('.editor-body')?.classList.contains('is-independent-scroll'));
+const disabledColumnMode = await page.evaluate(() => ({
+  stored: localStorage.getItem('sj_editor_independent_scroll'),
+  columns: document.querySelectorAll('.editor-body > .editor-column').length
+}));
+check('关闭模式后恢复线性正文并保存关闭状态', disabledColumnMode.stored === '0' && disabledColumnMode.columns === 0, JSON.stringify(disabledColumnMode));
+await page.locator('.editor-fab.right').click();
+await page.setViewportSize({ width: 430, height: 900 });
+
 await page.locator('.editor-fab.right').click();
 await page.getByRole('button', { name: '导出笔记' }).click();
 const exportDialog = page.getByRole('dialog', { name: '导出笔记' });
@@ -575,6 +777,221 @@ await page.locator('.image-text-sheet').waitFor();
 await page.locator('.image-text-sheet-backdrop').click({ position: { x: 10, y: 10 } });
 await page.waitForTimeout(300);
 check('点击背景关闭后焦点恢复到触发文本区', await page.locator('.image-text-sheet').count() === 0 && await page.locator('.editor-body .itc-text').evaluate(el => document.activeElement === el));
+
+await page.setViewportSize({ width: 1024, height: 768 });
+const slashColumns = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  if (body.querySelector('.editor-column')) window.MynoteEditorColumns.setIndependentScroll(body, false);
+  const seed = [
+    { id: 'slash-seed-left', type: 'paragraph', children: [{ text: '左栏回归起点' }] },
+    { id: 'slash-seed-right', type: 'paragraph', children: [{ text: '右栏回归起点' }] }
+  ];
+  window.MynoteEditor.setEditorDocRef(seed);
+  body.innerHTML = window.MynoteEditor.renderDocToEditorHTML(seed, {});
+  window.MynoteEditorColumns.setIndependentScroll(body, true);
+  return Array.from(body.querySelectorAll('.editor-column')).map(column => column.dataset.editorColumn);
+});
+check('斜杠专项回归在左右独立编辑列运行', slashColumns.join(',') === 'left,right', slashColumns.join(','));
+
+async function createSlashInput(id, columnName) {
+  await page.evaluate(({ id, columnName }) => {
+    const body = document.querySelector('.editor-body');
+    const column = body.querySelector(`.editor-column[data-editor-column="${columnName}"]`);
+    const p = document.createElement('p');
+    p.dataset.blockid = id;
+    p.innerHTML = '<br>';
+    column.appendChild(p);
+    window.MynoteEditorColumns.focusEditingHost(body, p);
+    const range = document.createRange();
+    range.selectNodeContents(p);
+    range.collapse(false);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }, { id, columnName });
+  await page.keyboard.type('/');
+  await page.locator('.slash-panel').waitFor({ state: 'visible' });
+}
+
+await createSlashInput('slash-keyboard', 'left');
+const slashMenuA11y = await page.evaluate(() => {
+  const list = document.querySelector('.slash-panel[role="listbox"]');
+  const first = list?.querySelector('[data-slash-index="0"]');
+  const icon = first?.querySelector('.slash-row-icon');
+  const title = first?.querySelector('.slash-row-title');
+  const subtitle = first?.querySelector('.slash-row-subtitle');
+  const style = node => node ? getComputedStyle(node) : null;
+  return { role: list?.getAttribute('role'), options: list?.querySelectorAll('[role="option"]').length || 0,
+    firstCommand: first?.dataset.slashId || '', activeDescendant: document.querySelector('.editor-column:focus')?.getAttribute('aria-activedescendant') || '',
+    rowHeight: first?.getBoundingClientRect().height || 0, iconWidth: icon?.getBoundingClientRect().width || 0,
+    iconHeight: icon?.getBoundingClientRect().height || 0, titleFontSize: style(title)?.fontSize || '', subtitleFontSize: style(subtitle)?.fontSize || '',
+    rowGap: style(first)?.columnGap || style(first)?.gap || '' };
+});
+check('斜杠菜单提供 listbox/option 语义与初始活动项', slashMenuA11y.role === 'listbox' && slashMenuA11y.options === 22 && !!slashMenuA11y.activeDescendant, JSON.stringify(slashMenuA11y));
+check('斜杠菜单触控热区、图标与标题/副标题字号符合设计', slashMenuA11y.rowHeight >= 48 && slashMenuA11y.iconWidth === 30 && slashMenuA11y.iconHeight === 30 && parseFloat(slashMenuA11y.titleFontSize) >= 14 && parseFloat(slashMenuA11y.subtitleFontSize) >= 12, JSON.stringify(slashMenuA11y));
+await page.keyboard.press('ArrowDown');
+await page.waitForTimeout(50);
+const slashMoved = await page.locator('.editor-column:focus').getAttribute('aria-activedescendant');
+check('斜杠菜单方向键更新活动命令', slashMoved && slashMoved !== slashMenuA11y.activeDescendant, slashMoved || '无活动项');
+const activeRowStyle = await page.locator('.slash-panel [aria-selected="true"]').evaluate(el => ({ focused: el === document.activeElement, background: getComputedStyle(el).backgroundColor }));
+check('键盘活动命令有可见选中状态', !activeRowStyle.focused && activeRowStyle.background !== 'rgba(0, 0, 0, 0)' && activeRowStyle.background !== 'transparent', JSON.stringify(activeRowStyle));
+await page.keyboard.press('ArrowUp');
+const keyboardSelectedId = await page.locator('.slash-panel [aria-selected="true"]').getAttribute('data-slash-id');
+check('方向键可返回初始活动命令', keyboardSelectedId === slashMenuA11y.firstCommand, `${keyboardSelectedId} / ${slashMenuA11y.firstCommand}`);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(150);
+const keyboardCommand = await page.evaluate(() => ({
+  type: window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-keyboard')?.type,
+  focusedColumn: document.activeElement?.dataset?.editorColumn || ''
+}));
+const keyboardExpectedTypes = { heading: 'heading', heading2: 'heading', heading3: 'heading', paragraph: 'paragraph', quote: 'quote', todo: 'todo', divider: 'divider', bold: 'paragraph', italic: 'paragraph', highlight: 'paragraph', codeBlock: 'paragraph', unorderedList: 'paragraph', orderedList: 'paragraph', callout: 'paragraph', imgTextCard: 'imgTextCard', imageTextRow: 'imageTextRow', link: 'paragraph', code: 'paragraph', strikethrough: 'paragraph', musicCard: 'musicCard', image: 'image', gallery: 'gallery' };
+check('斜杠菜单可用 Enter 应用活动命令并留在原编辑列', keyboardCommand.type === keyboardExpectedTypes[keyboardSelectedId] && keyboardCommand.focusedColumn === 'left', JSON.stringify({ ...keyboardCommand, command: keyboardSelectedId }));
+
+const slashCommands = [
+  ['heading', 'heading', ''], ['heading2', 'heading', ''], ['heading3', 'heading', ''],
+  ['paragraph', 'paragraph', ''], ['quote', 'quote', ''], ['todo', 'todo', ''],
+  ['divider', 'divider', ''], ['bold', 'paragraph', '**文字**'], ['italic', 'paragraph', '*文字*'],
+  ['highlight', 'paragraph', '==文字=='], ['codeBlock', 'paragraph', '```'], ['unorderedList', 'paragraph', '- 列表项'],
+  ['orderedList', 'paragraph', '1. 列表项'], ['callout', 'paragraph', '> [!NOTE]'], ['imgTextCard', 'imgTextCard', ''],
+  ['imageTextRow', 'imageTextRow', ''], ['link', 'paragraph', 'https://example.com/slash'], ['code', 'paragraph', '`文字`'],
+  ['strikethrough', 'paragraph', '~~文字~~'], ['musicCard', 'musicCard', ''], ['image', 'image', ''], ['gallery', 'gallery', '']
+];
+for (let i = 0; i < slashCommands.length; i++) {
+  const [commandId, expectedType, expectedText] = slashCommands[i];
+  const id = `slash-each-${commandId}`;
+  const columnName = i % 2 === 0 ? 'left' : 'right';
+  await createSlashInput(id, columnName);
+  const row = page.locator(`.slash-panel [data-slash-id="${commandId}"]`);
+  const available = await row.count();
+  check(`斜杠菜单包含 ${commandId} 命令`, available === 1);
+  if (!available) continue;
+  await row.click();
+  if (commandId === 'link') {
+    await page.locator('.slash-link-input').waitFor({ state: 'visible' });
+    await page.locator('.slash-link-input').fill('https://example.com/slash?q=1');
+    await page.locator('.slash-link-submit').click();
+  }
+  await page.waitForTimeout(130);
+  const state = await page.evaluate(id => {
+    const block = window.MynoteEditor.getEditorDocRef()?.find(item => item.id === id);
+    const node = document.querySelector(`.editor-body [data-blockid="${id}"]`);
+    return { type: block?.type || '', text: (block?.children || []).map(child => child.text || '').join(''),
+      level: block?.attrs?.level, fileId: block?.attrs?.fileId, items: block?.attrs?.items,
+      checked: block?.attrs?.checked, column: node?.closest('.editor-column')?.dataset.editorColumn || '' };
+  }, id);
+  let ok = state.type === expectedType && state.column === columnName;
+  if (expectedText) ok = ok && state.text.includes(expectedText);
+  if (commandId === 'heading') ok = ok && state.level === 1;
+  if (commandId === 'heading2') ok = ok && state.level === 2;
+  if (commandId === 'heading3') ok = ok && state.level === 3;
+  if (commandId === 'todo') ok = ok && state.checked === false;
+  if (commandId === 'imgTextCard' || commandId === 'imageTextRow' || commandId === 'image') ok = ok && state.fileId === '';
+  if (commandId === 'gallery') ok = ok && Array.isArray(state.items);
+  if (commandId === 'link') ok = ok && state.text.includes('[链接文字](https://example.com/slash?q=1)');
+  check(`独立双栏中 ${commandId} 命令应用、Markdown/普通文本与列归属正确`, ok, JSON.stringify(state));
+}
+
+const generatedPreview = await page.evaluate(() => {
+  const body = document.querySelector('.editor-body');
+  const left = body.querySelector('.editor-column[data-editor-column="left"]');
+  const right = body.querySelector('.editor-column[data-editor-column="right"]');
+  const make = (parent, id, source) => {
+    const p = document.createElement('p');
+    p.dataset.blockid = id;
+    p.textContent = source;
+    parent.appendChild(p);
+    const result = window.MynoteMdBlocks.renderSingleParagraph(p, source);
+    return { result, node: parent.querySelector(`[data-blockid="${id}"]`) };
+  };
+  const list = make(left, 'slash-preview-list', '- 第一项\n- 第二项');
+  const callout = make(right, 'slash-preview-callout', '> [!NOTE]\n> **提示内容**');
+  const inline = make(left, 'slash-preview-inline', '**普通文本加粗**');
+  const crossLeft = document.createElement('p');
+  crossLeft.textContent = '- 左列列表';
+  const crossRight = document.createElement('p');
+  crossRight.textContent = '- 右列列表';
+  left.appendChild(crossLeft);
+  right.appendChild(crossRight);
+  const grouped = window.MynoteMdBlocks.collectListGroup([crossLeft, crossRight], 0);
+  const crossReplacement = window.MynoteMdBlocks.replaceGroupWithPreview([crossLeft, crossRight], '- 左列列表\n- 右列列表', window.MynoteMd.renderMarkdownHtml('- 左列列表\n- 右列列表'));
+  const docs = window.MynoteEditor.getEditorDocRef() || [];
+  const markdown = window.MynoteEditorExport.toMarkdown(docs, '斜杠回归', []);
+  return {
+    listResult: list.result, listItems: list.node?.querySelectorAll('li').length || 0,
+    calloutResult: callout.result, calloutVisible: !!callout.node?.querySelector('.callout'), calloutStrong: !!callout.node?.querySelector('.callout strong'),
+    inlineResult: inline.result, inlinePreview: inline.node?.classList.contains('md-preview-inline') && !!inline.node.querySelector('strong'),
+    groupedCount: grouped.texts.length, crossReplacement: !!crossReplacement,
+    crossNodesRemain: !!crossLeft.parentNode && !!crossRight.parentNode,
+    markdownHasList: markdown.includes('- 列表项') && markdown.includes('1. 列表项'),
+    markdownHasCallout: markdown.includes('> [!NOTE]') && markdown.includes('提示内容'),
+    markdownHasLink: markdown.includes('https://example.com/slash?q=1')
+  };
+});
+check('斜杠生成的列表与 Callout 可渲染为块级 Markdown 预览', generatedPreview.listResult === 'block' && generatedPreview.listItems === 2 && generatedPreview.calloutResult === 'block' && generatedPreview.calloutVisible && generatedPreview.calloutStrong, JSON.stringify(generatedPreview));
+check('普通文本行内 Markdown 预览保留加粗语义', generatedPreview.inlineResult === 'inline' && generatedPreview.inlinePreview, JSON.stringify(generatedPreview));
+check('Markdown 列表分组不跨独立编辑列合并', generatedPreview.groupedCount === 1 && !generatedPreview.crossReplacement && generatedPreview.crossNodesRemain, JSON.stringify(generatedPreview));
+check('斜杠命令生成的列表、Callout 与链接可进入 Markdown 导出', generatedPreview.markdownHasList && generatedPreview.markdownHasCallout && generatedPreview.markdownHasLink, JSON.stringify(generatedPreview));
+
+await createSlashInput('slash-link-validation', 'right');
+await page.locator('.slash-panel [data-slash-id="link"]').click();
+await page.locator('.slash-link-input').waitFor({ state: 'visible' });
+await page.locator('.slash-link-input').fill('ftp://example.com/not-allowed');
+await page.locator('.slash-link-submit').click();
+const invalidLinkState = await page.evaluate(() => ({
+  error: document.querySelector('.slash-link-error')?.textContent || '',
+  role: document.querySelector('.slash-panel')?.getAttribute('role'),
+  blockType: window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-link-validation')?.type || ''
+}));
+check('链接命令拒绝非 HTTP(S) URL 并保留可修正输入表单', invalidLinkState.error.includes('http 或 https') && invalidLinkState.role === 'dialog' && invalidLinkState.blockType === 'paragraph', JSON.stringify(invalidLinkState));
+await page.locator('.slash-link-cancel').click();
+
+await createSlashInput('slash-repeat-token', 'left');
+await page.evaluate(() => {
+  const p = document.querySelector('[data-blockid="slash-repeat-token"]');
+  p.textContent = '前缀 /p 中间 /p 后缀';
+  const range = document.createRange();
+  range.setStart(p.firstChild, 5);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  p.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'p' }));
+});
+await page.locator('.slash-panel').waitFor({ state: 'visible' });
+await page.locator('.slash-panel [data-slash-id="paragraph"]').click();
+await page.waitForTimeout(150);
+const repeatedSlash = await page.evaluate(() => window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-repeat-token')?.children?.[0]?.text || '');
+check('重复 slash token 仅删除光标处活动 token', repeatedSlash === '前缀  中间 /p 后缀', repeatedSlash);
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(180);
+const repeatUndo = await page.evaluate(() => ({ text: window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-repeat-token')?.children?.[0]?.text || '',
+  column: document.activeElement?.dataset?.editorColumn || '',
+  offset: (() => { const block = document.querySelector('[data-blockid="slash-repeat-token"]'); const selection = window.getSelection(); return block && selection?.rangeCount ? window.MynoteDom.getTextOffsetWithin(block, selection.focusNode, selection.focusOffset) : null; })() }));
+check('斜杠命令撤销恢复原文本、列内焦点与 slash 光标位置', repeatUndo.text === '前缀 /p 中间 /p 后缀' && ['left', 'right'].includes(repeatUndo.column) && repeatUndo.offset === 5, JSON.stringify(repeatUndo));
+await page.keyboard.press('Control+Shift+z');
+await page.waitForTimeout(180);
+const repeatRedo = await page.evaluate(() => ({ text: window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-repeat-token')?.children?.[0]?.text || '',
+  column: document.activeElement?.dataset?.editorColumn || '',
+  offset: (() => { const block = document.querySelector('[data-blockid="slash-repeat-token"]'); const selection = window.getSelection(); return block && selection?.rangeCount ? window.MynoteDom.getTextOffsetWithin(block, selection.focusNode, selection.focusOffset) : null; })() }));
+check('斜杠命令重做再次只移除活动 token 并恢复列内光标', repeatRedo.text === '前缀  中间 /p 后缀' && ['left', 'right'].includes(repeatRedo.column) && repeatRedo.offset === 3, JSON.stringify(repeatRedo));
+
+await createSlashInput('slash-spaces', 'right');
+await page.evaluate(() => {
+  const p = document.querySelector('[data-blockid="slash-spaces"]');
+  p.textContent = '  前文  /b  后文  ';
+  const range = document.createRange();
+  range.setStart(p.firstChild, 8);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  p.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'b' }));
+});
+await page.locator('.slash-panel').waitFor({ state: 'visible' });
+await page.locator('.slash-panel [data-slash-id="bold"]').click();
+await page.waitForTimeout(150);
+const spacedText = await page.evaluate(() => window.MynoteEditor.getEditorDocRef()?.find(block => block.id === 'slash-spaces')?.children?.[0]?.text || '');
+check('行内斜杠命令保留句中与首尾空白并插入占位格式', spacedText === '  前文  **文字**  后文  ', JSON.stringify(spacedText));
 
 check('无 JS 异常', errors.length === 0, errors.slice(0, 3).join(' | '));
 

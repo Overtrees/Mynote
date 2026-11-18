@@ -5,180 +5,195 @@
 
   function SlashPanel(props) {
     var slashRef = props.slashRef;
-    var editorBodyRef = props.editorBodyRef;
     var slashAnchor = props.slashAnchor;
     var slashClosing = props.slashClosing;
     var slashEntered = props.slashEntered;
-    var slashCommands = props.slashCommands;
+    var slashCommands = props.slashCommands || [];
     var slashQuery = props.slashQuery;
     var slashSelectedIndex = props.slashSelectedIndex;
     var setSlashSelectedIndex = props.setSlashSelectedIndex;
     var applySlashCommand = props.applySlashCommand;
-    var slashApplyingRef = props.slashApplyingRef;
+    var closeSlashPanel = props.closeSlashPanel;
+    var pendingLinkCommand = props.pendingLinkCommand;
+    var slashLinkUrl = props.slashLinkUrl;
+    var setSlashLinkUrl = props.setSlashLinkUrl;
+    var slashLinkError = props.slashLinkError;
+    var submitSlashLink = props.submitSlashLink;
+    var cancelSlashLink = props.cancelSlashLink;
     var SVG_ICONS = props.SVG_ICONS || {};
-    var suppressPointerClickRef = props.suppressPointerClickRef;
-    var pointerClickTimerRef = props.pointerClickTimerRef;
-
     function hl(text) {
-      var q = (slashQuery || '').trim().toLowerCase();
-      if (!q || !text) return text;
-      var idx = text.toLowerCase().indexOf(q);
-      if (idx === -1) return text;
-      var before = text.slice(0, idx);
-      var match = text.slice(idx, idx + q.length);
-      var after = text.slice(idx + q.length);
-      return R.createElement(R.Fragment, null, before, R.createElement('mark', {
-        style: { background: 'var(--fill-accent-18)', color: 'var(--text-main)', borderRadius: 'var(--radius-3)', padding: '0 2px', fontWeight: 600 }
-      }, match), after);
+      var value = String(text || '');
+      var q = String(slashQuery || '').trim().toLowerCase();
+      if (!q || !value) return value;
+      var idx = value.toLowerCase().indexOf(q);
+      if (idx === -1) return value;
+      return R.createElement(R.Fragment, null,
+        value.slice(0, idx),
+        R.createElement('mark', { className: 'slash-match' }, value.slice(idx, idx + q.length)),
+        value.slice(idx + q.length));
     }
 
-    var prevLabel = null;
-    var flatIdx = -1;
+    function commandButtons() {
+      return slashRef.current ? Array.prototype.slice.call(slashRef.current.querySelectorAll('[data-slash-command]')) : [];
+    }
+
+    function focusCommand(index) {
+      var buttons = commandButtons();
+      if (!buttons.length) return;
+      var next = (index + buttons.length) % buttons.length;
+      setSlashSelectedIndex(next);
+      w.requestAnimationFrame(function () { if (buttons[next]) buttons[next].focus({ preventScroll: true }); });
+    }
+
+    function onPanelKeyDown(event) {
+      if (pendingLinkCommand) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          event.stopPropagation();
+          cancelSlashLink();
+        }
+        return;
+      }
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        focusCommand(slashSelectedIndex + 1);
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        focusCommand(slashSelectedIndex - 1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        focusCommand(0);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        focusCommand(slashCommands.length - 1);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        if (typeof closeSlashPanel === 'function') closeSlashPanel(true);
+      }
+    }
+
+    var previousSection = null;
+    var itemRows = [];
+    slashCommands.forEach(function (cmd, index) {
+      var isFirstSection = previousSection === null;
+      var showHeader = cmd.sectionLabel && cmd.sectionLabel !== previousSection;
+      previousSection = cmd.sectionLabel;
+      itemRows.push(R.createElement(R.Fragment, { key: cmd.id },
+        showHeader && R.createElement('div', {
+          className: 'slash-section-heading',
+          role: 'presentation',
+          style: { marginTop: isFirstSection ? 0 : 7 }
+        }, cmd.sectionLabel),
+        R.createElement('button', {
+          id: 'mynote-slash-option-' + index,
+          key: cmd.id + '-button',
+          type: 'button',
+          className: 'slash-row',
+          role: 'option',
+          'aria-selected': slashSelectedIndex === index ? 'true' : 'false',
+          'aria-label': [cmd.title, cmd.subtitle, cmd.shortcut ? '快捷键 ' + cmd.shortcut : ''].filter(Boolean).join('，'),
+          'data-slash-command': 'true',
+          'data-slash-id': cmd.id,
+          'data-slash-index': index,
+          tabIndex: slashSelectedIndex === index ? 0 : -1,
+          onPointerDown: function (event) {
+            setSlashSelectedIndex(index);
+            // 鼠标点选时保留编辑区原选区；触摸端不聚焦外层编辑容器，允许面板滚动。
+            if (event.pointerType === 'mouse') event.preventDefault();
+          },
+          onFocus: function () { setSlashSelectedIndex(index); },
+          onPointerEnter: function () { setSlashSelectedIndex(index); },
+          onMouseEnter: function () { setSlashSelectedIndex(index); },
+          onClick: function () { applySlashCommand(cmd); }
+        },
+          R.createElement('span', {
+            className: 'slash-row-icon',
+            'aria-hidden': 'true',
+            dangerouslySetInnerHTML: { __html: SVG_ICONS[cmd.icon] || '' }
+          }),
+          R.createElement('span', { className: 'slash-row-copy' },
+            R.createElement('span', { className: 'slash-row-title' },
+              R.createElement('span', { className: 'slash-row-title-text' }, hl(cmd.title)),
+              cmd.recent && R.createElement('span', { className: 'slash-recent-pill', 'aria-label': '最近使用' }, '最近')),
+            R.createElement('span', { className: 'slash-row-subtitle' }, hl(cmd.subtitle))),
+          cmd.shortcut && R.createElement('span', { className: 'slash-shortcut', 'aria-hidden': 'true' }, cmd.shortcut)
+        )
+      ));
+    });
+
+    var rootStyle = {
+      position: 'fixed',
+      zIndex: 9999,
+      left: slashAnchor.left,
+      top: slashAnchor.top,
+      width: slashAnchor.width,
+      maxHeight: 'min(320px, calc(100dvh - ' + (slashAnchor.top + 16) + 'px))',
+      overflowY: 'auto',
+      background: 'var(--glass-overlay-bg)',
+      backdropFilter: 'var(--glass-overlay-filter)',
+      WebkitBackdropFilter: 'var(--glass-overlay-filter)',
+      border: '0.5px solid var(--glass-overlay-border)',
+      borderRadius: 'var(--radius-22)',
+      padding: '8px',
+      color: 'var(--text-main)',
+      opacity: slashClosing ? 0 : slashEntered ? 1 : 0,
+      transform: slashClosing ? 'translateY(-4px)' : slashEntered ? 'translateY(0)' : 'translateY(-4px)',
+      transition: 'opacity 140ms ease, transform 140ms ease',
+      transformOrigin: 'top left',
+      WebkitOverflowScrolling: 'touch'
+    };
+
     return R.createElement('div', {
       ref: slashRef,
+      id: 'mynote-slash-listbox',
       className: 'slash-panel',
-      onTouchStart: function () {
-        // 阻止编辑器失焦：触摸面板时重新聚焦编辑器
-        // 不用 preventDefault，保留面板内滚动能力
-        if (editorBodyRef.current) editorBodyRef.current.focus();
-      },
-      style: {
-        position: 'fixed',
-        zIndex: 9999,
-        left: slashAnchor.left,
-        top: slashAnchor.top,
-        width: slashAnchor.width,
-        background: 'var(--glass-overlay-bg)',
-        backdropFilter: 'var(--glass-overlay-filter)',
-        WebkitBackdropFilter: 'var(--glass-overlay-filter)',
-        border: '0.5px solid var(--glass-overlay-border)',
-        borderRadius: 'var(--radius-22)',
-        padding: '10px 10px',
-        maxHeight: 280,
-        overflowY: 'auto',
-        opacity: slashClosing ? 0 : slashEntered ? 1 : 0,
-        transform: slashClosing ? 'scale(0.88) translateY(-6px)' : slashEntered ? 'scale(1) translateY(0)' : 'scale(0.88) translateY(-6px)',
-        transition: 'opacity 0.12s ease, transform 0.16s cubic-bezier(0.34,1.56,0.64,1)',
-        transformOrigin: 'top left'
-      }
-    },
-      slashCommands.length === 0 && R.createElement('div', {
-        style: { padding: '24px 12px 20px', color: 'var(--text-secondary)', fontSize: 'var(--font-13)', textAlign: 'center' }
-      },
-        R.createElement('svg', {
-          width: 28, height: 28, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor',
-          'stroke-width': '1.5', 'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-          style: { display: 'block', margin: '0 auto 8px', opacity: 0.4 }
-        },
-          R.createElement('circle', { cx: 8.5, cy: 8.5, r: 5.5 }),
-          R.createElement('line', { x1: 12.5, y1: 12.5, x2: 17, y2: 17 })),
-        '\u672A\u627E\u5230\u5339\u914D\u547D\u4EE4',
-        R.createElement('div', { style: { fontSize: 'var(--font-11)', marginTop: 8, lineHeight: 1.6, opacity: 0.5 } },
-          '\u8BD5\u8BD5\u62FC\u97F3\u9996\u5B57\u6BCD\uFF1A',
-          R.createElement('br', null),
-          R.createElement('span', { style: { background: 'var(--fill-hover)', padding: '1px 5px', borderRadius: 'var(--radius-4)', fontFamily: 'monospace', fontSize: 'var(--font-10)' } }, 'bt'),
-          ' \u6807\u9898 \xB7 ',
-          R.createElement('span', { style: { background: 'var(--fill-hover)', padding: '1px 5px', borderRadius: 'var(--radius-4)', fontFamily: 'monospace', fontSize: 'var(--font-10)' } }, 'tp'),
-          ' \u56FE\u7247 \xB7 ',
-          R.createElement('span', { style: { background: 'var(--fill-hover)', padding: '1px 5px', borderRadius: 'var(--radius-4)', fontFamily: 'monospace', fontSize: 'var(--font-10)' } }, 'yykp'),
-          ' \u97F3\u4E50')),
-      slashCommands.map(function (cmd) {
-        var showHeader = cmd.sectionLabel && cmd.sectionLabel !== prevLabel;
-        var isFirstSec = prevLabel === null;
-        prevLabel = cmd.sectionLabel;
-        flatIdx++;
-        var baseStyle = {
-          padding: '10px 12px',
-          borderRadius: 'var(--radius-16)',
-          cursor: 'pointer',
-          fontSize: 'var(--font-14)',
-          color: 'var(--text-main)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          position: 'relative',
-          overflow: 'hidden',
-          background: 'transparent',
-          marginBottom: 2
-        };
-        return R.createElement(R.Fragment, { key: cmd.id },
-          showHeader && R.createElement('div', {
-            style: {
-              padding: '6px 10px 4px',
-              fontSize: 'var(--font-11)',
-              fontWeight: 700,
-              letterSpacing: '0.4px',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-              opacity: 0.7,
-              marginTop: isFirstSec ? 0 : 8,
-              borderTop: isFirstSec ? 'none' : '0.5px solid var(--border-color)'
+      role: pendingLinkCommand ? 'dialog' : 'listbox',
+      'aria-label': pendingLinkCommand ? '插入链接' : '斜杠命令',
+      'aria-activedescendant': !pendingLinkCommand && slashCommands.length ? 'mynote-slash-option-' + slashSelectedIndex : undefined,
+      'aria-orientation': 'vertical',
+      onKeyDown: onPanelKeyDown,
+      style: rootStyle
+    }, pendingLinkCommand
+      ? R.createElement('form', { className: 'slash-link-form', onSubmit: submitSlashLink },
+          R.createElement('label', { className: 'slash-link-title', htmlFor: 'mynote-slash-link-url' }, '链接地址'),
+          R.createElement('input', {
+            id: 'mynote-slash-link-url',
+            className: 'slash-link-input',
+            type: 'url',
+            autoFocus: true,
+            inputMode: 'url',
+            autoComplete: 'url',
+            spellCheck: false,
+            required: true,
+            value: slashLinkUrl || '',
+            placeholder: 'https://example.com',
+            'aria-invalid': slashLinkError ? 'true' : 'false',
+            'aria-describedby': slashLinkError ? 'mynote-slash-link-error' : undefined,
+            onChange: function (event) { setSlashLinkUrl(event.target.value); },
+            onFocus: function (event) { event.currentTarget.select(); },
+            onKeyDown: function (event) {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                cancelSlashLink();
+              }
             }
-          }, cmd.sectionLabel),
-          R.createElement('div', {
-            className: 'slash-row',
-            onPointerDown: function () {
-              // 不 preventDefault，保留滚动；只阻止编辑器失焦
-              if (editorBodyRef.current) editorBodyRef.current.focus();
-              setSlashSelectedIndex(flatIdx);
-            },
-            onPointerUp: function (e) {
-              // PointerUp and the compatibility click are one physical gesture.
-              // Suppress the click even if a slow device outlasts the apply lock.
-              e.preventDefault();
-              suppressPointerClickRef.current = true;
-              clearTimeout(pointerClickTimerRef.current);
-              pointerClickTimerRef.current = setTimeout(function () {
-                suppressPointerClickRef.current = false;
-              }, 1000);
-              applySlashCommand(cmd);
-            },
-            onClick: function () {
-              // Keep click as a fallback for keyboard/older input paths, never as
-              // a second activation after pointerup.
-              if (suppressPointerClickRef.current) {
-                suppressPointerClickRef.current = false;
-                clearTimeout(pointerClickTimerRef.current);
-                return;
-              }
-              if (!slashApplyingRef.current) applySlashCommand(cmd);
-            },
-            onPointerEnter: function () { setSlashSelectedIndex(flatIdx); },
-            onMouseEnter: function () { setSlashSelectedIndex(flatIdx); },
-            style: baseStyle
-          },
-            R.createElement('div', {
-              style: {
-                width: 28, height: 28, borderRadius: 'var(--radius-8)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'var(--fill-hover-strong)', fontSize: 'var(--font-14)',
-                flex: '0 0 28px', position: 'relative', zIndex: 1
-              },
-              dangerouslySetInnerHTML: { __html: SVG_ICONS[cmd.icon] || '' }
-            }),
-            R.createElement('div', { style: { minWidth: 0, flex: 1, position: 'relative', zIndex: 1 } },
-              R.createElement('div', { style: { fontWeight: 600, fontSize: 'var(--font-14)', display: 'flex', alignItems: 'center', gap: 6 } },
-                R.createElement('span', null, hl(cmd.title)),
-                cmd.recent && R.createElement('span', {
-                  className: 'slash-recent-pill',
-                  style: {
-                    fontSize: 'var(--font-10)', color: 'var(--glass-label-color)',
-                    background: 'var(--glass-control-bg)',
-                    padding: '1px 6px', borderRadius: 'var(--radius-999)', border: '0.5px solid var(--glass-control-border)'
-                  }
-                }, '\u6700\u8FD1')),
-              R.createElement('div', { style: { fontSize: 'var(--font-12)', color: 'var(--text-secondary)', marginTop: 3 } }, hl(cmd.subtitle))),
-            cmd.shortcut && R.createElement('div', {
-              className: 'slash-shortcut',
-              style: {
-                fontSize: 'var(--font-10)', fontFamily: 'var(--font-family-mono)',
-                color: 'var(--text-secondary)', opacity: 0.5, flexShrink: 0,
-                padding: '2px 6px', borderRadius: 'var(--radius-6)', background: 'var(--fill-hover)',
-                position: 'relative', zIndex: 1
-              }
-            }, cmd.shortcut)));
-      }));
+          }),
+          slashLinkError && R.createElement('div', { id: 'mynote-slash-link-error', className: 'slash-link-error', role: 'alert' }, slashLinkError),
+          R.createElement('div', { className: 'slash-link-actions' },
+            R.createElement('button', { type: 'button', className: 'slash-link-cancel', onClick: cancelSlashLink }, '取消'),
+            R.createElement('button', { type: 'submit', className: 'slash-link-submit' }, '插入链接')))
+      : slashCommands.length === 0
+        ? R.createElement('div', { className: 'slash-empty-state', role: 'status' },
+            R.createElement('svg', {
+              width: 28, height: 28, viewBox: '0 0 20 20', fill: 'none', stroke: 'currentColor',
+              'strokeWidth': '1.5', 'strokeLinecap': 'round', 'strokeLinejoin': 'round', 'aria-hidden': 'true'
+            }, R.createElement('circle', { cx: 8.5, cy: 8.5, r: 5.5 }), R.createElement('line', { x1: 12.5, y1: 12.5, x2: 17, y2: 17 })),
+            R.createElement('div', null, '未找到匹配命令'),
+            R.createElement('div', { className: 'slash-empty-hint' }, '试试拼音首字母：',
+              R.createElement('kbd', null, 'bt'), ' 标题 · ', R.createElement('kbd', null, 'tp'), ' 图片 · ', R.createElement('kbd', null, 'yykp'), ' 音乐'))
+        : itemRows
+    );
   }
 
   w.MynoteSlashPanel = SlashPanel;
