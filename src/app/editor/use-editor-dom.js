@@ -556,16 +556,11 @@
           delete docMu3[muIdx3].children;
         }
           setEditorDocRef(docRef.current);
-          /* 显示加载骨架 */
-          var loadDiv = document.createElement('div');
-          loadDiv.contentEditable = 'false';
-          loadDiv.dataset.blockid = muId;
-          loadDiv.dataset.type = 'musicCard';
-          loadDiv.dataset.url = muUrl3;
-          loadDiv.innerHTML = '<div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div>';
-          loadDiv.className = 'link-card-skeleton';
-          loadDiv.style.cssText = '';
-          muP.replaceWith(loadDiv);
+          /* 显示加载骨架：与其它加载路径共用 renderAtomicHTML，保证骨架与成品卡同形 */
+          var skeletonHolder = document.createElement('div');
+          skeletonHolder.innerHTML = renderAtomicHTML({ id: muId, type: 'musicCard', url: muUrl3, meta: null, status: 'loading' }, files);
+          var loadDiv = skeletonHolder.firstElementChild;
+          if (loadDiv) muP.replaceWith(loadDiv);
           /*
            * 异步获取元数据
            * 注意：doc 中的 status 已在上面改为 loading

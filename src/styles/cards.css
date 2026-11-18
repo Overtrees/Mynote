@@ -106,51 +106,11 @@
     border-radius: 50%;
     animation: mynoteSkeletonSpin 1s linear infinite;
 }
-.editor-body .link-card-skeleton[data-type="musicCard"].music-card-paste-transition .link-card-skeleton-cover {
-    background: var(--music-skeleton-base);
-    aspect-ratio: 1 / 1;
-    animation: mynoteMusicSkeletonSquareTransition 280ms ease-out both;
-}
-.editor-body .link-card-skeleton[data-type="musicCard"].music-card-paste-transition .link-card-skeleton-cover::after {
-    position: absolute;
-    inset: 0;
-    width: auto;
-    height: auto;
-    border: 0;
-    border-radius: 0;
-    background-image: linear-gradient(100deg, transparent 30%, var(--music-skeleton-shimmer) 50%, transparent 70%);
-    background-size: 220% 100%;
-    animation: mynoteMusicSkeletonShimmer 1.35s ease-in-out infinite;
-}
 @keyframes mynoteSkeletonSpin { to { transform: rotate(360deg); } }
-@keyframes mynoteMusicSkeletonSquareTransition {
-    from { aspect-ratio: 2.4 / 1; }
-    to { aspect-ratio: 1 / 1; }
-}
-@keyframes mynoteMusicSkeletonShimmer {
-    from { background-position: 100% 0; }
-    to { background-position: -100% 0; }
-}
 @media (prefers-reduced-motion: reduce) {
     .editor-body .link-card-skeleton-cover::after { animation: none; }
-    .editor-body .link-card-skeleton[data-type="musicCard"].music-card-paste-transition .link-card-skeleton-cover {
-        animation: none;
-        aspect-ratio: 1 / 1;
-    }
-    .editor-body .link-card-skeleton[data-type="musicCard"].music-card-paste-transition .link-card-skeleton-cover::after {
-        animation: none;
-        background-image: none;
-    }
 }
-.link-card-skeleton[data-type="musicCard"] {
-    box-sizing: border-box;
-    width: min(100%, 320px);
-    max-width: 100%;
-}
-.link-card-skeleton[data-type="musicCard"] .link-card-skeleton-cover {
-    aspect-ratio: 2.4 / 1;
-}
-.link-card-skeleton[data-type="musicCard"] .link-card-skeleton-body {
+.link-card-skeleton-body {
     display: none;
 }
 .link-card-skeleton-body {

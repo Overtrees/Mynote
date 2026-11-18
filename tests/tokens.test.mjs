@@ -134,24 +134,32 @@ test('卡片、面板、控件玻璃材质不提亮、不加高光或投影', ()
   assert.doesNotMatch(preview, /box-shadow|text-shadow|brightness\s*\(|contrast\s*\(|glass-edge|glass-caustic/i);
 });
 
-test('普通音乐骨架保持横向，仅音乐卡片编辑态粘贴才过渡为方形并扫光', () => {
+test('音乐加载骨架与成品卡同形：整宽、32px 圆角、横向封面、正文骨架可见，无方形过渡', () => {
   const tokens = read('src/styles/tokens.css');
   const cards = read('src/styles/cards.css');
+  const shell = read('src/styles/editor-shell.css');
   const renderer = read('src/editor/editor.render.js');
   const runtime = read('src/app/runtime.js');
   const editor = read('src/app/editor.js');
-  assert.match(tokens, /--music-skeleton-base:\s*#e9e9ee;[\s\S]*--music-skeleton-shimmer:\s*rgba\(255, 255, 255, 0\.9\);/);
-  assert.match(tokens, /@media \(prefers-color-scheme: dark\)[\s\S]*--music-skeleton-base:\s*#2a2a2e;[\s\S]*--music-skeleton-shimmer:\s*rgba\(255, 255, 255, 0\.12\);/);
-  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\] \.link-card-skeleton-cover\s*\{\s*aspect-ratio:\s*2\.4\s*\/\s*1;/);
-  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover\s*\{[\s\S]*?animation:\s*mynoteMusicSkeletonSquareTransition 280ms ease-out both;/);
-  assert.match(cards, /\.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover::after\s*\{[\s\S]*?animation:\s*mynoteMusicSkeletonShimmer 1\.35s ease-in-out infinite;/);
-  assert.equal((cards.match(/animation:\s*mynoteMusicSkeletonShimmer/g) || []).length, 1, '扫光动画只能有一个限定作用域');
-  assert.match(cards, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.editor-body \.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover\s*\{\s*animation:\s*none;\s*aspect-ratio:\s*1\s*\/\s*1;/);
-  assert.match(cards, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.editor-body \.link-card-skeleton\[data-type="musicCard"\]\.music-card-paste-transition \.link-card-skeleton-cover::after\s*\{\s*animation:\s*none;\s*background-image:\s*none;/);
-  assert.match(renderer, /options && options\.pasteSquareTransition \? ' music-card-paste-transition'/);
+  const editorDom = read('src/app/editor/use-editor-dom.js');
+  // 不再有方形过渡 / 扫光 / 音乐骨架专属令牌
+  assert.doesNotMatch(cards, /music-card-paste-transition|mynoteMusicSkeleton|music-skeleton/);
+  assert.doesNotMatch(tokens, /--music-skeleton/);
+  assert.doesNotMatch(renderer, /pasteSquareTransition/);
+  assert.doesNotMatch(editor, /pasteSquareTransition|shouldAnimatePasteSquare/);
+  // 不再有 320px 上限、26px 圆角、正文隐藏的音乐骨架专属规则
+  assert.doesNotMatch(cards, /\.link-card-skeleton\[data-type="musicCard"\]/);
+  assert.doesNotMatch(shell, /\.link-card-skeleton\[data-type="musicCard"\]/);
+  // 通用骨架即成品卡外形：32px 圆角、封面 2.4/1、正文区与成品 .lkc-body 同内边距
+  assert.match(cards, /\.link-card-skeleton \{[\s\S]*?border-radius: var\(--radius-32\);/);
+  assert.match(cards, /\.link-card-skeleton-cover \{\s*width: 100%;\s*aspect-ratio: 2\.4 \/ 1;/);
+  assert.match(cards, /\.link-card-skeleton-body \{\s*padding: 10px 14px 12px;/);
+  // 渲染器输出三行正文骨架（标题/副标题/来源），三条加载路径共用 renderAtomicHTML
+  assert.match(renderer, /class="link-card-skeleton"><div class="link-card-skeleton-cover"><\/div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"><\/div><div class="link-card-skeleton-line" style="width:50%;"><\/div><div class="link-card-skeleton-line" style="width:35%;"><\/div>/);
+  assert.match(editor, /renderAtomicHTML\(\{ id: cardId, type: 'musicCard', url: url, meta: null, status: 'loading' \}, files\)/);
+  assert.match(editorDom, /renderAtomicHTML\(\{ id: muId, type: 'musicCard', url: muUrl3, meta: null, status: 'loading' \}, files\)/);
   assert.match(runtime, /function renderAtomicHTML\(node, files, options\)/);
   assert.match(runtime, /window\.MynoteEditor\.renderAtomicHTML\(node, files, options\)/);
-  assert.match(editor, /shouldAnimatePasteSquare = !!\(transaction && transaction\.pasteIntoMusicInput\)/);
   assert.match(editor, /pasteIntoMusicInput: pasteIntoMusicInput/);
   assert.doesNotMatch(editor, /insertLinkCardAtDOM\(embeddedUrl,\s*true\)/);
   assert.match(editor, /function focusCaretBelowResolvedCard\(\)/);

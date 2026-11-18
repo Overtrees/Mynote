@@ -137,7 +137,7 @@ try {
     assert.ok(state.widthBoundCards.every(card => card.width <= card.parent + 1), `${item.name}: 至少一张 atomic/媒体卡超出父级宽度 ${JSON.stringify(state.widthBoundCards)}`);
     assert.ok(state.wrappedTexts.every(text => text.scroll <= text.client + 1), `${item.name}: 长文本仍存在横向溢出 ${JSON.stringify(state.wrappedTexts.filter(text => text.scroll > text.client + 1))}`);
     assert.ok(Math.abs(state.musicSkeleton.ratio - 2.4) < 0.03, `${item.name}: 普通音乐加载骨架应保持横向比例 (${JSON.stringify(state.musicSkeleton)})`);
-    assert.equal(state.musicSkeleton.radius, '26px', `${item.name}: 音乐加载骨架圆角不是26px`);
+    assert.equal(state.musicSkeleton.radius, '32px', `${item.name}: 音乐加载骨架圆角应与成品卡一致（32px）`);
     assert.equal(state.combo.skeleton.present, true, `${item.name}: 普通链接骨架未被引用`);
     assert.equal(state.combo.skeleton.animation, 'mynoteSkeletonSpin', `${item.name}: 链接骨架旋转加载动画未生效`);
     assert.equal(state.combo.skeleton.breakInside, 'avoid', `${item.name}: 链接骨架允许在内容流中被拆分`);

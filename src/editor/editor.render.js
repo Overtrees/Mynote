@@ -467,8 +467,8 @@
         return muHtml2;
       }
       if (muStatus === 'loading' && muUrl) {
-        var skeletonClass = 'link-card-skeleton' + (options && options.pasteSquareTransition ? ' music-card-paste-transition' : '');
-        return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '" class="' + skeletonClass + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div></div></div>';
+        // 骨架与成品卡同形：整宽、封面 2.4/1、正文区三行骨架（标题/副标题/来源）
+        return '<div contenteditable="false" data-blockid="' + escapeHTML(node.id) + '" data-type="musicCard" data-url="' + safeHttpUrl(muUrl) + '" class="link-card-skeleton"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%;"></div><div class="link-card-skeleton-line" style="width:50%;"></div><div class="link-card-skeleton-line" style="width:35%;"></div></div></div>';
       }
       if (muUrl && muStatus === 'error') {
         var safeMusicUrl = safeHttpUrl(muUrl);

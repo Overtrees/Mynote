@@ -1524,7 +1524,7 @@ const handleClose = async () => {
   }, [files, triggerAutoSave]);
 
   /* ===== Link card insertion ===== */
-  var insertLinkCardAtDOM = useCallback(async function (url, pasteSquareTransition) {
+  var insertLinkCardAtDOM = useCallback(async function (url) {
     recordUndoPoint();
     var cardId = genId();
     var domain = '';
@@ -1536,8 +1536,9 @@ const handleClose = async () => {
     /* 检测是否为音乐平台链接 → 自动升级为音乐卡片 */
     var isMusic = /music\.163\.com|163cn\.tv|y\.qq\.com|i\.y\.qq\.com|open\.spotify\.com|music\.apple\.com/.test(url);
     var cardType = isMusic ? 'musicCard' : 'link-card';
-    var skeletonClass = 'link-card-skeleton' + (isMusic && pasteSquareTransition ? ' music-card-paste-transition' : '');
-    var html = '<div contenteditable="false" class="' + skeletonClass + '" data-blockid="' + cardId + '" data-type="' + cardType + '" data-url="' + escapeHTML(url) + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%"></div><div class="link-card-skeleton-line" style="width:50%"></div></div></div>';
+    var html = isMusic
+      ? renderAtomicHTML({ id: cardId, type: 'musicCard', url: url, meta: null, status: 'loading' }, files)
+      : '<div contenteditable="false" class="link-card-skeleton" data-blockid="' + cardId + '" data-type="' + cardType + '" data-url="' + escapeHTML(url) + '"><div class="link-card-skeleton-cover"></div><div class="link-card-skeleton-body"><div class="link-card-skeleton-line" style="width:75%"></div><div class="link-card-skeleton-line" style="width:50%"></div></div></div>';
     docRef.current.push({
       id: cardId,
       type: cardType,
@@ -1651,7 +1652,6 @@ const handleClose = async () => {
     } catch (_) { return false; }
 
     var shouldAdvanceCaret = !!(transaction && transaction.pasteIntoMusicInput) || musicInput === document.activeElement || musicInput.contains(document.activeElement);
-    var shouldAnimatePasteSquare = !!(transaction && transaction.pasteIntoMusicInput);
     if (transaction && transaction.restoreTarget && transaction.targetBlock && transaction.targetBlock !== musicInput && host.contains(transaction.targetBlock) && (transaction.removeTarget || transaction.beforeHTML != null)) {
       if (transaction.removeTarget) transaction.targetBlock.remove();
       else transaction.targetBlock.innerHTML = transaction.beforeHTML;
@@ -1666,7 +1666,7 @@ const handleClose = async () => {
     delete loadingNode.children;
     doc[index] = loadingNode;
     setEditorDocRef(doc);
-    musicInput.outerHTML = renderAtomicHTML(loadingNode, files, { pasteSquareTransition: shouldAnimatePasteSquare });
+    musicInput.outerHTML = renderAtomicHTML(loadingNode, files);
     if (shouldAdvanceCaret) {
       var loadingSelection = window.getSelection();
       if (loadingSelection) loadingSelection.removeAllRanges();
