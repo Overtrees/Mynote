@@ -1,5 +1,3 @@
-# Mynote
-
 <p align="center">
   <a href="https://overtrees.github.io/Mynote"><img src="./Mynoteicon.png" width="80" alt="此刻"></a>
 </p>

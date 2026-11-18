@@ -172,6 +172,17 @@
   /* 尺寸与安全区 */
   --safe-bottom: env(safe-area-inset-bottom);
   --page-padding-x: 20px;
+  --editor-menu-icon-size: 20px;
+  --editor-menu-icon-slot-size: 24px;
+  --editor-menu-icon-color: var(--color-accent);
+  --editor-column-switch-width: 42px;
+  --editor-column-switch-height: 26px;
+  --editor-column-switch-inset: 3px;
+  --editor-column-switch-knob-size: 20px;
+  --editor-column-switch-knob-travel: 16px;
+  --editor-column-switch-off-bg: #d1d1d6;
+  --editor-column-switch-on-bg: var(--color-accent);
+  --editor-column-switch-knob-bg: #ffffff;
 
   /* 启动页专用 */
   --launch-bg: #ffffff;
@@ -220,6 +231,7 @@
     --glass-label-color: #d1d1d6;
     --glass-label-accent: #72b7ff;
     --glass-focus-ring: #72b7ff;
+    --editor-column-switch-off-bg: #48484a;
     --glass-bg: var(--glass-content-bg);
     --glass-border: var(--glass-content-border);
     --glass-saturate: 1.35;

@@ -12,6 +12,7 @@
  *       原子恢复（stage 失败不改数据 / commit 失败整体回滚 / 成功路径生效）。
  */
 import { chromium } from 'playwright-core';
+import { readFile } from 'node:fs/promises';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
 const CHROME = process.env.CHROME || '/usr/bin/chromium';
@@ -272,9 +273,26 @@ await page.setViewportSize({ width: 1024, height: 768 });
 await page.locator('.editor-fab.right').click();
 const columnModeSwitch = page.getByRole('switch', { name: '双栏独立滚动' });
 await columnModeSwitch.waitFor({ state: 'visible' });
+await page.waitForTimeout(300);
 const defaultColumnMode = await columnModeSwitch.getAttribute('aria-checked');
+const defaultColumnModeStyle = await page.evaluate(() => {
+  const toggle = document.querySelector('.editor-column-mode-toggle');
+  const track = toggle?.querySelector('.editor-column-toggle-track');
+  const knob = toggle?.querySelector('.editor-column-toggle-knob');
+  const icon = toggle?.querySelector('.editor-column-mode-icon svg');
+  return {
+    trackWidth: track?.getBoundingClientRect().width || 0,
+    trackHeight: track?.getBoundingClientRect().height || 0,
+    trackColor: track ? getComputedStyle(track).backgroundColor : '',
+    knobWidth: knob?.getBoundingClientRect().width || 0,
+    iconWidth: icon?.getBoundingClientRect().width || 0,
+    iconHeight: icon?.getBoundingClientRect().height || 0,
+    inlineStyle: toggle?.getAttribute('style') || ''
+  };
+});
 await columnModeSwitch.click();
 await page.waitForFunction(() => document.querySelector('.editor-body')?.classList.contains('is-independent-scroll'));
+await page.waitForTimeout(200);
 const enabledColumnMode = await page.evaluate(() => {
   const body = document.querySelector('.editor-body');
   return {
@@ -282,10 +300,13 @@ const enabledColumnMode = await page.evaluate(() => {
     stored: localStorage.getItem('sj_editor_independent_scroll'),
     display: getComputedStyle(body).display,
     columns: body.querySelectorAll(':scope > .editor-column').length,
+    trackColor: getComputedStyle(document.querySelector('.editor-column-toggle-track')).backgroundColor,
+    knobTransform: getComputedStyle(document.querySelector('.editor-column-toggle-knob')).transform,
     hosts: { body: body.contentEditable, columns: [...body.querySelectorAll(':scope > .editor-column')].map(column => column.contentEditable) }
   };
 });
 check('更多菜单可启用并保存双栏独立滚动偏好', defaultColumnMode === 'false' && enabledColumnMode.checked === 'true' && enabledColumnMode.stored === '1' && enabledColumnMode.display === 'grid' && enabledColumnMode.columns === 2 && enabledColumnMode.hosts.body === 'false' && enabledColumnMode.hosts.columns.every(value => value === 'true'), JSON.stringify({ defaultColumnMode, ...enabledColumnMode }));
+check('双栏独立滚动开关采用全局样式与 iOS 轨道/圆形滑块，状态切换可见', defaultColumnModeStyle.trackWidth === 42 && defaultColumnModeStyle.trackHeight === 26 && defaultColumnModeStyle.knobWidth === 20 && defaultColumnModeStyle.iconWidth === 20 && defaultColumnModeStyle.iconHeight === 20 && defaultColumnModeStyle.inlineStyle === '' && enabledColumnMode.trackColor !== defaultColumnModeStyle.trackColor && enabledColumnMode.knobTransform !== 'none', JSON.stringify({ off: defaultColumnModeStyle, on: { color: enabledColumnMode.trackColor, knobTransform: enabledColumnMode.knobTransform } }));
 await page.locator('.editor-fab.right').click();
 await page.locator('.editor-menu-panel').waitFor({ state: 'hidden' });
 const crossColumnBackspaceSetup = await page.evaluate(() => {
@@ -543,10 +564,24 @@ await page.waitForTimeout(260);
 await page.locator('.editor-fab.right').click();
 await page.getByRole('button', { name: '导出笔记' }).click();
 await page.getByRole('dialog', { name: '导出笔记' }).waitFor({ state: 'visible' });
+await page.emulateMedia({ colorScheme: 'dark' });
+await page.waitForFunction(() => window.matchMedia('(prefers-color-scheme: dark)').matches && getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim() === '#ffffff');
 const htmlDownloadPromise = page.waitForEvent('download');
 await page.getByRole('button', { name: '导出为 HTML' }).click();
 const htmlDownload = await htmlDownloadPromise;
 check('HTML 导出触发文件下载', htmlDownload.suggestedFilename().endsWith('.html'), htmlDownload.suggestedFilename());
+const htmlExportText = await readFile(await htmlDownload.path(), 'utf8');
+const htmlChromeChecks = {
+  theme: htmlExportText.includes('data-export-theme="dark"'),
+  textColor: /--text-main\s*:\s*(?:#ffffff|rgb\(255,\s*255,\s*255\))/i.test(htmlExportText),
+  background: /background-color\s*:\s*(?:#(?:000|000000)|rgb\(0,\s*0,\s*0\))/i.test(htmlExportText),
+  back: htmlExportText.includes('class="editor-fab left"'),
+  more: htmlExportText.includes('class="editor-fab right"'),
+  subtitle: htmlExportText.includes('class="editor-title-meta"'),
+  avatar: htmlExportText.includes('class="editor-avatar-button"') && (htmlExportText.includes('<svg') || htmlExportText.includes('alt="avatar"'))
+};
+const htmlChromeOk = Object.values(htmlChromeChecks).every(Boolean);
+check('HTML 导出保留实际顶栏/副标题/头像并固定暗色主题', htmlChromeOk, JSON.stringify(htmlChromeChecks));
 await page.waitForTimeout(260);
 
 await page.evaluate(() => {
@@ -570,8 +605,19 @@ const pdfPopup = await pdfPopupPromise;
 await page.waitForFunction(() => window.__pdfPrintCalled === true);
 const pdfPreviewText = await pdfPopup.locator('main').innerText();
 check('PDF 打开包含笔记内容的打印页面', pdfPreviewText.includes('长文') && pdfPreviewText.includes('第59段'), pdfPreviewText.slice(0, 60).replace(/\s+/g, ' '));
+const pdfChrome = await pdfPopup.evaluate(() => ({
+  theme: document.documentElement.getAttribute('data-export-theme'),
+  subtitle: document.querySelector('.editor-title-meta')?.textContent || '',
+  back: !!document.querySelector('.editor-fab.left'),
+  more: !!document.querySelector('.editor-fab.right'),
+  avatar: !!document.querySelector('.editor-avatar-button img, .editor-avatar-button svg'),
+  textColor: getComputedStyle(document.documentElement).getPropertyValue('--text-main').trim(),
+  background: getComputedStyle(document.body).backgroundColor
+}));
+check('PDF 页眉复制真实按钮、副标题、头像并固定暗色主题', pdfChrome.theme === 'dark' && pdfChrome.textColor === '#ffffff' && pdfChrome.background === 'rgb(0, 0, 0)' && !!pdfChrome.subtitle && pdfChrome.back && pdfChrome.more && pdfChrome.avatar, JSON.stringify(pdfChrome));
 await pdfPopup.close();
 await page.evaluate(() => { window.open = window.__nativeOpenForPdfTest; });
+await page.emulateMedia({ colorScheme: 'light' });
 await page.waitForTimeout(260);
 
 await page.locator('.editor-body').click();
@@ -662,9 +708,9 @@ const musicFailure = await page.evaluate(async () => {
   body.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
   await new Promise(r => setTimeout(r, 400));
   const card = [...body.querySelectorAll('[data-type="musicCard"]')].find(e => e.dataset.url?.includes('fail-track'));
-  return { fallback: !!(card && card.classList.contains('music-card-error') && card.innerText.includes('点击打开')), visible: !!(card && card.getBoundingClientRect().width > 0), url: card?.dataset.url || '' };
+  return { fallback: !!(card && card.classList.contains('music-card-error')), visible: !!(card && card.getBoundingClientRect().width > 0), url: card?.dataset.url || '', linkUrl: card?.querySelector('.music-card-error-url')?.href || '', retry: !!card?.querySelector('[data-music-retry]') };
 });
-check('音乐元数据失败仍显示可恢复链接卡', musicFailure.fallback && musicFailure.visible && musicFailure.url.includes('fail-track'), JSON.stringify(musicFailure));
+check('音乐元数据失败仍保留原链接并提供重试入口', musicFailure.fallback && musicFailure.visible && musicFailure.url.includes('fail-track') && musicFailure.linkUrl.includes('fail-track') && musicFailure.retry, JSON.stringify(musicFailure));
 
 // Slash menu: verify real menu rendering and apply a non-destructive heading command.
 await page.locator('.editor-body').click();
@@ -818,17 +864,21 @@ const slashMenuA11y = await page.evaluate(() => {
   const list = document.querySelector('.slash-panel[role="listbox"]');
   const first = list?.querySelector('[data-slash-index="0"]');
   const icon = first?.querySelector('.slash-row-icon');
+  const iconSvg = icon?.querySelector('svg');
   const title = first?.querySelector('.slash-row-title');
   const subtitle = first?.querySelector('.slash-row-subtitle');
   const style = node => node ? getComputedStyle(node) : null;
   return { role: list?.getAttribute('role'), options: list?.querySelectorAll('[role="option"]').length || 0,
     firstCommand: first?.dataset.slashId || '', activeDescendant: document.querySelector('.editor-column:focus')?.getAttribute('aria-activedescendant') || '',
     rowHeight: first?.getBoundingClientRect().height || 0, iconWidth: icon?.getBoundingClientRect().width || 0,
-    iconHeight: icon?.getBoundingClientRect().height || 0, titleFontSize: style(title)?.fontSize || '', subtitleFontSize: style(subtitle)?.fontSize || '',
+    iconHeight: icon?.getBoundingClientRect().height || 0, iconSvgCount: list?.querySelectorAll('.slash-row-icon svg').length || 0,
+    iconSvgWidth: iconSvg?.getBoundingClientRect().width || 0, iconSvgHeight: iconSvg?.getBoundingClientRect().height || 0,
+    iconBackground: style(icon)?.backgroundColor || '', iconBorderRadius: style(icon)?.borderRadius || '',
+    titleFontSize: style(title)?.fontSize || '', subtitleFontSize: style(subtitle)?.fontSize || '',
     rowGap: style(first)?.columnGap || style(first)?.gap || '' };
 });
 check('斜杠菜单提供 listbox/option 语义与初始活动项', slashMenuA11y.role === 'listbox' && slashMenuA11y.options === 22 && !!slashMenuA11y.activeDescendant, JSON.stringify(slashMenuA11y));
-check('斜杠菜单触控热区、图标与标题/副标题字号符合设计', slashMenuA11y.rowHeight >= 48 && slashMenuA11y.iconWidth === 30 && slashMenuA11y.iconHeight === 30 && parseFloat(slashMenuA11y.titleFontSize) >= 14 && parseFloat(slashMenuA11y.subtitleFontSize) >= 12, JSON.stringify(slashMenuA11y));
+check('斜杠菜单触控热区、20px SVG 图标与标题/副标题字号符合设计', slashMenuA11y.rowHeight >= 48 && slashMenuA11y.iconWidth === 24 && slashMenuA11y.iconHeight === 24 && slashMenuA11y.iconSvgCount === 22 && slashMenuA11y.iconSvgWidth === 20 && slashMenuA11y.iconSvgHeight === 20 && (slashMenuA11y.iconBackground === 'transparent' || slashMenuA11y.iconBackground === 'rgba(0, 0, 0, 0)') && slashMenuA11y.iconBorderRadius === '0px' && parseFloat(slashMenuA11y.titleFontSize) >= 14 && parseFloat(slashMenuA11y.subtitleFontSize) >= 12, JSON.stringify(slashMenuA11y));
 await page.keyboard.press('ArrowDown');
 await page.waitForTimeout(50);
 const slashMoved = await page.locator('.editor-column:focus').getAttribute('aria-activedescendant');

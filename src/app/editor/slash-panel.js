@@ -108,9 +108,8 @@
         },
           R.createElement('span', {
             className: 'slash-row-icon',
-            'aria-hidden': 'true',
-            dangerouslySetInnerHTML: { __html: SVG_ICONS[cmd.icon] || '' }
-          }),
+            'aria-hidden': 'true'
+          }, SVG_ICONS[cmd.icon] && typeof w.SvgIcon === 'function' ? w.SvgIcon(cmd.icon, { strokeWidth: '1.9' }) : null),
           R.createElement('span', { className: 'slash-row-copy' },
             R.createElement('span', { className: 'slash-row-title' },
               R.createElement('span', { className: 'slash-row-title-text' }, hl(cmd.title)),

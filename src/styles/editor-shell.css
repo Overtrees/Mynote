@@ -25,6 +25,12 @@
     .editor-body .link-card-block, .editor-body .link-card-err { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; background: var(--glass-content-bg); border: 0.5px solid var(--glass-content-border); cursor: pointer; backdrop-filter: var(--glass-content-filter); -webkit-backdrop-filter: var(--glass-content-filter); }
     .editor-body .link-card-skeleton { margin: 8px 0; border-radius: var(--radius-32); corner-shape: squircle; overflow: hidden; cursor: pointer; }
     .editor-body a.link-card-block { display: block; color: inherit; text-decoration: none; }
+    .editor-body .music-card-error { display: flex; align-items: center; gap: 10px; padding: 8px 10px; cursor: default; }
+    .editor-body .music-card-error-icon { flex: 0 0 auto; }
+    .editor-body .music-card-error-url { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    .editor-body .music-card-error-url:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
+    .editor-body .music-card-retry { box-sizing: border-box; flex: 0 0 auto; min-width: 44px; min-height: 44px; padding: 0 12px; border: 0; border-radius: var(--radius-999); background: var(--fill-hover-strong); color: var(--color-accent); font: inherit; font-size: var(--font-13); font-weight: 600; cursor: pointer; }
+    .editor-body .music-card-retry:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 2px; }
     .editor-body .lkc-cover { width: 100%; aspect-ratio: 2.4/1; overflow: hidden; background: var(--border-color); }
     .editor-body .lkc-cover img { width: 100%; height: 100%; object-fit: cover; display: block; margin: 0; border-radius: 0; }
     .editor-body .lkc-body { padding: 10px 14px 12px; }
@@ -73,16 +79,14 @@
     .slash-row:focus-visible { outline: 3px solid var(--md-focus-ring); outline-offset: 1px; }
     .slash-row-icon {
       box-sizing: border-box;
-      width: 30px;
-      height: 30px;
-      flex: 0 0 30px;
+      width: var(--editor-menu-icon-slot-size);
+      height: var(--editor-menu-icon-slot-size);
+      flex: 0 0 var(--editor-menu-icon-slot-size);
       display: grid;
       place-items: center;
-      border-radius: var(--radius-8);
-      background: var(--fill-hover-strong);
-      color: var(--text-main);
+      color: var(--editor-menu-icon-color);
     }
-    .slash-row-icon svg { display: block; width: 16px; height: 16px; }
+    .slash-row-icon svg { display: block; width: var(--editor-menu-icon-size); height: var(--editor-menu-icon-size); }
     .slash-row-copy { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
     .slash-row-title { min-width: 0; display: flex; align-items: center; gap: 6px; font-size: var(--font-14); line-height: 1.25; font-weight: 650; }
     .slash-row-title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -299,6 +303,10 @@
     min-width: 0;
   }
 
+  .editor-spread > .editor-body .link-card-skeleton[data-type="musicCard"] {
+    width: min(100%, 320px);
+  }
+
   .editor-spread > .editor-body .lkc-title,
   .editor-spread > .editor-body .lkc-subtitle {
     overflow-wrap: anywhere;
@@ -438,6 +446,18 @@
 
 .editor-column-mode-toggle {
   box-sizing: border-box;
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-radius: var(--radius-17);
+  background: transparent;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 10px;
+  color: var(--text-main);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   display: none !important;
@@ -448,29 +468,60 @@
   outline: 3px solid var(--md-focus-ring);
   outline-offset: 2px;
 }
+.editor-column-mode-icon {
+  box-sizing: border-box;
+  width: var(--editor-menu-icon-slot-size);
+  height: var(--editor-menu-icon-slot-size);
+  flex: 0 0 var(--editor-menu-icon-slot-size);
+  display: grid;
+  place-items: center;
+  color: var(--editor-menu-icon-color);
+}
+.editor-column-mode-icon svg {
+  display: block;
+  width: var(--editor-menu-icon-size);
+  height: var(--editor-menu-icon-size);
+}
+.editor-column-mode-copy { min-width: 0; flex: 1 1 auto; }
+.editor-column-mode-title {
+  display: block;
+  font-size: var(--font-14);
+  font-weight: 650;
+  letter-spacing: -0.1px;
+}
+.editor-column-mode-subtitle {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-secondary);
+  font-size: var(--font-11);
+}
 .editor-column-toggle-track {
   box-sizing: border-box;
-  width: 38px;
-  height: 24px;
-  flex: 0 0 38px;
+  width: var(--editor-column-switch-width);
+  height: var(--editor-column-switch-height);
+  flex: 0 0 var(--editor-column-switch-width);
   display: flex;
   align-items: center;
-  padding: 3px;
-  border: 1px solid var(--border-color);
+  padding: var(--editor-column-switch-inset);
+  border: 0;
   border-radius: var(--radius-999);
-  background: var(--fill-hover-strong);
+  background: var(--editor-column-switch-off-bg);
   transition: background-color 160ms ease;
 }
-.editor-column-toggle-track[aria-checked="true"] { background: var(--color-accent); }
+.editor-column-toggle-track[aria-checked="true"] { background: var(--editor-column-switch-on-bg); }
 .editor-column-toggle-knob {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
+  width: var(--editor-column-switch-knob-size);
+  height: var(--editor-column-switch-knob-size);
+  flex: 0 0 var(--editor-column-switch-knob-size);
   border-radius: var(--radius-circle);
-  background: var(--primary-bg);
+  background: var(--editor-column-switch-knob-bg);
   transition: transform 160ms ease;
 }
-.editor-column-toggle-track[aria-checked="true"] .editor-column-toggle-knob { transform: translateX(14px); }
+.editor-column-toggle-track[aria-checked="true"] .editor-column-toggle-knob { transform: translateX(var(--editor-column-switch-knob-travel)); }
+@media (prefers-reduced-motion: reduce) {
+  .editor-column-toggle-track,
+  .editor-column-toggle-knob { transition: none; }
+}
 
 @media (min-width: 768px) and (min-height: 600px), (min-width: 1100px) {
   .editor-column-mode-toggle { display: flex !important; }
@@ -546,6 +597,9 @@
   }
   .editor-spread > .editor-body.is-independent-scroll .editor-column > [data-type="musicCard"] > span:first-child {
     flex: 0 0 auto;
+  }
+  .editor-spread > .editor-body.is-independent-scroll .editor-column > .link-card-skeleton[data-type="musicCard"] {
+    width: min(100%, 320px);
   }
 }
 

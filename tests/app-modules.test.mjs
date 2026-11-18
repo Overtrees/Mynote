@@ -132,7 +132,7 @@ test('IP 兜底返回赤道纬度 0 时仍查询天气', async () => {
   assert.ok(calls.some(url => url.includes('/weather/now?location=0,0')));
 });
 
-test('音乐卡片元数据失败仍保留可访问的外链卡片结构', () => {
+test('音乐卡片元数据失败仍保留原链接并提供可访问重试入口', () => {
   const { win } = makeAppEnv();
   const html = win.MynoteEditor.renderDocToEditorHTML([
     { id: 'music-failed', type: 'musicCard', url: 'https://open.spotify.com/track/example', status: 'error', meta: null }
@@ -142,5 +142,6 @@ test('音乐卡片元数据失败仍保留可访问的外链卡片结构', () =>
   const decoded = html.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
   assert.match(decoded, /data-url="https:\/\/open\.spotify\.com\/track\/example"/);
   assert.match(decoded, /<a[^>]+href="https:\/\/open\.spotify\.com\/track\/example"[^>]+target="_blank"[^>]+rel="noopener noreferrer"/);
-  assert.match(decoded, /预览不可用/);
+  assert.match(decoded, /data-music-retry="true"/);
+  assert.match(decoded, /aria-label="重试解析音乐链接"[^>]*>重试<\/button>/);
 });

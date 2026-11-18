@@ -960,8 +960,8 @@ const handleClose = async () => {
           range.setStart(sel.focusNode, sel.focusOffset);
           range.collapse(true);
           let cursorRect = range.getBoundingClientRect();
-          if (!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) {
-            // iOS Safari 组合输入时常把选区报告为编辑器元素边界，而不是文本节点；向边界内找最近字形测量。
+          if (sel.isCollapsed) {
+            // 折叠 Range 在部分浏览器会把前一个字形的 advance 宽度算进 rect；用紧邻插入点的字形边界求真实 caret x。
             function findEdgeText(node, fromEnd) {
               if (!node) return null;
               if (node.nodeType === 3) return node.length ? node : null;
@@ -1240,7 +1240,49 @@ const handleClose = async () => {
     }
     var noteTitle = titleValueRef.current.trim() || '无标题';
     var editorSnapshot = exporter.captureEditorSnapshot(editorBodyRef.current);
-    var exportOptions = { avatarUrl: avatarUrl };
+    var themeVariables = {};
+    var pageBackgroundColor = '';
+    var pageTextColor = '';
+    var exportIsDark = isDarkMode;
+    try {
+      if (window.matchMedia) exportIsDark = !!window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch (_) {}
+    try {
+      if (window.getComputedStyle) {
+        var rootStyle = window.getComputedStyle(document.documentElement);
+        for (var themeIndex = 0; themeIndex < rootStyle.length; themeIndex++) {
+          var themeName = rootStyle[themeIndex];
+          if (themeName && themeName.indexOf('--') === 0) {
+            var themeValue = rootStyle.getPropertyValue(themeName);
+            if (themeValue) themeVariables[themeName] = themeValue.trim();
+          }
+        }
+        var bodyStyle = window.getComputedStyle(document.body);
+        if (bgColor) pageBackgroundColor = exportIsDark ? getDarkenedColor(bgColor) : bgColor;
+        else pageBackgroundColor = rootStyle.getPropertyValue(exportIsDark ? '--color-black' : '--color-editor-bg').trim();
+        if (!pageBackgroundColor) pageBackgroundColor = bodyStyle.backgroundColor || '';
+        pageTextColor = bodyStyle.color || '';
+      }
+    } catch (_) {}
+    var subtitleCount = doc.reduce(function (count, node) {
+      if (!node || node.type !== 'paragraph') return count;
+      var paragraph = node.children && node.children[0] ? String(node.children[0].text || '') : '';
+      return count + paragraph.replace(/\n/g, '').length;
+    }, 0);
+    var exportSubtitle = timeAgo(memo.updatedAt) + ' · ' + subtitleCount + '字';
+    var chromeSnapshot = typeof exporter.captureEditorChrome === 'function'
+      ? exporter.captureEditorChrome({ title: noteTitle, subtitle: exportSubtitle })
+      : null;
+    var exportOptions = {
+      avatarUrl: avatarUrl,
+      theme: exportIsDark ? 'dark' : 'light',
+      themeVariables: themeVariables,
+      pageBackgroundColor: pageBackgroundColor,
+      pageTextColor: pageTextColor,
+      subtitle: exportSubtitle,
+      headerHtml: chromeSnapshot && chromeSnapshot.html,
+      headerHeight: chromeSnapshot && chromeSnapshot.height
+    };
     var html = null;
     if (format === 'pdf') {
       html = exporter.toHTMLDocument(doc, noteTitle, filesRef.current || {}, editorSnapshot, exportOptions);
@@ -1467,6 +1509,43 @@ const handleClose = async () => {
     }
   }
   }, [insertAtomicBlockToDOM]);
+
+  var retryMusicCard = useCallback(function (cardId) {
+    var currentDoc = docRef.current || [];
+    var currentIndex = currentDoc.findIndex(function (node) { return node.id === cardId; });
+    if (currentIndex < 0) return;
+    var existing = currentDoc[currentIndex];
+    if (!existing || existing.type !== 'musicCard' || !existing.url || existing.status === 'loading') return;
+    var url = existing.url;
+    var loadingNode = Object.assign({}, existing, { meta: null, status: 'loading' });
+    currentDoc[currentIndex] = loadingNode;
+    setEditorDocRef(currentDoc);
+    var host = editorBodyRef.current;
+    var cardEl = host && host.querySelector('[data-blockid="' + cardId + '"]');
+    if (cardEl) cardEl.outerHTML = renderAtomicHTML(loadingNode, files);
+    triggerAutoSave();
+
+    function finishRetry(meta) {
+      var latestDoc = docRef.current || [];
+      var latestIndex = latestDoc.findIndex(function (node) { return node.id === cardId; });
+      if (latestIndex < 0 || latestDoc[latestIndex].url !== url) return;
+      var isReady = !!(meta && meta.title);
+      var resolvedNode = Object.assign({}, latestDoc[latestIndex], {
+        meta: isReady ? meta : null,
+        status: isReady ? 'ready' : 'error'
+      });
+      latestDoc[latestIndex] = resolvedNode;
+      setEditorDocRef(latestDoc);
+      var currentHost = editorBodyRef.current;
+      var currentCard = currentHost && currentHost.querySelector('[data-blockid="' + cardId + '"]');
+      if (currentCard && currentCard.classList.contains('link-card-skeleton')) {
+        currentCard.outerHTML = renderAtomicHTML(resolvedNode, files);
+      }
+      triggerAutoSave();
+    }
+
+    Promise.resolve().then(function () { return fetchLinkMeta(url); }).then(finishRetry, function () { finishRetry(null); });
+  }, [files, triggerAutoSave]);
 
   /* ===== DOM input handlers ===== */
   var handleEditorInput = useCallback(function (e) {
@@ -1983,7 +2062,8 @@ const handleClose = async () => {
     renderMarkdownHtml: renderMarkdownHtml,
     escapeHTML: escapeHTML,
     flushAutoSave: flushAutoSave,
-    onOpenWikiLink: onOpenWikiLink
+    onOpenWikiLink: onOpenWikiLink,
+    onRetryMusicCard: retryMusicCard
   });
   var handleEditorClick = Dom.handleEditorClick;
   var handleTodoClick = Dom.handleTodoClick;
@@ -2467,33 +2547,16 @@ onPointerDown: function (e) {
     role: "switch",
     "aria-checked": independentColumns,
     "aria-label": "双栏独立滚动",
-    onClick: toggleIndependentColumns,
-    style: {
-      width: "100%",
-      minHeight: 56,
-      border: "none",
-      background: "transparent",
-      borderRadius: "var(--radius-17)",
-      display: "flex",
-      alignItems: "center",
-      gap: 11,
-      padding: "8px 10px",
-      color: "var(--text-main)",
-      fontFamily: "inherit",
-      cursor: "pointer",
-      textAlign: "left"
-    }
+    onClick: toggleIndependentColumns
   }, React.createElement("span", {
-    style: { width: 24, height: 24, display: "grid", placeItems: "center", flex: "none", color: "var(--color-accent)" },
+    className: "editor-column-mode-icon",
     "aria-hidden": "true"
-  }, React.createElement("svg", {
-    viewBox: "0 0 24 24", width: "20", height: "20", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", strokeLinejoin: "round"
-  }, React.createElement("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }), React.createElement("path", { d: "M12 4v16" }))), React.createElement("span", {
-    style: { minWidth: 0, flex: 1 }
+  }, window.SvgIcon("columns", { strokeWidth: "1.8" })), React.createElement("span", {
+    className: "editor-column-mode-copy"
   }, React.createElement("span", {
-    style: { display: "block", fontSize: "var(--font-14)", fontWeight: 650, letterSpacing: "-0.1px" }
+    className: "editor-column-mode-title"
   }, "双栏独立滚动"), React.createElement("span", {
-    style: { display: "block", marginTop: 2, color: "var(--text-secondary)", fontSize: "var(--font-11)" }
+    className: "editor-column-mode-subtitle"
   }, "平板与 PC 可分别滚动两栏")), React.createElement("span", {
     className: "editor-column-toggle-track",
     "aria-hidden": "true",

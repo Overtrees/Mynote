@@ -182,12 +182,14 @@ test('恐龙 SVG 保留浅色灰蓝，并在深色主题切换为浅灰白', () 
 });
 
 
-test('HTML、PDF 与 Markdown 导出统一消费当前编辑器 DOM/CSS 快照', () => {
+test('HTML/PDF 导出消费编辑器快照，而 Markdown 导出使用语义内容', () => {
   const editor = read('src/app/editor.js');
+  const exporter = read('src/app/editor/export.js');
   assert.match(editor, /captureEditorSnapshot\(editorBodyRef\.current\)/);
   assert.match(editor, /format === 'pdf'[\s\S]*?toHTMLDocument\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot, exportOptions\)/);
   assert.match(editor, /format === 'html'[\s\S]*?toHTMLDocument\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot, exportOptions\)/);
   assert.match(editor, /toMarkdown\(doc, noteTitle, filesRef\.current \|\| \{\}, editorSnapshot\)/);
+  assert.match(exporter, /function toMarkdown\(doc, title, files, snapshot\)\s*\{\s*return toSemanticMarkdown\(doc, title, files\);\s*\}/);
 });
 
 test('编辑器大屏采用跨页双栏，窄屏手机横屏维持单栏，媒体卡片不拆分', () => {

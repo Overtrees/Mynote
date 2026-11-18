@@ -29,7 +29,7 @@ test('HTML 导出是独立文档并转义文档标题', () => {
   ], 'A&B <笔记>', {});
 
   assert.match(html, /^<!doctype html>/i);
-  assert.match(html, /<html lang="zh-CN">/);
+  assert.match(html, /<html lang="zh-CN" data-export-theme="system"/);
   assert.match(html, /<title>A&amp;B &lt;笔记&gt;<\/title>/);
   assert.match(html, /@media print/);
   assert.match(html, /安全内容/);
@@ -67,7 +67,7 @@ test('HTML 按原始编辑器块导出图文卡片、画廊、音乐及网页元
     { id: 'music', type: 'musicCard', url: 'https://music.example/song', meta: { title: '歌曲名', subtitle: '歌手', source: '音乐服务' } }
   ], '图文笔记', { photo: { name: '照片.jpg', type: 'image/jpeg', url: 'data:image/jpeg;base64,AA==' } });
 
-  assert.match(html, /class="note-title">图文笔记/);
+  assert.match(html, /class="note-title" style="font-size:14px">图文笔记/);
   assert.match(html, /class="note-media img-text-card"/);
   assert.match(html, /class="itc-text">完整图注/);
   assert.match(html, /class="note-media img-text-row"/);
@@ -99,27 +99,35 @@ test('HTML 导出保留非图片附件下载信息，同时过滤不安全链接
 });
 
 
-test('Markdown、HTML 导出共用编辑器 DOM/CSS 快照以保留卡片视觉结构', () => {
+test('Markdown 导出始终使用语义格式，HTML 导出仍使用编辑器快照保留卡片视觉结构', () => {
   const { win } = makeAppEnv();
+  const files = { photo: { name: '图片.png', type: 'image/png', url: 'data:image/png;base64,AA==' } };
+  const doc = [
+    { id: 'image', type: 'image', attrs: { fileId: 'photo' } },
+    { id: 'music', type: 'musicCard', url: 'https://music.example/song', meta: { title: '音乐卡片标题' } },
+    { id: 'todo', type: 'todo', attrs: { checked: true }, children: [{ text: '勾选项' }] }
+  ];
   const snapshot = {
     html: '<div class="img-text-card"><img src="data:image/png;base64,AA=="><div class="itc-text">图文卡片完整说明</div></div><div class="link-card-block music-card-link"><div class="lkc-body"><div class="lkc-title">音乐卡片标题</div></div></div><div class="editor-todo is-checked"><input type="checkbox" checked><span class="todo-text">勾选项</span></div>',
     cssText: '.img-text-card{display:grid;border-radius:var(--radius-22)}.link-card-block{display:block}.music-card-link .lkc-title{font-weight:600}'
   };
-  const markdown = win.MynoteEditorExport.toMarkdown([], '快照笔记', {}, snapshot);
-  const html = win.MynoteEditorExport.toHTMLDocument([], '快照笔记', {}, snapshot);
+  const markdown = win.MynoteEditorExport.toMarkdown(doc, '快照笔记', files, snapshot);
+  const html = win.MynoteEditorExport.toHTMLDocument([], '快照笔记', files, snapshot);
 
-  for (const content of [markdown, html]) {
-    assert.match(content, /img-text-card/);
-    assert.match(content, /图文卡片完整说明/);
-    assert.match(content, /link-card-block/);
-    assert.match(content, /music-card-link/);
-    assert.match(content, /音乐卡片标题/);
-    assert.match(content, /editor-todo is-checked/);
-    assert.match(content, /\.img-text-card\{display:grid;border-radius:var\(--radius-22\)\}/);
-    assert.match(content, /data:image\/png;base64,AA==/);
-  }
-  assert.match(markdown, /^<style>/);
-  assert.match(markdown, /<main class="mynote-export-shell">/);
+  assert.match(markdown, /^# 快照笔记/m);
+  assert.match(markdown, /!\[图片\.png\]\(data:image\/png;base64,AA==\)/);
+  assert.match(markdown, /\[音乐卡片标题\]\(https:\/\/music\.example\/song\)/);
+  assert.match(markdown, /- \[x\] 勾选项/);
+  assert.doesNotMatch(markdown, /<style|<main|mynote-export-shell|editor-todo|img-text-card|link-card-block|editor-fab|avatar/i);
+  assert.doesNotMatch(markdown, /图文卡片完整说明/);
+
+  assert.match(html, /img-text-card/);
+  assert.match(html, /图文卡片完整说明/);
+  assert.match(html, /link-card-block/);
+  assert.match(html, /music-card-link/);
+  assert.match(html, /editor-todo is-checked/);
+  assert.match(html, /\.img-text-card\{display:grid;border-radius:var\(--radius-22\)\}/);
+  assert.match(html, /data:image\/png;base64,AA==/);
   assert.match(html, /^<!doctype html>/i);
 });
 
@@ -133,21 +141,41 @@ test('HTML 快照导出只嵌入一份编辑器样式表', () => {
   assert.equal((html.match(/\.img-text-card\{display:grid\}/g) || []).length, 1);
 });
 
-test('HTML/PDF 共用编辑器式页眉并安全带入头像', () => {
+test('HTML/PDF 共用编辑器页眉快照、完整副标题与导出前暗色主题', () => {
   const { win } = makeAppEnv();
   const html = win.MynoteEditorExport.toHTMLDocument(
     [{ id: 'p', type: 'paragraph', children: [{ text: '正文' }] }],
     '导出标题',
     {},
     { html: '<p>正文</p>', cssText: '' },
-    { avatarUrl: 'data:image/png;base64,AA==' }
+    {
+      theme: 'dark',
+      themeVariables: { '--primary-bg': '#000000', '--text-main': '#ffffff' },
+      pageBackgroundColor: 'rgb(0, 0, 0)',
+      pageTextColor: 'rgb(255, 255, 255)',
+      headerHeight: 186,
+      headerHtml: '<button class="editor-fab left" aria-hidden="true"></button><div class="editor-title-dock"><button class="editor-avatar-button"><img src="data:image/png;base64,AA==" alt="avatar"></button><div class="editor-title-pill"><div class="editor-title-input">导出标题</div></div><div class="editor-title-meta">刚刚 · 2字</div></div><button class="editor-fab right" aria-hidden="true"></button>'
+    }
   );
 
   assert.match(html, /class="mynote-export-header"/);
-  assert.match(html, /class="mynote-export-avatar"><img src="data:image\/png;base64,AA==" alt="头像"><\/div>/);
-  assert.match(html, /class="note-title">导出标题<\/h1>/);
-  assert.match(html, /class="mynote-export-control mynote-export-back"/);
-  assert.match(html, /class="mynote-export-control mynote-export-more"/);
-  assert.match(html, /mynote-export-identity \.note-title/);
+  assert.match(html, /class="editor-fab left"/);
+  assert.match(html, /class="editor-avatar-button"><img src="data:image\/png;base64,AA==" alt="avatar"><\/button>/);
+  assert.match(html, /class="editor-title-input">导出标题<\/div>/);
+  assert.match(html, /class="editor-title-meta">刚刚 · 2字<\/div>/);
+  assert.match(html, /class="editor-fab right"/);
+  assert.match(html, /data-export-theme="dark" style="color-scheme:dark;--primary-bg:#000000;--text-main:#ffffff"/);
+  assert.match(html, /<meta name="color-scheme" content="dark">/);
+  assert.match(html, /<body style="background-color:rgb\(0, 0, 0\);color:rgb\(255, 255, 255\)">/);
+  assert.match(html, /height:186px/);
+  assert.match(html, /\.mynote-export-header>\.editor-fab/);
   assert.match(html, /@media print/);
+});
+
+test('无用户头像时 HTML 页眉回退为内联恐龙图标并包含副标题', () => {
+  const { win } = makeAppEnv();
+  const html = win.MynoteEditorExport.toHTMLDocument([], '恐龙笔记', {}, { html: '', cssText: '' }, { subtitle: '刚刚 · 0字' });
+  assert.match(html, /class="mynote-export-avatar-fallback" aria-hidden="true"><svg viewBox="0 0 512 512"/);
+  assert.match(html, /class="mynote-export-meta">刚刚 · 0字<\/div>/);
+  assert.match(html, /\.mynote-export-avatar\{[^}]*width:72px;height:72px/);
 });

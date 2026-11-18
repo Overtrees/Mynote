@@ -461,6 +461,38 @@ try {
     };
   });
   check('新建笔记首次快速输入长标题时左右 gutter 对称且末尾光标保留右侧安全区', firstTitleLayout.text === firstLongTitle && firstTitleLayout.maxScroll > 0 && firstTitleLayout.focusOffset === firstTitleLayout.focusTextLength && firstTitleLayout.rightGap >= 14 && firstTitleLayout.paddingLeft === '16px' && firstTitleLayout.paddingRight === '16px' && Math.abs(firstTitleLayout.capsuleCenterDelta) <= 1 && Math.abs(firstTitleLayout.metaCenterDelta) <= 1 && firstTitleLayout.metaInsideCapsule && firstTitleLayout.metaText.length > 0 && firstTitleLayout.metaScrollWidth <= firstTitleLayout.metaClientWidth, JSON.stringify(firstTitleLayout));
+  const measureTitleEdgeGaps = () => wikiPage.evaluate(async () => {
+    const input = document.querySelector('.editor-title-input');
+    const scroller = input.parentElement;
+    const text = input.firstChild;
+    const selection = getSelection();
+    const gapAt = offset => {
+      const range = document.createRange();
+      const from = offset > 0 ? offset - 1 : 0;
+      const to = offset > 0 ? offset : Math.min(1, text.length);
+      range.setStart(text, from);
+      range.setEnd(text, to);
+      const glyph = range.getBoundingClientRect();
+      const box = scroller.getBoundingClientRect();
+      const caretX = offset > 0 ? glyph.right : glyph.left;
+      return offset > 0 ? box.right - caretX : caretX - box.left;
+    };
+    const setCaretAndMeasure = async offset => {
+      const caret = document.createRange();
+      caret.setStart(text, offset);
+      caret.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(caret);
+      document.dispatchEvent(new Event('selectionchange'));
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return gapAt(offset);
+    };
+    const startGap = await setCaretAndMeasure(0);
+    const endGap = await setCaretAndMeasure(text.length);
+    return { focused: document.activeElement === input, startGap, endGap, paddingLeft: getComputedStyle(scroller).paddingLeft, paddingRight: getComputedStyle(scroller).paddingRight };
+  });
+  const firstTitleEdgeGaps = await measureTitleEdgeGaps();
+  check('首次编辑且尚未按回车时，起点与末尾光标距胶囊边缘留白相等', firstTitleEdgeGaps.focused && firstTitleEdgeGaps.startGap >= 14 && firstTitleEdgeGaps.endGap >= 14 && Math.abs(firstTitleEdgeGaps.startGap - firstTitleEdgeGaps.endGap) <= 2 && firstTitleEdgeGaps.paddingLeft === '16px' && firstTitleEdgeGaps.paddingRight === '16px', JSON.stringify(firstTitleEdgeGaps));
   await wikiPage.locator('.editor-body').click();
   await wikiPage.waitForTimeout(100);
   await firstTitleInput.click();
@@ -492,6 +524,8 @@ try {
     return { text: input.textContent, focused: document.activeElement === input, focusAtEnd, caretRight: caret.right, rightGap: box.right - caret.right, paddingLeft: getComputedStyle(scroller).paddingLeft, paddingRight: getComputedStyle(scroller).paddingRight, scrollLeft: scroller.scrollLeft, maxScroll: scroller.scrollWidth - scroller.clientWidth };
   });
   check('标题提交失焦后再次编辑仍保持与首次编辑一致的对称 gutter 与末尾安全区', repeatedTitleLayout.text === firstLongTitle && repeatedTitleLayout.focused && repeatedTitleLayout.focusAtEnd && repeatedTitleLayout.maxScroll > 0 && repeatedTitleLayout.scrollLeft > 0 && repeatedTitleLayout.rightGap >= 14 && repeatedTitleLayout.paddingLeft === '16px' && repeatedTitleLayout.paddingRight === '16px' && Math.abs(firstTitleLayout.rightGap - repeatedTitleLayout.rightGap) <= 2, JSON.stringify({ first: { rightGap: firstTitleLayout.rightGap, paddingLeft: firstTitleLayout.paddingLeft, paddingRight: firstTitleLayout.paddingRight }, repeated: repeatedTitleLayout }));
+  const repeatedTitleEdgeGaps = await measureTitleEdgeGaps();
+  check('再次编辑且尚未按回车时，起点与末尾留白仍相等并与首次编辑一致', repeatedTitleEdgeGaps.focused && repeatedTitleEdgeGaps.startGap >= 14 && repeatedTitleEdgeGaps.endGap >= 14 && Math.abs(repeatedTitleEdgeGaps.startGap - repeatedTitleEdgeGaps.endGap) <= 2 && Math.abs(firstTitleEdgeGaps.startGap - repeatedTitleEdgeGaps.startGap) <= 2 && Math.abs(firstTitleEdgeGaps.endGap - repeatedTitleEdgeGaps.endGap) <= 2 && repeatedTitleEdgeGaps.paddingLeft === '16px' && repeatedTitleEdgeGaps.paddingRight === '16px', JSON.stringify({ first: firstTitleEdgeGaps, repeated: repeatedTitleEdgeGaps }));
   const boundaryCaretLayout = await wikiPage.evaluate(async () => {
     const input = document.querySelector('.editor-title-input');
     const scroller = input.parentElement;

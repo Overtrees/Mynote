@@ -319,16 +319,130 @@
     return Array.isArray(doc) ? doc.map(function (node) { return renderBlock(node || {}, files || {}); }).join('\n') : '';
   }
 
+  function measuredHeight(node, fallback) {
+    if (!node) return fallback;
+    try {
+      var rect = node.getBoundingClientRect && node.getBoundingClientRect();
+      if (rect && Number(rect.height) > 0) return Number(rect.height);
+      var style = w.getComputedStyle && w.getComputedStyle(node);
+      var height = style && parseFloat(style.height);
+      if (isFinite(height) && height > 0) return height;
+    } catch (_) {}
+    return fallback;
+  }
+
+  function captureEditorChrome(options) {
+    var doc = w.document;
+    if (!doc || typeof doc.querySelector !== 'function') return null;
+    var back = doc.querySelector('.editor-fab.left');
+    var dock = doc.querySelector('.editor-title-dock');
+    var more = doc.querySelector('.editor-fab.right');
+    if (!back || !dock || !more || typeof back.cloneNode !== 'function') return null;
+
+    var cloneBack = back.cloneNode(true);
+    var cloneDock = dock.cloneNode(true);
+    var cloneMore = more.cloneNode(true);
+    var sourceMeta = dock.querySelector && dock.querySelector('.editor-title-meta');
+    var meta = cloneDock.querySelector && cloneDock.querySelector('.editor-title-meta');
+    var subtitle = options && typeof options.subtitle === 'string'
+      ? options.subtitle
+      : (sourceMeta ? String(sourceMeta.textContent || '') : '');
+
+    if (!meta && doc.createElement) {
+      meta = doc.createElement('div');
+      meta.className = 'editor-title-meta';
+      meta.setAttribute('style', 'font-size:var(--font-10);color:var(--text-secondary);pointer-events:none;display:block;width:100%;max-width:100%;min-width:0;box-sizing:border-box;align-self:center;flex-shrink:0;text-align:center;line-height:1.2;white-space:nowrap');
+      cloneDock.appendChild(meta);
+    }
+    if (meta) {
+      meta.textContent = subtitle;
+      meta.style.display = 'block';
+    }
+
+    // Exports are static documents: retain the live geometry/markup, but not editing or tab stops.
+    [cloneBack, cloneMore].forEach(function (button) {
+      button.setAttribute('aria-hidden', 'true');
+      button.setAttribute('tabindex', '-1');
+    });
+    var titleInput = cloneDock.querySelector && cloneDock.querySelector('.editor-title-input');
+    if (titleInput) {
+      titleInput.removeAttribute('contenteditable');
+      titleInput.removeAttribute('role');
+      titleInput.removeAttribute('aria-multiline');
+      titleInput.removeAttribute('enterkeyhint');
+      titleInput.setAttribute('title', String(options && options.title || titleInput.textContent || ''));
+      titleInput.style.cursor = 'default';
+    }
+    if (cloneDock.querySelectorAll) {
+      var buttons = cloneDock.querySelectorAll('button');
+      for (var i = 0; i < buttons.length; i++) buttons[i].setAttribute('tabindex', '-1');
+    }
+    cloneDock.style.flexDirection = 'column';
+    cloneDock.style.alignItems = 'center';
+    cloneDock.style.justifyContent = 'center';
+    cloneDock.style.flexWrap = 'nowrap';
+    cloneDock.style.gap = '6px';
+
+    var holder = doc.createElement('div');
+    holder.appendChild(cloneBack);
+    holder.appendChild(cloneDock);
+    holder.appendChild(cloneMore);
+    var avatar = dock.querySelector && dock.querySelector('.editor-avatar-button');
+    var titleNode = dock.querySelector && dock.querySelector('.editor-title-input');
+    var titlePill = titleNode && titleNode.parentNode && titleNode.parentNode.parentNode;
+    var dockRectTop = 7;
+    try {
+      var rect = dock.getBoundingClientRect && dock.getBoundingClientRect();
+      if (rect && Number(rect.top) > 0) dockRectTop = Number(rect.top);
+    } catch (_) {}
+    var height = Math.ceil(dockRectTop + measuredHeight(avatar, 72) + 6 + measuredHeight(titlePill, 66) + 6 + measuredHeight(sourceMeta, 12) + 16);
+    return { html: holder.innerHTML, height: height };
+  }
+
+  function dinosaurAvatarMarkup() {
+    var paths = [
+      'M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315',
+      'M 160,330 C 180,380 230,440 280,460', 'M 240,365 C 220,400 240,440 310,460',
+      'M 90,460 L 310,460', 'M 415,135 C 425,140 435,150 435,160',
+      'M 230,115 C 260,95 310,120 355,140', 'M 255,140 C 255,170 290,195 320,185 C 345,175 350,150 335,135',
+      'M 290,145 C 290,165 315,165 315,150',
+      'M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228',
+      'M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348'
+    ];
+    return '<span class="mynote-export-avatar-fallback" aria-hidden="true"><svg viewBox="0 0 512 512" width="60" height="60" fill="none" stroke="var(--color-icon-muted)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" style="transform:translateY(10px)">' + paths.map(function (path) { return '<path d="' + path + '"></path>'; }).join('') + '</svg></span>';
+  }
+
   function exportHeaderMarkup(title, options) {
-    var avatar = safeImageUrl(options && options.avatarUrl);
+    var opts = options || {};
+    var headerStyle = 'height:' + Math.max(160, Number(opts.headerHeight) || 185) + 'px';
+    if (typeof opts.headerHtml === 'string' && opts.headerHtml) {
+      return '<header class="mynote-export-header" aria-label="笔记页眉" style="' + headerStyle + '">' + sanitizeSnapshotMarkup(opts.headerHtml) + '</header>';
+    }
+    var avatar = safeImageUrl(opts.avatarUrl);
     var avatarMarkup = avatar
-      ? '<img src="' + escapeHTML(avatar) + '" alt="头像">'
-      : '<span class="mynote-export-avatar-fallback" aria-hidden="true">此刻</span>';
-    return '<header class="mynote-export-header" aria-label="笔记页眉">' +
-      '<span class="mynote-export-control mynote-export-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg></span>' +
-      '<div class="mynote-export-identity"><div class="mynote-export-avatar">' + avatarMarkup + '</div><h1 class="note-title">' + escapeHTML(title) + '</h1></div>' +
-      '<span class="mynote-export-control mynote-export-more" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.8"></circle><circle cx="12" cy="12" r="1.8"></circle><circle cx="19" cy="12" r="1.8"></circle></svg></span>' +
+      ? '<img src="' + escapeHTML(avatar) + '" alt="avatar">'
+      : dinosaurAvatarMarkup();
+    var subtitle = String(opts.subtitle || '');
+    var titleSize = String(title || '').length > 5 ? '11px' : '14px';
+    return '<header class="mynote-export-header" aria-label="笔记页眉" style="' + headerStyle + '">' +
+      '<span class="mynote-export-control mynote-export-back" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></span>' +
+      '<div class="mynote-export-dock"><div class="mynote-export-avatar">' + avatarMarkup + '</div><div class="mynote-export-title-pill"><h1 class="note-title" style="font-size:' + titleSize + '">' + escapeHTML(title) + '</h1></div>' +
+      '<div class="mynote-export-meta">' + escapeHTML(subtitle) + '</div></div>' +
+      '<span class="mynote-export-control mynote-export-more" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></span>' +
       '</header>';
+  }
+
+  function exportThemeAttributes(options) {
+    var opts = options || {};
+    var mode = opts.theme === 'dark' || opts.theme === 'light' ? opts.theme : '';
+    var style = 'color-scheme:' + (mode || 'light dark');
+    var variables = opts.themeVariables && typeof opts.themeVariables === 'object' ? opts.themeVariables : {};
+    Object.keys(variables).sort().forEach(function (name) {
+      if (!/^--[a-z0-9_-]+$/i.test(name)) return;
+      var value = String(variables[name] == null ? '' : variables[name]).trim();
+      if (value) style += ';' + name + ':' + value;
+    });
+    return ' data-export-theme="' + escapeHTML(mode || 'system') + '" style="' + escapeHTML(style) + '"';
   }
 
   function snapshotStyles(snapshot, includeEditorCss) {
@@ -336,19 +450,28 @@
     var supplied = snapshot && typeof snapshot.cssText === 'string' ? snapshot.cssText : (shouldIncludeCss ? collectStyleText() : '');
     return (shouldIncludeCss ? (supplied || '') : '') + '\n' +
       '.mynote-export-shell{box-sizing:border-box;width:min(100%,1120px);margin:0 auto;padding:24px 16px 40px;color:var(--text-main,CanvasText)}' +
-      '.mynote-export-header{box-sizing:border-box;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;gap:8px;width:min(100%,1120px);margin:0 auto 28px;padding:12px 0 0}' +
-      '.mynote-export-control{box-sizing:border-box;display:grid;place-items:center;width:42px;height:42px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);color:var(--text-secondary,GrayText)}' +
-      '.mynote-export-identity{display:flex;min-width:0;flex-direction:column;align-items:center;gap:12px}' +
-      '.mynote-export-avatar{box-sizing:border-box;width:64px;height:64px;overflow:hidden;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);display:grid;place-items:center}' +
+      '.mynote-export-header{position:relative;box-sizing:border-box;display:block;width:100vw;height:185px;margin:0 0 28px calc(50% - 50vw);padding:0}' +
+      '.mynote-export-header>.editor-fab,.mynote-export-header>.editor-title-dock{position:absolute!important;top:calc(env(safe-area-inset-top) + 7px)!important}' +
+      '.mynote-export-header>.editor-fab.left{left:16px!important}' +
+      '.mynote-export-header>.editor-fab.right{right:16px!important}' +
+      '.mynote-export-header>.editor-title-dock{left:62px!important;right:62px!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;flex-wrap:nowrap!important;gap:6px!important}' +
+      '.mynote-export-header .editor-title-meta{display:block!important}' +
+      '.mynote-export-header .editor-title-input,.mynote-export-header .editor-avatar-button{cursor:default!important}' +
+      '.mynote-export-control{box-sizing:border-box;position:absolute;top:7px;display:grid;place-items:center;width:46px;height:46px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);color:var(--text-secondary,GrayText)}' +
+      '.mynote-export-back{left:16px}.mynote-export-more{right:16px}' +
+      '.mynote-export-dock{position:absolute;top:7px;left:62px;right:62px;display:flex;flex-direction:column;align-items:center;gap:6px}' +
+      '.mynote-export-avatar{box-sizing:border-box;width:72px;height:72px;overflow:hidden;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:50%;background:var(--glass-control-bg,Canvas);display:flex;align-items:flex-end;justify-content:center}' +
       '.mynote-export-avatar img{display:block;width:100%;height:100%;object-fit:cover}' +
-      '.mynote-export-avatar-fallback{font:600 var(--font-12,12px)/1 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:.04em;color:var(--glass-label-color,var(--text-secondary,GrayText))}' +
-      '.mynote-export-identity .note-title{box-sizing:border-box;width:fit-content;max-width:100%;margin:0;padding:11px 20px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:999px;background:var(--glass-control-bg,Canvas);color:var(--text-main,CanvasText);font:650 var(--font-16,16px)/1.25 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:-.02em;text-align:center;overflow-wrap:anywhere}' +
-      '@media(max-width:560px){.mynote-export-shell{padding:18px 14px 32px}.mynote-export-header{margin-bottom:24px}.mynote-export-avatar{width:56px;height:56px}.mynote-export-identity{gap:10px}.mynote-export-identity .note-title{font-size:var(--font-16,16px);padding:10px 16px}}' +
+      '.mynote-export-avatar-fallback{display:flex;width:100%;height:100%;align-items:flex-end;justify-content:center;overflow:hidden}' +
+      '.mynote-export-title-pill{box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-width:66px;max-width:100%;height:66px;overflow:hidden;padding:0 20px;border:0.5px solid var(--glass-control-border,var(--border-color,rgba(0,0,0,.14)));border-radius:var(--radius-33,33px);background:var(--glass-control-bg,Canvas);backdrop-filter:var(--glass-control-filter);-webkit-backdrop-filter:var(--glass-control-filter)}' +
+      '.mynote-export-title-pill .note-title{box-sizing:border-box;max-width:100%;margin:0;color:var(--text-main,CanvasText);font:600 14px/1.3 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);letter-spacing:-.2px;text-align:center;overflow-wrap:anywhere}' +
+      '.mynote-export-meta{width:100%;color:var(--text-secondary,GrayText);font:var(--font-10,10px)/1.2 var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);text-align:center;white-space:nowrap}' +
+      '@media(max-width:560px){.mynote-export-shell{padding:18px 14px 32px}.mynote-export-header{margin-bottom:24px}}' +
       '.mynote-export-shell .editor-body{box-sizing:border-box;min-height:0;padding:4px 0;color:var(--text-main,CanvasText);font:var(--md-font-body,16px)/var(--md-line-height,1.75) var(--font-family-base,-apple-system,BlinkMacSystemFont,sans-serif);overflow-wrap:anywhere}' +
       '.mynote-export-shell .editor-body>*:first-child{margin-top:0}' +
       '.mynote-export-shell .editor-body>*:last-child{margin-bottom:0}' +
       '@page{size:auto;margin:16mm}' +
-      '@media print{html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{padding:0}.mynote-export-shell{width:100%;max-width:none;margin:0;padding:0}.mynote-export-header{break-inside:avoid;margin-bottom:22px;padding-top:0}.mynote-export-shell .editor-body{min-height:0}.note-title{break-after:avoid}}';
+      '@media print{html,body{print-color-adjust:exact;-webkit-print-color-adjust:exact}body{padding:0}.mynote-export-shell{width:100%;max-width:none;margin:0;padding:0}.mynote-export-header{width:100%;height:185px;margin:0 0 22px;break-inside:avoid}.mynote-export-shell .editor-body{min-height:0}.note-title{break-after:avoid}}';
   }
 
   function visualSnapshotMarkup(doc, title, files, snapshot, options) {
@@ -361,10 +484,6 @@
   }
 
   function toMarkdown(doc, title, files, snapshot) {
-    if (snapshot && typeof snapshot.html === 'string') {
-      var css = snapshotStyles(snapshot).replace(/<\/style/gi, '<\\/style');
-      return '<style>\n' + css + '\n</style>\n\n' + visualSnapshotMarkup(doc, title, files, snapshot) + '\n';
-    }
     return toSemanticMarkdown(doc, title, files);
   }
 
@@ -382,7 +501,9 @@
     var body = visualSnapshotMarkup(doc, name, files, snapshot, exportOptions);
     var appCss = snapshot && typeof snapshot.cssText === 'string' ? snapshot.cssText : collectStyleText();
     var css = (appCss || fallbackStyles()) + '\n' + snapshotStyles(snapshot, false).replace(/<\/style/gi, '<\\/style');
-    return '<!doctype html>\n<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><title>' + escapeHTML(name) + '</title><style>' + css + '</style></head><body>' + body + '</body></html>';
+    var theme = options && (options.theme === 'dark' || options.theme === 'light') ? options.theme : 'light dark';
+    var background = options && options.pageBackgroundColor ? ' style="background-color:' + escapeHTML(options.pageBackgroundColor) + ';color:' + escapeHTML(options.pageTextColor || 'var(--text-main,CanvasText)') + '"' : '';
+    return '<!doctype html>\n<html lang="zh-CN"' + exportThemeAttributes(options) + '><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="' + escapeHTML(theme) + '"><title>' + escapeHTML(name) + '</title><style>' + css + '</style></head><body' + background + '>' + body + '</body></html>';
   }
 
   function toFilename(title, extension) {
@@ -394,6 +515,7 @@
     toMarkdown: toMarkdown,
     toHTMLDocument: toHTMLDocument,
     captureEditorSnapshot: captureEditorSnapshot,
+    captureEditorChrome: captureEditorChrome,
     toFilename: toFilename
   };
 })(window);

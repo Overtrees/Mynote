@@ -10,10 +10,16 @@ const failures = [];
 page.on('pageerror', error => { failures.push(error.message); console.log('PAGEERROR', error.stack); });
 page.on('console', message => { console.log('CONSOLE', message.type(), message.text()); if (message.type() === 'error' && !/favicon|404|status of 503 \(Service Unavailable\)/.test(message.text())) failures.push(message.text()); });
 page.on('request', request => {});
+let failureAttempts = 0;
 await page.route('**/meta?*', async route => {
   if (route.request().url().includes('mobile-race-fail')) {
     await new Promise(resolve => setTimeout(resolve, 250));
-    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'simulated metadata failure' }) });
+    failureAttempts += 1;
+    if (failureAttempts <= 2) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'simulated metadata failure' }) });
+    } else {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ title: 'Retry Recovered Song', subtitle: 'Retry Artist', source: 'Mock', type: 'music', cover: 'https://example.test/retry-cover.png' }) });
+    }
     return;
   }
   await new Promise(resolve => setTimeout(resolve, 900));
@@ -85,10 +91,10 @@ const measureRenderedCoverLayouts = async width => {
       }
       return result;
     };
-    const result = {
+  const result = {
       music: measure('.music-card-link .lkc-cover', true),
       link: measure('.link-card-block[data-blockid="cover-layout-link"] > .lkc-cover', true),
-      loading: measure('.link-card-skeleton[data-type="musicCard"] .link-card-skeleton-cover', false)
+      loading: measure('.link-card-skeleton[data-type="musicCard"]', false)
     };
     host.remove();
     return result;
@@ -132,15 +138,23 @@ const retargetedPaste = await page.evaluate(() => {
   document.querySelector('.editor-body').dispatchEvent(event);
   return { prevented: event.defaultPrevented, target: event.target.className, active: document.activeElement?.dataset?.musicUrl || null, marked: markedBefore, markerAfter: document.querySelector('.editor-body')?.dataset.activeMusicInputId || null };
 });
+const pastedImmediately = await page.evaluate(() => {
+  const card = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]');
+  const input = document.querySelector('.editor-body [data-music-url="pending"]');
+  const rect = card && card.getBoundingClientRect();
+  return { skeleton: !!card, inputRemaining: !!input, ratio: rect && rect.height ? rect.width / rect.height : 0, width: rect?.width || 0, height: rect?.height || 0 };
+});
+check('supported music URL paste immediately replaces the input with a square skeleton', retargetedPaste.prevented && pastedImmediately.skeleton && !pastedImmediately.inputRemaining && Math.abs(pastedImmediately.ratio - 1) < 0.02, JSON.stringify(pastedImmediately));
 await page.keyboard.press('Enter');
 
 const immediate = await page.evaluate(() => ({
   cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body [data-music-url="pending"]')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, pending: el.dataset.musicUrl, className: el.className })),
+  loadingRatio: (() => { const el = document.querySelector('.editor-body .link-card-skeleton[data-type="musicCard"]'); const r = el && el.getBoundingClientRect(); return r && r.height ? r.width / r.height : 0; })(),
   slashRows: document.querySelectorAll('.slash-row').length,
   bodyText: document.querySelector('.editor-body')?.innerText || ''
 }));
 check('retargeted paste uses the remembered capsule despite selection loss', retargetedPaste.prevented && !!retargetedPaste.marked, JSON.stringify(retargetedPaste));
-check('paste + immediate Enter creates exactly one loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton'), JSON.stringify(immediate.cards));
+check('paste + immediate Enter preserves exactly one square loading card', immediate.cards.length === 1 && immediate.cards[0].className.includes('skeleton') && Math.abs(immediate.loadingRatio - 1) < 0.02, JSON.stringify(immediate));
 check('slash search closes and no stray slash remains', immediate.slashRows === 0 && !/(^|\n)\s*\/\s*(\n|$)/.test(immediate.bodyText), `rows=${immediate.slashRows}`);
 await page.locator('.editor-body a.music-card-link[href="https://open.spotify.com/track/mobile-race-regression"]').waitFor({ state: 'visible', timeout: 10000 });
 const resolved = await page.evaluate(() => [...document.querySelectorAll('.editor-body [data-type="musicCard"]')].map(el => ({ id: el.dataset.blockid, url: el.dataset.url, className: el.className, text: el.innerText, hasCover: !!el.querySelector('.lkc-cover img') })));
@@ -182,27 +196,38 @@ await page.evaluate(() => {
 await page.keyboard.press('Enter');
 await page.locator('.editor-body .music-card-error[data-url*="mobile-race-fail"]').waitFor({ state: 'visible', timeout: 10000 });
 const failedBeforeReopen = await page.evaluate(() => ({
-  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body .music-card-error')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, className: el.className })),
+  cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body .music-card-error')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, className: el.className, linkUrl: el.querySelector('.music-card-error-url')?.href || '', retryButtons: el.querySelectorAll('[data-music-retry]').length })),
   straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
 }));
-check('failed lookup becomes one recoverable error card, not a skeleton or slash', failedBeforeReopen.cards.length === 1 && /music-card-error/.test(failedBeforeReopen.cards[0].className) && !failedBeforeReopen.straySlash, JSON.stringify(failedBeforeReopen));
+check('failed lookup preserves its original clickable URL and retry button', failedBeforeReopen.cards.length === 1 && /music-card-error/.test(failedBeforeReopen.cards[0].className) && failedBeforeReopen.cards[0].linkUrl === 'https://open.spotify.com/track/mobile-race-fail' && failedBeforeReopen.cards[0].retryButtons === 1 && !failedBeforeReopen.straySlash, JSON.stringify(failedBeforeReopen));
 await page.waitForTimeout(1500);
+const failedReloadResponse = page.waitForResponse(response => response.url().includes('mobile-race-fail') && response.status() === 503);
 await page.locator('.editor-fab.left').click();
 await page.waitForSelector('.list-item');
 await page.locator('.list-item').filter({ hasText: failureMemoTitle }).first().click();
 await page.locator('.editor-body').waitFor();
+await failedReloadResponse;
 await page.locator('.editor-body .music-card-error[data-url*="mobile-race-fail"]').waitFor({ state: 'visible', timeout: 10000 });
 const failedReopen = await page.evaluate(() => ({
   cards: [...document.querySelectorAll('.editor-body [data-type="musicCard"], .editor-body .music-card-error')].map(el => ({ id: el.dataset.blockid, type: el.dataset.type, url: el.dataset.url, className: el.className })),
+  linkUrl: document.querySelector('.editor-body .music-card-error-url')?.href || '',
+  retryButtons: document.querySelectorAll('.editor-body .music-card-error [data-music-retry]').length,
   pending: document.querySelectorAll('.editor-body [data-music-url="pending"], .editor-body.link-card-skeleton').length,
   straySlash: [...document.querySelectorAll('.editor-body p')].some(p => p.textContent.trim() === '/')
 }));
-check('failed card survives reopen once with no pending/loading/stray slash', failedReopen.cards.length === 1 && failedReopen.pending === 0 && !failedReopen.straySlash, JSON.stringify(failedReopen));
+check('failed card survives reopen with its URL and retry button', failedReopen.cards.length === 1 && failedReopen.linkUrl === 'https://open.spotify.com/track/mobile-race-fail' && failedReopen.retryButtons === 1 && failedReopen.pending === 0 && !failedReopen.straySlash, JSON.stringify(failedReopen));
+await page.locator('.editor-body .music-card-error [data-music-retry]').click();
+await page.locator('.editor-body a.music-card-link .lkc-title').filter({ hasText: 'Retry Recovered Song' }).waitFor({ state: 'visible', timeout: 10000 });
+const retried = await page.evaluate(() => {
+  const link = document.querySelector('.editor-body a.music-card-link');
+  return { count: document.querySelectorAll('.editor-body [data-type="musicCard"]').length, href: link?.href || '', title: link?.querySelector('.lkc-title')?.textContent || '', loading: document.querySelectorAll('.editor-body .link-card-skeleton[data-type="musicCard"]').length, retry: document.querySelectorAll('.editor-body .music-card-retry').length };
+});
+check('retry re-runs metadata parsing and replaces the skeleton with the same music URL', retried.count === 1 && retried.href === 'https://open.spotify.com/track/mobile-race-fail' && retried.title === 'Retry Recovered Song' && retried.loading === 0 && retried.retry === 0, JSON.stringify(retried));
 const coverLayoutsMobile = await measureRenderedCoverLayouts(390);
 const coverLayoutsDesktop = await measureRenderedCoverLayouts(1280);
 const isPanoramic = layout => !!layout && Math.abs(layout.ratio - 2.4) < 0.02 && layout.fill >= 0.99;
 for (const [name, layouts] of [['narrow', coverLayoutsMobile], ['desktop', coverLayoutsDesktop]]) {
-  check(`rendered music cover and loading skeleton remain panoramic (${name})`, isPanoramic(layouts.music) && isPanoramic(layouts.loading) && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
+  check(`music artwork stays panoramic while its loading card stays square (${name})`, isPanoramic(layouts.music) && Math.abs(layouts.loading.ratio - 1) < 0.02 && layouts.loading.width <= 321 && layouts.music.imageMargin === '0px' && layouts.music.imageBorderRadius === '0px' && layouts.music.objectFit === 'cover' && Math.abs(layouts.music.imageWidth - layouts.music.width) <= 1 && Math.abs(layouts.music.imageHeight - layouts.music.height) <= 1, JSON.stringify({ music: layouts.music, loading: layouts.loading }));
   check(`ordinary link cover remains panoramic (${name})`, isPanoramic(layouts.link) && layouts.link.imageMargin === '0px' && layouts.link.imageBorderRadius === '0px' && layouts.link.objectFit === 'cover', JSON.stringify(layouts.link));
 }
 check('no browser JavaScript errors', failures.length === 0, failures.join(' | '));

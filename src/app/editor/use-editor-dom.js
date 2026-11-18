@@ -45,6 +45,7 @@
     var renderMarkdownHtml = opts.renderMarkdownHtml;
     var escapeHTML = opts.escapeHTML;
     var onOpenWikiLink = opts.onOpenWikiLink;
+    var onRetryMusicCard = opts.onRetryMusicCard;
 
   function focusEditableBlock(host, block) {
     if (w.MynoteEditorColumns && typeof w.MynoteEditorColumns.focusEditingHost === 'function') {
@@ -56,6 +57,14 @@
 
   var handleEditorClick = useCallback(function (e) {
     var host = editorBodyRef.current;
+    var retryButton = e.target && e.target.closest && e.target.closest('[data-music-retry]');
+    if (retryButton) {
+      e.preventDefault();
+      e.stopPropagation();
+      var retryCard = retryButton.closest('[data-type="musicCard"][data-blockid]');
+      if (retryCard && typeof onRetryMusicCard === 'function') onRetryMusicCard(retryCard.dataset.blockid);
+      return;
+    }
     if (host) {
       var clickedBlock = e.target && e.target.closest && e.target.closest('[data-blockid]');
       if (clickedBlock && clickedBlock.dataset.musicUrl === 'pending') {
@@ -360,7 +369,7 @@
     if (lc && lc.dataset.url) {
       window.open(lc.dataset.url, '_blank');
     }
-  }, [triggerAutoSave, flushAutoSave, showMenu, files, onOpenWikiLink]);
+  }, [triggerAutoSave, flushAutoSave, showMenu, files, onOpenWikiLink, onRetryMusicCard]);
 
   /* ---- 原生待办复选框：同步保存状态，键盘操作保留焦点 ---- */
   var handleTodoClick = useCallback(function (e) {
