@@ -159,25 +159,12 @@
       var caretOffset = 0;
       try {
         var range = sel.getRangeAt(0).cloneRange();
-        // 如果 focusNode 是元素节点（非文本），说明光标在块级边界上
-        // 需要把偏移量转换为相对于 blockEl 的文本偏移
-        if (range.endContainer.nodeType === 1 && range.endContainer !== blockEl) {
-          var children = [...blockEl.childNodes];
-          var offset = range.endOffset;
-          var textBefore = 0;
-          for (var ci = 0; ci < offset && ci < children.length; ci++) {
-            textBefore += (children[ci].textContent || '').length;
-          }
-          caretOffset = textBefore;
-        } else if (range.endContainer.nodeType === 1 && range.endContainer === blockEl) {
-          var children2 = [...blockEl.childNodes];
-          var offset2 = range.endOffset;
-          var textBefore2 = 0;
-          for (var ci2 = 0; ci2 < offset2 && ci2 < children2.length; ci2++) {
-            textBefore2 += (children2[ci2].textContent || '').length;
-          }
-          caretOffset = textBefore2;
-        } else {
+        // 用 Selection.focus 而非 Range.end：反向选区的焦点可能位于另一端。
+        var mappedOffset = w.MynoteDom && w.MynoteDom.getTextOffsetWithin
+          ? w.MynoteDom.getTextOffsetWithin(blockEl, sel.focusNode, sel.focusOffset)
+          : null;
+        if (mappedOffset !== null) caretOffset = mappedOffset;
+        else {
           var preRange = range.cloneRange();
           preRange.selectNodeContents(blockEl);
           preRange.setEnd(range.endContainer, range.endOffset);
@@ -212,7 +199,8 @@
       setShowSlash(true);
       var anchorRect = null;
       try {
-        var caretRange = sel.getRangeAt(0).cloneRange();
+        var caretRange = w.document.createRange();
+        caretRange.setStart(sel.focusNode, sel.focusOffset);
         caretRange.collapse(true);
         var rects = caretRange.getClientRects();
         anchorRect = rects && rects.length > 0 ? rects[0] : caretRange.getBoundingClientRect();

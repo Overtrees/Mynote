@@ -3,7 +3,7 @@
 import { chromium } from 'playwright-core';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:8080/Moment.html';
-const CHROME = process.env.CHROME || '/usr/local/bin/chromium';
+const CHROME = process.env.CHROME || '/usr/bin/chromium';
 const results = [];
 const errs = [];
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); console.log(`${ok ? '✔' : '✖'} ${name}${detail ? ' — ' + detail : ''}`); };
@@ -232,8 +232,12 @@ const attachmentAdded = await page.evaluate(() => {
 check('菜单添加附件可选文件并显示附件块', attachmentAdded);
 
 const bgBefore = await page.evaluate(() => document.body.style.backgroundColor);
-await page.click('.editor-fab.right'); await page.waitForTimeout(250);
-await page.locator('button').filter({ hasText: '更换背景色' }).click({ force: true });
+const changeBackgroundButton = page.locator('button').filter({ hasText: '更换背景色' }).first();
+if (!(await changeBackgroundButton.isVisible().catch(() => false))) {
+  await page.click('.editor-fab.right');
+  await page.waitForTimeout(250);
+}
+await changeBackgroundButton.click({ force: true });
 await page.getByRole('button', { name: '暖沙' }).waitFor({ state: 'visible' });
 const bgSwatches = await page.$$eval('button[aria-label]', els => els.length);
 check('背景色 8 色板', bgSwatches >= 8, `swatches=${bgSwatches}`);

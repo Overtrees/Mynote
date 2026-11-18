@@ -7,6 +7,20 @@
       .replace(/"/g, '&quot;');
   }
 
+  function getTextOffsetWithin(root, node, offset) {
+    if (!root || !node || (node !== root && !root.contains(node))) return null;
+    var maxOffset = node.nodeType === Node.TEXT_NODE ? node.textContent.length : (node.childNodes || []).length;
+    var safeOffset = Math.max(0, Math.min(Math.floor(Number(offset) || 0), maxOffset));
+    try {
+      var range = document.createRange();
+      range.selectNodeContents(root);
+      range.setEnd(node, safeOffset);
+      return range.toString().length;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function focusEditableWithCaret(target, offset, warnFn) {
     if (offset === void 0) offset = 0;
     if (!target) return false;
@@ -21,19 +35,58 @@
       }
     }
 
-    var hasTextNode = Array.from(target.childNodes || []).some(function (n) {
-      return n.nodeType === Node.TEXT_NODE;
-    });
-    if (!hasTextNode) target.textContent = '\u200B';
+    function collectTextNodes(node, out) {
+      Array.from(node.childNodes || []).forEach(function (child) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          var parent = child.parentElement;
+          if (parent && !parent.closest('[contenteditable="false"]')) out.push(child);
+        } else if (child.nodeType === Node.ELEMENT_NODE && child.getAttribute('contenteditable') !== 'false') {
+          collectTextNodes(child, out);
+        }
+      });
+    }
+    var textNodes = [];
+    if (target.getAttribute && target.getAttribute('contenteditable') !== 'false') collectTextNodes(target, textNodes);
+    if (!textNodes.length) {
+      function findTextContainer(node) {
+        if (!node || node.nodeType !== Node.ELEMENT_NODE || node.getAttribute('contenteditable') === 'false') return null;
+        var children = Array.from(node.childNodes || []);
+        for (var i = 0; i < children.length; i++) {
+          var child = children[i];
+          if (child.nodeType !== Node.ELEMENT_NODE || child.getAttribute('contenteditable') === 'false') continue;
+          if (child.tagName === 'BR') return node;
+          var nested = findTextContainer(child);
+          if (nested) return nested;
+        }
+        return node;
+      }
+      var textContainer = findTextContainer(target);
+      if (textContainer) {
+        var marker = document.createTextNode('\u200B');
+        var emptyBreak = Array.from(textContainer.childNodes || []).find(function (child) {
+          return child.nodeType === Node.ELEMENT_NODE && child.tagName === 'BR';
+        });
+        if (emptyBreak) textContainer.replaceChild(marker, emptyBreak);
+        else textContainer.appendChild(marker);
+        textNodes.push(marker);
+      }
+    }
+    if (!textNodes.length) return document.activeElement === target || document.activeElement === root;
 
-    var textNode = Array.from(target.childNodes || []).find(function (n) {
-      return n.nodeType === Node.TEXT_NODE;
-    });
-    if (!textNode) return document.activeElement === target || document.activeElement === root;
-
-    var raw = textNode.textContent || '';
-    var logicalLen = raw.replace(/\u200B/g, '').length;
-    var anchorOffset = raw === '\u200B' ? 1 : Math.min(offset, logicalLen);
+    var remaining = Math.max(0, Number(offset) || 0);
+    var textNode = textNodes[textNodes.length - 1];
+    var anchorOffset = 0;
+    for (var ti = 0; ti < textNodes.length; ti++) {
+      var candidate = textNodes[ti];
+      var candidateText = candidate.textContent || '';
+      if (remaining <= candidateText.length) {
+        textNode = candidate;
+        anchorOffset = candidateText === '\u200B' ? 1 : remaining;
+        break;
+      }
+      remaining -= candidateText.length;
+      anchorOffset = candidateText.length;
+    }
 
     try {
       var range = document.createRange();
@@ -69,6 +122,7 @@
 
   w.MynoteDom = {
     escapeHTML: escapeHTML,
+    getTextOffsetWithin: getTextOffsetWithin,
     focusEditableWithCaret: focusEditableWithCaret,
     rafThrottle: rafThrottle
   };

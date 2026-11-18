@@ -375,8 +375,56 @@ try {
   await wikiPage.waitForTimeout(360);
   await wikiPage.locator('.list-item').filter({ hasText: '新建笔记' }).first().click();
   await wikiPage.waitForSelector('.editor-title-input', { timeout: 10000 });
-  const firstLongTitle = '新建笔记首次快速输入长标题测试左右留白与副标题居中'.repeat(2);
   const firstTitleInput = wikiPage.locator('.editor-title-input');
+  const composedLongTitle = '新建笔记首次输入法组合阶段胶囊布局留白与副标题居中验证'.repeat(2);
+  await firstTitleInput.click();
+  await firstTitleInput.evaluate((el, value) => {
+    el.focus();
+    el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: '' }));
+    [8, 16, value.length].forEach(length => {
+      el.textContent = value.slice(0, length);
+      const text = el.firstChild;
+      const range = document.createRange();
+      range.setStart(text, text.length);
+      range.collapse(true);
+      const selection = getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      el.dispatchEvent(new CompositionEvent('compositionupdate', { bubbles: true, data: value.slice(0, length) }));
+      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertCompositionText', data: value.slice(0, length) }));
+    });
+  }, composedLongTitle);
+  await wikiPage.setViewportSize({ width: 390, height: 480 });
+  await wikiPage.waitForTimeout(100);
+  const compositionLayout = await wikiPage.evaluate(() => {
+    const input = document.querySelector('.editor-title-input');
+    const scroller = input.parentElement;
+    const capsule = scroller.parentElement;
+    const meta = capsule.querySelector('.editor-title-meta');
+    const capsuleBox = capsule.getBoundingClientRect();
+    const metaBox = meta && meta.getBoundingClientRect();
+    return {
+      focused: document.activeElement === input,
+      text: input.textContent,
+      capsuleWidth: capsuleBox.width,
+      inputWhiteSpace: getComputedStyle(input).whiteSpace,
+      inputTextAlign: getComputedStyle(input).textAlign,
+      inputMinWidth: getComputedStyle(input).minWidth,
+      scrollerWidth: scroller.clientWidth,
+      scrollerScrollWidth: scroller.scrollWidth,
+      scrollerScrollLeft: scroller.scrollLeft,
+      scrollerScrollRemaining: scroller.scrollWidth - scroller.clientWidth - scroller.scrollLeft,
+      metaExists: !!metaBox,
+      metaCenterDelta: metaBox && (metaBox.left + metaBox.width / 2 - (capsuleBox.left + capsuleBox.width / 2)),
+      metaInsideCapsule: !!metaBox && metaBox.left >= capsuleBox.left && metaBox.right <= capsuleBox.right,
+      metaText: meta?.textContent.trim() || ''
+    };
+  });
+  check('输入法组合尚未确认且键盘缩小视口时标题已进入防溢出布局、副标题保持居中', compositionLayout.focused && compositionLayout.text === composedLongTitle && compositionLayout.inputWhiteSpace === 'nowrap' && compositionLayout.inputTextAlign === 'left' && compositionLayout.inputMinWidth === 'max-content' && compositionLayout.scrollerScrollWidth > compositionLayout.scrollerWidth && compositionLayout.scrollerScrollLeft > 0 && Math.abs(compositionLayout.scrollerScrollRemaining) <= 1 && compositionLayout.metaExists && Math.abs(compositionLayout.metaCenterDelta) <= 1 && compositionLayout.metaInsideCapsule && compositionLayout.metaText.length > 0, JSON.stringify(compositionLayout));
+  await firstTitleInput.evaluate(el => el.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: el.textContent })));
+  await wikiPage.setViewportSize({ width: 390, height: 844 });
+  await wikiPage.waitForTimeout(80);
+  const firstLongTitle = '新建笔记首次快速输入长标题测试左右留白与副标题居中'.repeat(2);
   await firstTitleInput.click();
   await firstTitleInput.press('Control+A');
   await firstTitleInput.pressSequentially(firstLongTitle, { delay: 0 });
@@ -409,6 +457,69 @@ try {
     };
   });
   check('新建笔记首次快速输入长标题时光标两侧留白，时间/计数完整并保持胶囊中轴', firstTitleLayout.text === firstLongTitle && firstTitleLayout.maxScroll > 0 && firstTitleLayout.leftGap >= 14 && firstTitleLayout.rightGap >= 14 && Math.abs(firstTitleLayout.capsuleCenterDelta) <= 1 && Math.abs(firstTitleLayout.metaCenterDelta) <= 1 && firstTitleLayout.metaInsideCapsule && firstTitleLayout.metaText.length > 0 && firstTitleLayout.metaScrollWidth <= firstTitleLayout.metaClientWidth, JSON.stringify(firstTitleLayout));
+  const boundaryCaretLayout = await wikiPage.evaluate(async () => {
+    const input = document.querySelector('.editor-title-input');
+    const scroller = input.parentElement;
+    const text = input.firstChild;
+    scroller.scrollLeft = 0;
+    const range = document.createRange();
+    range.setStart(input, input.childNodes.length);
+    range.collapse(true);
+    const selection = getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const proto = Range.prototype;
+    const nativeRect = proto.getBoundingClientRect;
+    proto.getBoundingClientRect = function () {
+      if (this.collapsed && this.startContainer === input) return new DOMRect(0, 0, 0, 0);
+      return nativeRect.call(this);
+    };
+    try {
+      document.dispatchEvent(new Event('selectionchange'));
+      await new Promise(resolve => setTimeout(resolve, 120));
+      const glyphRange = document.createRange();
+      glyphRange.setStart(text, Math.max(0, text.length - 1));
+      glyphRange.setEnd(text, text.length);
+      const glyph = glyphRange.getBoundingClientRect();
+      const box = scroller.getBoundingClientRect();
+      return {
+        focusNodeType: selection.focusNode.nodeType,
+        scrollerScrollLeft: scroller.scrollLeft,
+        scrollerMaxScroll: scroller.scrollWidth - scroller.clientWidth,
+        caretRightGap: box.right - glyph.right
+      };
+    } finally {
+      proto.getBoundingClientRect = nativeRect;
+    }
+  });
+  check('contenteditable 元素边界选区也能用相邻字形同步标题滚动并留出光标边距', boundaryCaretLayout.focusNodeType === 1 && boundaryCaretLayout.scrollerScrollLeft > 0 && Math.abs(boundaryCaretLayout.scrollerMaxScroll - boundaryCaretLayout.scrollerScrollLeft) <= 1 && boundaryCaretLayout.caretRightGap >= 14, JSON.stringify(boundaryCaretLayout));
+  const nestedBoundaryOffset = await wikiPage.evaluate(() => {
+    const root = document.createElement('p');
+    root.innerHTML = 'ab<strong>cd<em>ef</em>gh</strong>ij';
+    const strong = root.querySelector('strong');
+    return window.MynoteDom.getTextOffsetWithin(root, strong, 2);
+  });
+  check('嵌套元素边界选区映射为完整正文文字偏移', nestedBoundaryOffset === 6, String(nestedBoundaryOffset));
+  const nestedFocus = await wikiPage.evaluate(() => {
+    const host = document.createElement('div');
+    host.contentEditable = 'true';
+    const quote = document.createElement('blockquote');
+    quote.innerHTML = '<div>引用块内层文字</div>';
+    host.appendChild(quote);
+    document.body.appendChild(host);
+    const originalText = quote.textContent;
+    const focused = window.MynoteDom.focusEditableWithCaret(quote, originalText.length);
+    const selection = getSelection();
+    const result = {
+      focused,
+      textPreserved: quote.textContent === originalText,
+      caretInText: selection.focusNode?.nodeType === 3 && selection.focusNode.textContent === originalText && selection.focusOffset === originalText.length
+    };
+    selection.removeAllRanges();
+    host.remove();
+    return result;
+  });
+  check('嵌套引用块定位光标不会覆盖块内现有文字', nestedFocus.focused && nestedFocus.textPreserved && nestedFocus.caretInText, JSON.stringify(nestedFocus));
   await wikiContext.close();
 } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 const failed=results.filter(r=>!r.ok); console.log(`\n${results.length-failed.length}/${results.length} 通过`); process.exitCode=failed.length?1:0;

@@ -521,6 +521,34 @@ var titleValueRef = useRef(title);
 useEffect(() => {
   titleValueRef.current = title;
 }, [title]);
+const TITLE_CAPSULE_MAX_CONTENT_W = 148;
+function syncTitleCompositionLayout(el) {
+  if (!el || !editingStyleSnapshot.current) return;
+  const textLength = (el.textContent || '').length;
+  if (textLength > 5) editingStyleSnapshot.current.isLong = true;
+  if (textLength > 11) editingStyleSnapshot.current.isOverflow = true;
+  const isLong = !!editingStyleSnapshot.current.isLong;
+  const isOverflow = !!editingStyleSnapshot.current.isOverflow;
+  const scroller = el.parentElement;
+  const capsule = scroller && scroller.parentElement;
+  if (!scroller || !capsule) return;
+
+  // IME 组合期不触发 React state 更新，但仍要即时切换布局；只改样式，不碰选区和文本节点。
+  capsule.style.width = isOverflow ? (TITLE_CAPSULE_MAX_CONTENT_W + 36) + 'px' : 'auto';
+  capsule.style.padding = isLong ? '6px 18px' : '0px 20px';
+  scroller.style.width = isOverflow ? '100%' : 'auto';
+  scroller.style.minWidth = '0';
+  scroller.style.maxWidth = '100%';
+  scroller.style.boxSizing = 'border-box';
+  scroller.style.paddingLeft = isOverflow ? '16px' : '0px';
+  scroller.style.scrollPaddingInline = isOverflow ? '16px' : '0px';
+  el.style.fontSize = isLong ? '11px' : '14px';
+  el.style.whiteSpace = isOverflow ? 'nowrap' : isLong ? 'normal' : 'nowrap';
+  el.style.wordBreak = !isOverflow && isLong ? 'break-all' : 'normal';
+  el.style.textAlign = isOverflow ? 'left' : 'center';
+  el.style.minWidth = isOverflow ? 'max-content' : 'auto';
+  el.style.paddingRight = isOverflow ? '16px' : '0px';
+}
 function commitTitleFromDOM(el) {
   if (!el) return titleValueRef.current;
   var raw = el.textContent.trim() || "无标题";
@@ -811,18 +839,40 @@ const handleClose = async () => {
           range.setStart(sel.focusNode, sel.focusOffset);
           range.collapse(true);
           let cursorRect = range.getBoundingClientRect();
-          if ((!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) && sel.focusNode.nodeType === 3 && sel.focusNode.length) {
-            // iOS Safari 可能不给折叠光标返回 rect；测相邻字形但不改动文字。
-            const offset = Math.max(0, Math.min(sel.focusOffset, sel.focusNode.length));
-            const from = offset > 0 ? offset - 1 : offset;
-            const to = offset > 0 ? offset : Math.min(offset + 1, sel.focusNode.length);
-            const glyphRange = document.createRange();
-            glyphRange.setStart(sel.focusNode, from);
-            glyphRange.setEnd(sel.focusNode, to);
-            const glyphRect = glyphRange.getBoundingClientRect();
-            if (glyphRect && glyphRect.height) {
-              const x = offset > 0 ? glyphRect.right : glyphRect.left;
-              cursorRect = { left: x, right: x, top: glyphRect.top, bottom: glyphRect.bottom, width: 0, height: glyphRect.height };
+          if (!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) {
+            // iOS Safari 组合输入时常把选区报告为编辑器元素边界，而不是文本节点；向边界内找最近字形测量。
+            function findEdgeText(node, fromEnd) {
+              if (!node) return null;
+              if (node.nodeType === 3) return node.length ? node : null;
+              const children = Array.prototype.slice.call(node.childNodes || []);
+              if (fromEnd) children.reverse();
+              for (const child of children) {
+                const found = findEdgeText(child, fromEnd);
+                if (found) return found;
+              }
+              return null;
+            }
+            let textNode = sel.focusNode.nodeType === 3 ? sel.focusNode : null;
+            let offset = textNode ? Math.max(0, Math.min(sel.focusOffset, textNode.length)) : 0;
+            if ((!textNode || !textNode.length) && sel.focusNode.nodeType === 1) {
+              const atEnd = sel.focusOffset > 0;
+              const edgeChild = sel.focusNode.childNodes[atEnd ? sel.focusOffset - 1 : sel.focusOffset];
+              textNode = findEdgeText(edgeChild, atEnd);
+              if (textNode) offset = atEnd ? textNode.length : 0;
+            }
+            if (textNode && textNode.length && input.contains(textNode)) {
+              // 测相邻字形而不改动组合文本或选区。
+              offset = Math.max(0, Math.min(offset, textNode.length));
+              const from = offset > 0 ? offset - 1 : offset;
+              const to = offset > 0 ? offset : Math.min(offset + 1, textNode.length);
+              const glyphRange = document.createRange();
+              glyphRange.setStart(textNode, from);
+              glyphRange.setEnd(textNode, to);
+              const glyphRect = glyphRange.getBoundingClientRect();
+              if (glyphRect && glyphRect.height) {
+                const x = offset > 0 ? glyphRect.right : glyphRect.left;
+                cursorRect = { left: x, right: x, top: glyphRect.top, bottom: glyphRect.bottom, width: 0, height: glyphRect.height };
+              }
             }
           }
           if (!cursorRect || !cursorRect.height || cursorRect.left === 0 && cursorRect.top === 0) return;
@@ -883,7 +933,10 @@ const handleClose = async () => {
       while (node && node !== el) {
         if (node.nodeType === 1 && node.dataset && node.dataset.blockid && node.contentEditable !== 'false') {
           var text = node.textContent || '';
-          var offset = range.startOffset;
+          var offset = window.MynoteDom && window.MynoteDom.getTextOffsetWithin
+            ? window.MynoteDom.getTextOffsetWithin(node, range.startContainer, range.startOffset)
+            : null;
+          if (offset === null) offset = range.startContainer.nodeType === 3 ? range.startOffset : 0;
           if (offset > 0 && offset < text.length) {
             var afterText = text.slice(offset);
             node.textContent = text.slice(0, offset);
@@ -1977,7 +2030,6 @@ onPointerDown: function (e) {
     const capsuleFontSize = styleIsLong ? 11 : 14;
 
     // 胶囊内容区最大宽度（11字时的自然宽度）
-    const CAPSULE_MAX_CONTENT_W = 148;
     return /*#__PURE__*/React.createElement("div", {
       className: "editor-title-dock",
       style: {
@@ -2032,7 +2084,7 @@ onPointerDown: function (e) {
         pointerEvents: "auto",
         height: 66,
         minWidth: 66,
-        width: isOverflow ? CAPSULE_MAX_CONTENT_W + 36 : "auto",
+        width: isOverflow ? TITLE_CAPSULE_MAX_CONTENT_W + 36 : "auto",
         maxWidth: "100%",
         alignSelf: "center",
         borderRadius: "var(--radius-33)",
@@ -2056,6 +2108,8 @@ onPointerDown: function (e) {
       style: {
         position: "relative",
         width: isOverflow ? "100%" : "auto",
+        minWidth: 0,
+        maxWidth: "100%",
         // 始终允许横向滚动（隐藏滚动条），防止模式切换重置 scrollLeft 导致光标跳位
         overflowX: "scroll",
         overflowY: "hidden",
@@ -2121,11 +2175,16 @@ onPointerDown: function (e) {
             if (text.length > 11) editingStyleSnapshot.current.isOverflow = true;
           }
           setEditingTitle(text);
-        }
+        } else syncTitleCompositionLayout(el);
         scheduleTitleCaretSync();
       },
-      onCompositionStart: () => {
+      onCompositionStart: e => {
         isComposingRef.current = true;
+        syncTitleCompositionLayout(e.currentTarget);
+      },
+      onCompositionUpdate: e => {
+        syncTitleCompositionLayout(e.currentTarget);
+        scheduleTitleCaretSync();
       },
       onCompositionEnd: e => {
         isComposingRef.current = false;
