@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+
+  <!--
+    Uncomment the tag below to lay the app out underneath the parts of the
+    screen that the device obstructs, such as a display cutout, the rounded
+    corners of the screen, or a home indicator.
+
+    Without it, the browser keeps the app clear of them, and `SafeArea` and
+    `MediaQuery.paddingOf` report no padding. With it, the app covers the whole
+    screen, and it is up to the app to keep its own content out of the way,
+    which is what `SafeArea` is for.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+
+  <!-- iOS meta tags & icons（与原版 Moment.html 逐项对齐） -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="apple-mobile-web-app-title" content="此刻">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>此刻</title>
+  <style>
+    /* html/body 与原版 base.css 对齐：html min-height:100% + overflow-x
+       hidden；body min-height:100vh + padding-bottom env(底部安全区)。
+       原版没有 overscroll-behavior/touch-action——内容即文档时不需要；
+       嵌入壳同理（占位层即文档内容），手势放行只留在画布内部规则。 */
+    html { background: #F2F2F7; min-height: 100%; overflow-x: hidden; }
+    /* v3 嵌入外壳：body 持有滚动与安全区，内部页面按 window.scrollY
+       平移（原版同款模型）。结构对齐原版：根 #root 在文档流内由
+       内容撑高，画布 sticky 停靠视口顶部——不再用 fixed 覆盖层，
+       也不用 dvh 撑高（dvh 会把画布伸进 Safari 浮动工具栏下面）。 */
+    body { margin: 0; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); background: #F2F2F7; }
+    @media (prefers-color-scheme: dark) { html, body { background: #000000; } }
+    /* 结构对齐原版（2026-11-20）：单一流内根 #root 撑起文档高度
+       （= 原版 #memo-list-root），画布 #host 以 sticky 停在视口顶部
+       （= 原版 sticky 页眉的同款机制）。画布高度用 100svh（小视口
+       高，工具栏展开态）：探针实测这台 Safari 的 100vh 会随工具栏
+       收放动态变化（695↔735），画布在滚动中途被迫改高、引擎重排，
+       内容上下沿跟不上；svh 恒定不变，滚动全程画布尺寸稳定。
+       注：position:fixed 版（build 5760）实机更差——连根页面都
+       不穿透，用户令恢复 sticky 版。 */
+    #root { position: relative; }
+    #host { position: sticky; top: 0; width: 100%; height: 100svh; }
+    /* Flutter 视图默认 touch-action:none 会吞掉触摸滚动；只放行纵向给浏览器 */
+    #host *, #host > flutter-view { touch-action: pan-y !important; }
+    /* 启动屏恐龙/转圈（原版 launch.css）：icon-muted 两态色、动画受
+       prefers-reduced-motion 门控、转圈 1.1s */
+    .ld-dino { color: #8A9BB0; }
+    .ld-spin circle { stroke: #8E8E93; }
+    @media (prefers-reduced-motion: no-preference) {
+      .ld-dino { animation: dinoFloat 2.4s ease-in-out infinite; }
+      .ld-spin { animation: appspin 1.1s linear infinite; }
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #000000; }
+      #app-loading { background: #000000 !important; color: #F2F2F7 !important; }
+      .ld-dino { color: #E5E7EB; }
+      .ld-spin circle { stroke: #98989D; }
+    }
+  </style>
+  <link rel="manifest" href="manifest.json">
+  <script>
+    // Diag 诊断日志持久化（localStorage）：崩溃/重载后仍可读
+    window.mynoteDiagLoad = function () { try { return localStorage.getItem('mynote_diag_v1'); } catch (e) { return null; } };
+    window.mynoteDiagSave = function (s) { try { localStorage.setItem('mynote_diag_v1', s); } catch (e) {} };
+    // 启动失败自诊断：收集 JS 错误，供看门狗在启动屏上直接展示
+    window.__mynoteErrs = [];
+    window.addEventListener('error', function (e) {
+      try { window.__mynoteErrs.push(String((e && e.message) || e).slice(0, 200)); } catch (err) {}
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      try { window.__mynoteErrs.push('rejection: ' + String((e && e.reason) || e).slice(0, 200)); } catch (err) {}
+    });
+  </script>
+  <script>
+    // 粘贴拦截（捕获阶段）：含 http 文本或图片文件时先拦下，交由
+    // Dart 侧 paste_policy 分类处理；普通文本放行 Flutter 原生管线。
+    window.__mynotePasteText = '';
+    window.__mynotePasteImageCount = 0;
+    window.__mynotePasteFiles = [];
+    window.__mynotePasteTypes = [];
+    window.addEventListener('paste', function (e) {
+      try {
+        var cd = e.clipboardData; if (!cd) return;
+        var text = cd.getData('text/plain') || '';
+        var files = [];
+        if (cd.files) { for (var i = 0; i < cd.files.length; i++) { if (cd.files[i].type.indexOf('image/') === 0) files.push(cd.files[i]); } }
+        if (files.length || /https?:\/\//.test(text)) {
+          e.preventDefault(); e.stopPropagation();
+          window.__mynotePasteText = text;
+          window.__mynotePasteImageCount = files.length;
+          window.__mynotePasteFiles = files;
+          window.__mynotePasteTypes = files.map(function (f) { return f.type || ''; });
+          window.dispatchEvent(new Event('mynote-paste'));
+        }
+      } catch (err) {}
+    }, true);
+  </script>
+  <script>
+    // 附件打开（原版 openAttachmentFile）：能分享先走系统分享面板，
+    // 返回 'shared'/'aborted' 表示已处理；其余情况 Dart 侧退化为下载。
+    window.__mynoteShareFile = async function (name, type, bytes) {
+      try {
+        var file = new File([new Uint8Array(bytes)], name, { type: type || 'application/octet-stream' });
+        if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+          await navigator.share({ files: [file] });
+          return 'shared';
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return 'aborted';
+      }
+      return 'unsupported';
+    };
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <div id="app-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#F2F2F7;font-family:-apple-system,'PingFang SC',sans-serif;color:#1A1A1A;z-index:9999">
+    <svg class="ld-dino" viewBox="0 0 512 512" width="100" height="100" fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:20px">
+      <path d="M 90,460 L 90,170 C 90,110 140,70 210,70 L 380,95 C 440,95 470,130 470,185 C 470,225 450,240 410,245 C 350,250 280,230 210,265 C 190,275 190,295 210,310 C 270,350 350,380 410,360 C 435,350 440,325 410,315"/>
+      <path d="M 160,330 C 180,380 230,440 280,460"/>
+      <path d="M 240,365 C 220,400 240,440 310,460"/>
+      <path d="M 90,460 L 310,460"/>
+      <path d="M 415,135 C 425,140 435,150 435,160"/>
+      <path d="M 230,115 C 260,95 310,120 355,140"/>
+      <path d="M 255,140 C 255,170 290,195 320,185 C 345,175 350,150 335,135"/>
+      <path d="M 290,145 C 290,165 315,165 315,150"/>
+      <path d="M 250,243 L 255,265 L 265,243 M 275,245 L 282,270 L 292,245 M 302,246 L 310,273 L 320,247 M 330,248 L 340,275 L 350,248 M 360,249 L 370,274 L 380,248 M 390,248 L 400,270 L 408,246 M 415,244 L 425,263 L 432,240 M 438,235 L 448,252 L 452,228"/>
+      <path d="M 250,323 L 255,305 L 263,326 M 273,329 L 280,308 L 288,333 M 298,336 L 306,313 L 314,340 M 324,343 L 333,318 L 341,346 M 351,348 L 361,323 L 369,351 M 379,352 L 389,328 L 396,353 M 404,351 L 413,330 L 418,348"/>
+    </svg>
+    <svg class="ld-spin" width="36" height="36" viewBox="0 0 36 36" style="margin-bottom:24px">
+      <circle cx="18" cy="18" r="15" fill="none" stroke="#8E8E93" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="60 40"/>
+    </svg>
+    <div style="font-size:13px;color:#8E8E93;letter-spacing:0.2px">此刻，值得被记住</div>
+    <style>@keyframes appspin{to{transform:rotate(360deg)}}@keyframes dinoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}</style>
+  </div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      window.__mynoteFirstFrame = true;
+      var el = document.getElementById('app-loading');
+      if (el) el.remove();
+    });
+  </script>
+  <div id="root"><div id="host"></div></div>
+  <div id="envT" style="position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);"></div>
+  <div id="envB" style="position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;padding-bottom:env(safe-area-inset-bottom);"></div>
+  <div id="envL" style="position:fixed;top:0;left:0;height:0;visibility:hidden;pointer-events:none;padding-left:env(safe-area-inset-left);"></div>
+  <div id="envR" style="position:fixed;top:0;left:0;height:0;visibility:hidden;pointer-events:none;padding-right:env(safe-area-inset-right);"></div>
+  <script>
+    // v3 宿主桥：应用上报内容总高 → 根 #root 高度（body 滚动范围）；
+    // 宿主把 window.scrollY 与安全区实测值回传应用（__mynoteOnScroll /
+    // __mynoteOnInsets 由 Dart 侧注册）。安全区用布局实测（offset）读取：
+    // WebKit 的 getComputedStyle 不解析 env()。额外余量 R 为被动跟踪：
+    // 实际滚过的最大量超出理论值（占位高 − 视口高）的部分，喂底部停靠。
+    var __spacerH = 0;
+    var __R = 0;
+    var __lastInsets = '';
+    window.__mynoteSetHeight = function (h) {
+      __spacerH = h;
+      window.__mynoteHeightSet = true;
+      var el = document.getElementById('root');
+      if (el && h > 0) el.style.height = h + 'px';
+      var l = document.getElementById('app-loading');
+      if (l) l.style.display = 'none';
+    };
+    // 画布高度由 CSS 100vh 决定（见样式注释），宿主不再用 JS 定高。
+    function __readInsets() {
+      var eT = document.getElementById('envT');
+      if (!eT || !window.__mynoteOnInsets) return;
+      var t = eT.offsetHeight || 0;
+      // 底部安全区只认 env（与原版一致）：旧的滚动余量 __R 是粘性
+      // 画布时代的补偿，固定画布下前提已消失，且会把底部停靠顶高。
+      var b = document.getElementById('envB').offsetHeight || 0;
+      var l = document.getElementById('envL').offsetWidth || 0;
+      var r = document.getElementById('envR').offsetWidth || 0;
+      var key = t + ',' + r + ',' + b + ',' + l;
+      if (key !== __lastInsets) {
+        __lastInsets = key;
+        window.__mynoteOnInsets(t, r, b, l);
+      }
+    }
+    window.addEventListener('resize', __readInsets);
+    window.addEventListener('orientationchange', __readInsets);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', __readInsets);
+    }
+    setInterval(__readInsets, 500);
+    // 滚动回传：scroll 事件在 iOS 惯性滚动期间给得很稀，内部滚动面
+    // 跳步追赶会发涩——滚动/触摸活跃期内加一条 rAF 泵，每帧读最新
+    // scrollY 补发（值未变不发）。__R（底部余量）改为落定后提交：
+    // 回弹过冲是瞬时值，立即提交会把底部安全区越撑越大。
+    var __lastSentY = -1;
+    var __pumpUntil = 0;
+    var __pumping = false;
+    var __rTimer = 0;
+    function __sendY() {
+      var y = window.scrollY;
+      if (y !== __lastSentY) {
+        __lastSentY = y;
+        if (window.__mynoteOnScroll) window.__mynoteOnScroll(y);
+      }
+    }
+    function __pump() {
+      if (Date.now() < __pumpUntil) {
+        __sendY();
+        requestAnimationFrame(__pump);
+      } else {
+        __pumping = false;
+        __sendY();
+      }
+    }
+    function __kickPump() {
+      __pumpUntil = Date.now() + 350;
+      if (!__pumping) {
+        __pumping = true;
+        requestAnimationFrame(__pump);
+      }
+    }
+    window.addEventListener('scroll', function () {
+      if (__spacerH > 0) {
+        var exp = __spacerH - window.innerHeight;
+        var excess = window.scrollY - exp;
+        if (exp > 0 && excess > __R + 1 && !__rTimer) {
+          var cand = excess;
+          __rTimer = setTimeout(function () {
+            __rTimer = 0;
+            var expNow = __spacerH - window.innerHeight;
+            if (expNow > 0 && window.scrollY - expNow >= cand - 1 &&
+                cand > __R) {
+              __R = cand;
+              __lastInsets = '';
+              __readInsets();
+            }
+          }, 120);
+        }
+      }
+      __sendY();
+      __kickPump();
+    }, { passive: true });
+    window.addEventListener('touchmove', __kickPump, { passive: true });
+    // 兜底：启动屏保持到首帧为止（Safari 单线程编译 wasm 可能要数分钟，
+    // 过早撤屏只会让用户对着空白页）；120 秒是最后防线，避免永久盖屏。
+    setTimeout(function () {
+      var l = document.getElementById('app-loading');
+      if (l && !window.__mynoteFirstFrame) l.style.display = 'none';
+    }, 120000);
+    // 看门狗：90 秒后首帧未到或应用从未上报高度，说明启动链断了——
+    // 把诊断直接写在屏幕上（引擎状态 / JS 错误 / 持久化 Diag 尾部），
+    // 用户截图即可定位，不必进设置页。
+    setTimeout(function () {
+      if (window.__mynoteFirstFrame && window.__mynoteHeightSet) return;
+      var diag = '';
+      try { diag = window.mynoteDiagLoad() || ''; } catch (e) {}
+      if (diag.length > 1500) diag = diag.slice(-1500);
+      var lines = [
+        '启动诊断（请截图发我）',
+        'firstFrame: ' + (window.__mynoteFirstFrame ? 'yes' : 'no'),
+        'heightSet: ' + (window.__mynoteHeightSet ? 'yes' : 'no'),
+        'crossOriginIsolated: ' + window.crossOriginIsolated,
+        'flutter-view: ' + (document.querySelector('flutter-view') ? 'yes' : 'no'),
+        'spacerH: ' + ((document.getElementById('root') || {}).style.height || '(unset)'),
+        'scrollH: ' + document.documentElement.scrollHeight + ' innerH: ' + window.innerHeight,
+        'errors: ' + (window.__mynoteErrs.length ? window.__mynoteErrs.join(' | ') : '(none)'),
+        'stages: ' + ((window.__mynoteStages || []).join(' > ') || '(none)'),
+        'resources: ' + (function () {
+          try {
+            var es = performance.getEntriesByType('resource');
+            var out = [];
+            for (var i = Math.max(0, es.length - 14); i < es.length; i++) {
+              var n = es[i].name.split('/').pop().slice(0, 28);
+              out.push(n + ':' + Math.round(es[i].duration) + 'ms/' + (es[i].transferSize || 0));
+            }
+            return out.join(' ') || '(none)';
+          } catch (e) { return '(unavailable)'; }
+        })(),
+        '--- Diag 尾部 ---',
+        diag || '(empty)'
+      ];
+      var box = document.getElementById('app-loading');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'app-loading';
+        document.body.appendChild(box);
+      }
+      box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#ffffff;color:#111111;overflow:auto;padding:48px 16px 24px;font-family:monospace;';
+      var pre = document.createElement('pre');
+      pre.style.cssText = 'white-space:pre-wrap;word-break:break-all;font-size:11px;line-height:1.5;margin:0;';
+      pre.textContent = lines.join('\n');
+      box.textContent = '';
+      box.appendChild(pre);
+      box.style.display = 'block';
+    }, 90000);
+  </script>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

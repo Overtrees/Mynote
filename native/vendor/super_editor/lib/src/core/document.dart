@@ -1,0 +1,678 @@
+import 'package:collection/collection.dart';
+import 'package:flutter/widgets.dart';
+import 'package:super_editor/src/default_editor/text_ai.dart';
+
+/// A read-only document with styled text and multimedia elements.
+///
+/// A [Document] is comprised of a list of [DocumentNode]s,
+/// which describe the type and substance of a piece of content
+/// within the document. For example, a [ParagraphNode] holds a
+/// single paragraph of text within the document.
+///
+/// New types of content can be added by subclassing [DocumentNode].
+///
+/// To represent a specific location within a [Document],
+/// see [DocumentPosition].
+///
+/// A [Document] has no opinion on the visual presentation of its
+/// content.
+///
+/// To edit the content of a document, see [DocumentEditor].
+abstract class Document implements Iterable<DocumentNode> {
+  /// The number of [DocumentNode]s in this [Document].
+  int get nodeCount;
+
+  /// Returns `true` if this [Document] has zero nodes, or `false` if it
+  /// has `1+ nodes.
+  @override
+  bool get isEmpty;
+
+  /// Returns the first [DocumentNode] in this [Document], or `null` if this
+  /// [Document] is empty.
+  DocumentNode? get firstOrNull;
+
+  /// Returns the last [DocumentNode] in this [Document], or `null` if this
+  /// [Document] is empty.
+  DocumentNode? get lastOrNull;
+
+  /// Returns the [DocumentNode] with the given [nodeId], or [null]
+  /// if no such node exists.
+  DocumentNode? getNodeById(String nodeId);
+
+  /// Returns the [DocumentNode] at the given [index], or [null]
+  /// if no such node exists.
+  DocumentNode? getNodeAt(int index);
+
+  /// Returns the index of the given [node], or [-1] if the [node]
+  /// does not exist within this [Document].
+  @Deprecated("Use getNodeIndexById() instead")
+  int getNodeIndex(DocumentNode node);
+
+  /// Returns the index of the `DocumentNode` in this `Document` that
+  /// has the given [nodeId], or `-1` if the node does not exist.
+  int getNodeIndexById(String nodeId);
+
+  /// Returns the [DocumentNode] that appears immediately before the
+  /// given [node] in this [Document], or null if the given [node]
+  /// is the first node, or the given [node] does not exist in this
+  /// [Document].
+  @Deprecated("Use getNodeBeforeById() instead")
+  DocumentNode? getNodeBefore(DocumentNode node);
+
+  /// Returns the [DocumentNode] that appears immediately before the
+  /// node with the given [nodeId] in this [Document], or `null` if
+  /// the matching node is the first node in the document, or no such
+  /// node exists.
+  DocumentNode? getNodeBeforeById(String nodeId);
+
+  /// Returns the [DocumentNode] that appears immediately after the
+  /// given [node] in this [Document], or null if the given [node]
+  /// is the last node, or the given [node] does not exist in this
+  /// [Document].
+  @Deprecated("Use getNodeAfterById() instead")
+  DocumentNode? getNodeAfter(DocumentNode node);
+
+  /// Returns the [DocumentNode] that appears immediately after the
+  /// node with the given [nodeId] in this [Document], or `null` if
+  /// the matching node is the last node in the document, or no such
+  /// node exists.
+  DocumentNode? getNodeAfterById(String nodeId);
+
+  /// Returns the [DocumentNode] at the given [position], or [null] if
+  /// no such node exists in this [Document].
+  DocumentNode? getNode(DocumentPosition position);
+
+  /// Returns all [DocumentNode]s from [position1] to [position2], including
+  /// the nodes at [position1] and [position2].
+  List<DocumentNode> getNodesInside(DocumentPosition position1, DocumentPosition position2);
+
+  /// Returns [true] if the content in the [other] document is equivalent to
+  /// the content in this document, ignoring any details that are unrelated
+  /// to content, such as individual node IDs.
+  ///
+  /// To compare [Document] equality, use the standard [==] operator.
+  bool hasEquivalentContent(Document other);
+
+  void addListener(DocumentChangeListener listener);
+
+  void removeListener(DocumentChangeListener listener);
+}
+
+/// Listener that's notified when a document changes.
+///
+/// The [changeLog] includes an ordered list of all changes that were applied
+/// to the [Document] since the last time this listener was notified.
+typedef DocumentChangeListener = void Function(DocumentChangeLog changeLog);
+
+/// One or more document changes that occurred within a single edit transaction.
+///
+/// A [DocumentChangeLog] can be used to rebuild only the parts of a document that changed.
+class DocumentChangeLog {
+  DocumentChangeLog(this.changes);
+
+  final List<DocumentChange> changes;
+
+  /// Returns `true` if the [DocumentNode] with the given [nodeId] was altered in any way
+  /// by the events in this change log.
+  bool wasNodeChanged(String nodeId) {
+    for (final event in changes) {
+      if (event is NodeDocumentChange && event.nodeId == nodeId) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+/// Marker interface for all document changes.
+abstract class DocumentChange {
+  const DocumentChange();
+
+  /// Describes this change in a human-readable way.
+  String describe() => toString();
+}
+
+/// A [DocumentChange] that impacts a single, specified [DocumentNode] with [nodeId].
+abstract class NodeDocumentChange extends DocumentChange {
+  const NodeDocumentChange();
+
+  String get nodeId;
+}
+
+/// A new [DocumentNode] was inserted in the [Document].
+class NodeInsertedEvent extends NodeDocumentChange {
+  const NodeInsertedEvent(this.nodeId, this.insertionIndex);
+
+  @override
+  final String nodeId;
+
+  final int insertionIndex;
+
+  @override
+  String describe() => "Inserted node: $nodeId";
+
+  @override
+  String toString() => "NodeInsertedEvent ($nodeId)";
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeInsertedEvent &&
+          runtimeType == other.runtimeType &&
+          nodeId == other.nodeId &&
+          insertionIndex == other.insertionIndex;
+
+  @override
+  int get hashCode => nodeId.hashCode ^ insertionIndex.hashCode;
+}
+
+/// A [DocumentNode] was moved to a new index.
+class NodeMovedEvent extends NodeDocumentChange {
+  const NodeMovedEvent({
+    required this.nodeId,
+    required this.from,
+    required this.to,
+  });
+
+  @override
+  final String nodeId;
+  final int from;
+  final int to;
+
+  @override
+  String describe() => "Moved node ($nodeId): $from -> $to";
+
+  @override
+  String toString() => "NodeMovedEvent ($nodeId: $from -> $to)";
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NodeMovedEvent &&
+          runtimeType == other.runtimeType &&
+          nodeId == other.nodeId &&
+          from == other.from &&
+          to == other.to;
+
+  @override
+  int get hashCode => nodeId.hashCode ^ from.hashCode ^ to.hashCode;
+}
+
+/// A [DocumentNode] was removed from the [Document].
+class NodeRemovedEvent extends NodeDocumentChange {
+  const NodeRemovedEvent(this.nodeId, this.removedNode);
+
+  @override
+  final String nodeId;
+
+  final DocumentNode removedNode;
+
+  @override
+  String describe() => "Removed node: $nodeId";
+
+  @override
+  String toString() => "NodeRemovedEvent ($nodeId)";
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is NodeRemovedEvent && runtimeType == other.runtimeType && nodeId == other.nodeId;
+
+  @override
+  int get hashCode => nodeId.hashCode;
+}
+
+/// The content of a [DocumentNode] changed.
+///
+/// A node change might signify a content change, such as text changing in a paragraph, or
+/// it might signify a node changing its type of content, such as converting a paragraph
+/// to an image.
+class NodeChangeEvent extends NodeDocumentChange {
+  const NodeChangeEvent(this.nodeId);
+
+  @override
+  final String nodeId;
+
+  @override
+  String describe() => "Changed node: $nodeId";
+
+  @override
+  String toString() => "NodeChangeEvent ($nodeId)";
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is NodeChangeEvent && runtimeType == other.runtimeType && nodeId == other.nodeId;
+
+  @override
+  int get hashCode => nodeId.hashCode;
+}
+
+/// A logical position within a [Document].
+///
+/// A [DocumentPosition] points to a specific node by way of a [nodeId],
+/// and points to a specific position within the node by way of a
+/// [nodePosition].
+///
+/// The type of the [nodePosition] depends upon the type of [DocumentNode]
+/// that this position points to. For example, a [ParagraphNode]
+/// uses a [TextPosition] to represent a [nodePosition].
+class DocumentPosition {
+  /// Creates a document position from its node ID and node-specific
+  /// representation of the position.
+  ///
+  /// The [nodeId] references a [DocumentNode] within the document and the
+  /// [nodePosition] adds node-specific context.
+  ///
+  /// For example, the following code creates a [DocumentPosition] that points
+  /// to a [TextNode] and a text offset of `1` within that text node:
+  ///
+  /// ```dart
+  /// final documentPosition = DocumentPosition(
+  ///   nodeId: documentEditor.document.first.id,
+  ///   nodePosition: TextNodePosition(offset: 1),
+  /// );
+  /// ```
+  const DocumentPosition({
+    required this.nodeId,
+    required this.nodePosition,
+  });
+
+  /// ID of a [DocumentNode] within a [Document].
+  final String nodeId;
+
+  /// Node-specific representation of a position.
+  ///
+  /// For example: a paragraph node might use a [TextNodePosition].
+  final NodePosition nodePosition;
+
+  /// Whether this position within the document is equivalent to the given
+  /// [other] [DocumentPosition].
+  ///
+  /// Equivalency is determined by the [NodePosition]. For example, given two
+  /// [TextNodePosition]s, if both of them point to the same character, but one
+  /// has an upstream affinity and the other a downstream affinity, the two
+  /// [TextNodePosition]s are considered "non-equal", but they're considered
+  /// "equivalent" because both [TextNodePosition]s point to the same location
+  /// within the document.
+  bool isEquivalentTo(DocumentPosition other) =>
+      nodeId == other.nodeId && nodePosition.isEquivalentTo(other.nodePosition);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DocumentPosition && nodeId == other.nodeId && nodePosition == other.nodePosition;
+
+  @override
+  int get hashCode => nodeId.hashCode ^ nodePosition.hashCode;
+
+  /// Creates a new [DocumentPosition] based on the current position, with the
+  /// provided parameters overridden.
+  DocumentPosition copyWith({
+    String? nodeId,
+    NodePosition? nodePosition,
+  }) {
+    return DocumentPosition(
+      nodeId: nodeId ?? this.nodeId,
+      nodePosition: nodePosition ?? this.nodePosition,
+    );
+  }
+
+  @override
+  String toString() {
+    return '[DocumentPosition] - node: "$nodeId", position: ($nodePosition)';
+  }
+}
+
+/// A single content node within a [Document].
+@immutable
+abstract class DocumentNode {
+  DocumentNode({
+    Map<String, dynamic>? metadata,
+  }) {
+    // We construct a new map here, instead of directly assigning from the
+    // constructor, because we need to make sure that `_metadata` is mutable.
+    _metadata = {
+      if (metadata != null) //
+        ...metadata,
+    };
+  }
+
+  /// Adds [addedMetadata] to this nodes [metadata].
+  ///
+  /// This protected method is intended to be used only during constructor
+  /// initialization by subclasses, so that subclasses can inject needed metadata
+  /// during construction time. This special method is provided because [DocumentNode]s
+  /// are otherwise immutable.
+  ///
+  /// For example, a `ParagraphNode` might need to ensure that its block type
+  /// metadata is set to `paragraphAttribution`:
+  ///
+  ///     ParagraphNode({
+  ///       required super.id,
+  ///       required super.text,
+  ///       this.indent = 0,
+  ///       super.metadata,
+  ///     }) {
+  ///       if (getMetadataValue("blockType") == null) {
+  ///         initAddToMetadata({"blockType": paragraphAttribution});
+  ///       }
+  ///     }
+  ///
+  @protected
+  void initAddToMetadata(Map<String, dynamic> addedMetadata) {
+    _metadata.addAll(addedMetadata);
+  }
+
+  /// ID that is unique within a [Document].
+  String get id;
+
+  bool get isDeletable => _metadata[NodeMetadata.isDeletable] != false;
+
+  /// Returns the [NodePosition] that corresponds to the beginning
+  /// of content in this node.
+  ///
+  /// For example, a [ParagraphNode] would return [TextNodePosition(offset: 0)].
+  NodePosition get beginningPosition;
+
+  /// Returns the [NodePosition] that corresponds to the end of the
+  /// content in this node.
+  ///
+  /// For example, a [ParagraphNode] would return [TextNodePosition(offset: text.length)].
+  NodePosition get endPosition;
+
+  /// Returns `true` if this [DocumentNode] contains the given [position], or `false`
+  /// if the [position] doesn't sit within this node, or if the [position] type doesn't
+  /// apply to this [DocumentNode].
+  bool containsPosition(Object position);
+
+  /// Returns `true` if the given [position] is closer to the start of this node's
+  /// content than it is to the end.
+  bool isPositionCloserToStart(NodePosition position);
+
+  /// Returns `true` if the given [position] is closer to the end of this node's
+  /// content than it is to the end.
+  bool isPositionCloserToEnd(NodePosition position) => !isPositionCloserToStart(position);
+
+  /// Inspects [position1] and [position2] and returns the one that's
+  /// positioned further upstream in this [DocumentNode].
+  ///
+  /// For example, in a [TextNode], this returns the [TextPosition]
+  /// for the character that appears earlier in the block of text.
+  NodePosition selectUpstreamPosition(
+    NodePosition position1,
+    NodePosition position2,
+  );
+
+  /// Inspects [position1] and [position2] and returns the one that's
+  /// positioned further downstream in this [DocumentNode].
+  ///
+  /// For example, in a [TextNode], this returns the [TextPosition]
+  /// for the character that appears later in the block of text.
+  NodePosition selectDownstreamPosition(
+    NodePosition position1,
+    NodePosition position2,
+  );
+
+  /// Returns a node-specific representation of a selection from
+  /// [base] to [extent].
+  ///
+  /// For example, a [ParagraphNode] would return a [TextNodeSelection].
+  NodeSelection computeSelection({
+    required NodePosition base,
+    required NodePosition extent,
+  });
+
+  /// Returns a plain-text version of the content in this node
+  /// within [selection], or null if the given selection does
+  /// not make sense as plain-text.
+  String? copyContent(NodeSelection selection);
+
+  /// Returns true if the [other] node is the same type as this
+  /// node, and contains the same content.
+  ///
+  /// Content equivalency ignores the node ID.
+  ///
+  /// Content equivalency is used to determine if two documents are
+  /// equivalent. Corresponding nodes in each document are compared
+  /// with this method.
+  bool hasEquivalentContent(DocumentNode other) {
+    return const DeepCollectionEquality().equals(_metadata, other._metadata);
+  }
+
+  /// Returns all metadata attached to this [DocumentNode].
+  Map<String, dynamic> get metadata => Map.from(_metadata);
+
+  late final Map<String, dynamic> _metadata;
+
+  /// Returns `true` if this node has a non-null metadata value for
+  /// the given metadata [key], and returns `false`, otherwise.
+  bool hasMetadataValue(String key) => _metadata[key] != null;
+
+  /// Returns this node's metadata value for the given [key].
+  dynamic getMetadataValue(String key) => _metadata[key];
+
+  /// Returns a copy of this [DocumentNode] with [newProperties] added to
+  /// the node's metadata.
+  ///
+  /// If [newProperties] contains keys that already exist in this node's
+  /// metadata, the existing properties are overwritten by [newProperties].
+  DocumentNode copyWithAddedMetadata(Map<String, dynamic> newProperties);
+
+  /// Returns a copy of this [DocumentNode], replacing its existing
+  /// metadata with [newMetadata].
+  DocumentNode copyAndReplaceMetadata(Map<String, dynamic> newMetadata);
+
+  /// Returns a copy of this node's metadata.
+  Map<String, dynamic> copyMetadata() => Map.from(_metadata);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DocumentNode &&
+          runtimeType == other.runtimeType &&
+          const DeepCollectionEquality().equals(_metadata, other._metadata);
+
+  // We return an arbitrary number for the hashCode because the only
+  // data we have is metadata, and different instances of metadata can
+  // be equivalent. If we returned `_metadata.hashCode`, then two
+  // `DocumentNode`s with equivalent metadata would say that they're
+  // unequal, because the hashCodes would be different.
+  @override
+  int get hashCode => 1;
+}
+
+/// A [DocumentNode] that supports editing.
+///
+/// The concept of "supports editing" refers to the ability to insert and/or delete content
+/// within the node. Typically, all nodes should implement editing, and should extend
+/// [EditableDocumentNode] instead of extending [DocumentNode]. The reason that [DocumentNode]
+/// exists without editing APIs is because some users might use `super_editor` only to
+/// render documents, rather than edit documents. In that case, there's no reason for users
+/// to implement editing capabilities for their custom nodes.
+@immutable
+abstract class EditableDocumentNode extends DocumentNode {
+  /// Serializes the content in this node to a `String` that can be combined
+  /// with other node `String`s and be sent to the IME for editing.
+  ///
+  /// For a `TextNode`, this value is typically just the text in the node.
+  /// For nodes with non-text content such as images and horizontal rules, a
+  /// more creative result is needed. Typically, non-text nodes choose to
+  /// represent each piece of their non-text content with a special character.
+  /// For example, the standard Super Editor `ImageNode` serializes itself
+  /// as "~". Similarly, the `AttachmentListNode`, which displays a list of
+  /// attachment thumbnails, serializes itself as a series of special characters,
+  /// e.g., "~~~~". From the IME's perspective, the user is typing and deleting
+  /// plain text. It's the job of each node to understand what it means to delete
+  /// one of these "~" characters.
+  String serializeForIme();
+
+  /// Given the [position] in this node, and assuming this node's IME serialization,
+  /// returns the IME text offset within this node's serialization that corresponds
+  /// to the given [position].
+  ///
+  /// Example:
+  ///  - Text node with content "abcdefg"
+  ///  - Text node position with offset `3`
+  ///  - The returned IME position is also `3`
+  ///
+  /// Example:
+  ///  - Image node
+  ///  - Image node position is on the downstream side
+  ///  - The returned IME position is `1`, pointing to "~|"
+  int nodePositionToImePosition(NodePosition position);
+
+  /// Converts the given [imePosition] within a serialized IME value into a [NodePosition] within
+  /// this node.
+  ///
+  /// IMEs only understand text, so an IME offset is a text offset within the IME.
+  /// The given [imePosition] is specifically a text offset within the value returned
+  /// by [serializeForIme]. This method is the inverse of [nodePositionToImePosition].
+  ///
+  /// The value of [expandedSelectionEdge] should be as follows:
+  ///  * This position is part of a collapsed selection -> `null`
+  ///  * This position is on the upstream edge of an expanded selection -> [TextAffinity.upstream]
+  ///  * This position is on the downstream edge of an expanded selection -> [TextAffinity.downstream]
+  NodePosition imePositionToNodePosition(int imePosition, [TextAffinity? expandedSelectionEdge]);
+
+  /// Returns `true` if this node can split itself at the given [position].
+  ///
+  /// It's expected that various nodes can't split at all, e.g., images and
+  /// horizontal rules. Those nodes should return `false`.
+  bool canSplitAt(NodePosition position);
+
+  /// Splits this node at the given [position] into two separate nodes.
+  ///
+  /// The [firstPart] retains the existing node's ID and the [secondPart] is given the [newId].
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode firstPart, DocumentNode secondPart) splitAt(nodePosition, {required String newId});
+
+  /// Returns `true` if this node can be combined with the [nodeBefore], by inserting
+  /// this node's content at the end of [nodeBefore].
+  bool canMergeWithEndOf(DocumentNode nodeBefore);
+
+  /// Returns a new [mergedNode] which starts with the content in [nodeBefore] and ends
+  /// with the content in this node, as well as a new [mergedNodePosition] which sits in
+  /// the new [mergedNode] at the location where the two nodes were merged together.
+  (DocumentNode mergedNode, NodePosition mergedNodePosition) mergeWithEndOf(DocumentNode nodeBefore);
+
+  /// Returns `true` if the given [nodeAfter] can be merged with this node, by inserting
+  /// the content in [nodeAfter] at the end of this node.
+  bool canMergeWithStartOf(DocumentNode nodeAfter);
+
+  /// Returns a new [mergedNode] which starts with the content in this node and ends
+  /// with the content in [nodeAfter], as well as a new [mergedNodePosition] which sits in
+  /// the new [mergedNode] at the location where the two nodes were merged together.
+  (DocumentNode mergedNode, NodePosition mergedNodePosition) mergeWithStartOf(DocumentNode nodeAfter);
+
+  /// Deletes content in this node from the start up to the given [position] and returns
+  /// a new node with that content, along with a [newPosition] that's a legal replacement
+  /// for the given [position] after the deletion.
+  ///
+  /// New position examples:
+  ///  * Deleting from the start in "Hello |World" would result in "|World" so
+  ///    the [newPosition] would be a `TextNodePosition` with offset zero.
+  ///  * Deleting the last attachment in an attachment list should convert the
+  ///    attachment list into a paragraph. So, in this case, the incoming position
+  ///    is of type `AttachmentListNodePosition` but the [newPosition] would be
+  ///    of type `TextNodePosition`.
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode, NodePosition newPosition) deleteFromStartToPosition(NodePosition position);
+
+  /// Deletes content in this node from the given [position] to the end of the node and returns
+  /// a new node with that content, along with a [newPosition] that's a legal replacement
+  /// for the given [position] after the deletion.
+  ///
+  /// New position examples:
+  ///  * Deleting the last attachment in an attachment list should convert the
+  ///    attachment list into a paragraph. So, in this case, the incoming position
+  ///    is of type `AttachmentListNodePosition` but the [newPosition] would be
+  ///    of type `TextNodePosition`.
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode, NodePosition newPosition) deleteFromPositionToEnd(NodePosition position);
+
+  /// Deletes the content between [base] and [extent] within this node, returning a new
+  /// node with that content, and a collapsed [newPosition] where the selection used to be.
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode, NodePosition newPosition) deleteSelection(NodePosition base, NodePosition extent);
+
+  /// Deletes one unit of content in the upstream direction from the given [position], returning
+  /// a copy of this node with the deleted content, and the updated position after the deletion.
+  ///
+  /// If there's no content upstream from [position] in this node, this method returns `null`.
+  ///
+  /// Deleting the upstream content might result in a completely different node. For example,
+  /// deleting the last attachment in a list of attachments will cause the attachment list node
+  /// to be replaced by a paragraph node, and the new position will be a text node position. Callers
+  /// must handle this possibility.
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode, NodePosition newPosition)? deleteUpstream(NodePosition position);
+
+  /// Deletes one unit of content in the downstream direction from the given [position], returning
+  /// a copy of this node with the deleted content, and the updated position after the deletion.
+  ///
+  /// If there's no content downstream from [position] in this node, this method returns `null`.
+  ///
+  /// Deleting the downstream content might result in a completely different node. For example,
+  /// deleting the last attachment in a list of attachments will cause the attachment list node
+  /// to be replaced by a paragraph node, and the new position will be a text node position. Callers
+  /// must handle this possibility.
+  // TODO: Change DocumentNode to EditableDocumentNode when TextNode implements this.
+  (DocumentNode, NodePosition newPosition)? deleteDownstream(NodePosition position);
+}
+
+extension InspectNodeAffinity on DocumentNode {
+  /// Returns the affinity direction implied by the given [base] and [extent].
+  TextAffinity getAffinityBetween({
+    required NodePosition base,
+    required NodePosition extent,
+  }) {
+    return base == selectUpstreamPosition(base, extent) ? TextAffinity.downstream : TextAffinity.upstream;
+  }
+}
+
+/// Interface for a selection within a [DocumentNode].
+abstract class NodeSelection {
+  NodePosition get base;
+  NodePosition get extent;
+}
+
+/// A logical position within a [DocumentNode], e.g., a [TextNodePosition]
+/// within a [ParagraphNode], or a [BinaryNodePosition] within an [ImageNode].
+abstract class NodePosition {
+  /// Whether this [NodePosition] is equivalent to the [other] [NodePosition].
+  ///
+  /// Typically, [isEquivalentTo] should return the same value as [==], however,
+  /// some [NodePosition]s have properties that don't impact equivalency. For
+  /// example, a [TextNodePosition] has a concept of affinity (upstream/downstream),
+  /// which are used when making particular selection decisions, but affinity
+  /// doesn't impact equivalency. Two [TextNodePosition]s, which refer to the same
+  /// text offset, but have different affinities, returns `true` from [isEquivalentTo],
+  /// even though [==] returns `false`.
+  bool isEquivalentTo(NodePosition other);
+}
+
+/// Keys to access metadata on a [DocumentNode].
+class NodeMetadata {
+  /// The specific type of node, when the node itself isn't self-explanatory.
+  ///
+  /// For example, a `ParagraphNode` can have a block type for a paragraph,
+  /// blockquote, header 1, header 2, etc.
+  static const String blockType = 'blockType';
+
+  /// A timestamp for the moment that a given node was created.
+  ///
+  /// The value should be a [CreatedAtAttribution], which allows the concept
+  /// of a timestamp to work at the node level (with this metadata), as well
+  /// as the text level (within an `AttributedText`).
+  static const String createdAt = 'createdAt';
+
+  /// Whether or not the node is deletable.
+  ///
+  /// A non-deletable node cannot be removed from the document by user
+  /// interaction. For exammple, selecting a non-deletable node and pressing
+  /// backspace has no effect.
+  ///
+  /// Apps can still remove non-deletable nodes by issuing a `DeleteNodeRequest`.
+  ///
+  /// If the node doesn't have this metadata, it is assumed to be deletable.
+  static const String isDeletable = 'isDeletable';
+}
