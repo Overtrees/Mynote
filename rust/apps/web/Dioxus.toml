@@ -1,0 +1,5 @@
+[application]
+name = "mynote-web"
+
+[web.app]
+title = "此刻 · Rust Web 尖峰"

@@ -1,0 +1,214 @@
+/* 备份管理页面卡片 */
+.backup-hero {
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
+    border-radius: var(--radius-30);
+    corner-shape: round;
+    padding: 18px;
+    margin-bottom: 18px;
+}
+.backup-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.backup-hero-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+.backup-hero-desc {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--glass-label-color);
+}
+.backup-hero-badge,
+.backup-state {
+    padding: 7px 10px;
+    border-radius: var(--radius-999);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    background: var(--glass-control-bg);
+    backdrop-filter: var(--glass-control-filter);
+    -webkit-backdrop-filter: var(--glass-control-filter);
+    border: 1px solid var(--glass-control-border);
+}
+.backup-hero-badge.connected,
+.backup-state.connected {
+    background: rgba(52,199,89,0.14);
+    color: var(--color-success);
+}
+.backup-hero-badge.disconnected,
+.backup-state.disconnected {
+    background: rgba(127,127,127,0.12);
+    color: var(--glass-label-color);
+}
+.backup-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+.backup-stat {
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
+    border-radius: var(--radius-18);
+    padding: 12px;
+}
+.backup-stat-label {
+    font-size: 0.75rem;
+    color: var(--glass-label-color);
+    margin-bottom: 6px;
+}
+.backup-stat-value {
+    font-size: 1.0625rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+.backup-section-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--glass-label-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 4px;
+    margin-bottom: 8px;
+    margin-top: 8px;
+}
+.backup-card {
+    background: var(--glass-content-bg);
+    backdrop-filter: var(--glass-content-filter);
+    -webkit-backdrop-filter: var(--glass-content-filter);
+    border: 0.5px solid var(--glass-content-border);
+    border-radius: var(--radius-28);
+    corner-shape: round;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+.backup-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 0.5px solid var(--border-color);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.backup-row.no-border {
+    border-bottom: none;
+}
+.backup-row-left {
+    min-width: 0;
+    flex: 1;
+}
+.backup-row-title {
+    font-size: 1rem;
+    font-weight: 650;
+    margin-bottom: 6px;
+}
+.backup-row-desc {
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    color: var(--glass-label-color);
+}
+.backup-row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--glass-label-color);
+}
+.backup-row-arrow {
+    font-size: 1.125rem;
+    opacity: 0.45;
+    line-height: 1;
+}
+.backup-action-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: nowrap;
+    padding: 14px 18px 18px;
+    border-top: 0.5px solid var(--border-color);
+}
+.backup-action-bar .backup-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 10px;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+}
+.backup-btn {
+    background: var(--glass-control-bg);
+    color: var(--text-main);
+    border: 1px solid var(--glass-control-border);
+    border-radius: var(--radius-999);
+    height: 44px;
+    padding: 0 18px;
+    font-size: 0.875rem;
+    font-weight: 650;
+    cursor: pointer;
+    backdrop-filter: var(--glass-control-filter);
+    -webkit-backdrop-filter: var(--glass-control-filter);
+    margin-right: 0;
+    margin-bottom: 0;
+    font-family: inherit;
+}
+.backup-btn.primary {
+    background: rgba(0,122,255,0.86);
+    color: var(--color-white);
+    border-color: rgba(255,255,255,0.24);
+}
+.backup-btn.secondary {
+    background: var(--glass-control-bg);
+    color: var(--text-main);
+}
+.backup-btn.danger {
+    background: rgba(255,69,58,0.14);
+    color: var(--color-danger);
+    border-color: rgba(255,69,58,0.18);
+}
+.backup-btn:focus-visible {
+    outline: 3px solid var(--glass-focus-ring);
+    outline-offset: 2px;
+}
+
+/* ===== 本应用适配层：设置/语言/诊断页（沿用原版行与页头度量） ===== */
+.page-content { padding: 126px 20px calc(40px + env(safe-area-inset-bottom)); }
+.page-gap { height: 12px; }
+.seg-btn { height: 32px; min-width: 40px; padding: 0 12px; border-radius: var(--radius-16); border: 0.5px solid var(--glass-control-border); background: var(--glass-control-bg); backdrop-filter: var(--glass-control-filter); -webkit-backdrop-filter: var(--glass-control-filter); color: var(--text-main); font-weight: 500; font-family: inherit; cursor: pointer; transition: all 0.18s ease; line-height: 1; }
+.seg-btn.sel { border-color: var(--fill-accent-35); background: var(--fill-accent-10); color: var(--color-accent); font-weight: 700; }
+.seg-row { display: flex; gap: 6px; flex-shrink: 0; }
+.row-chevron { color: var(--text-secondary); font-size: 1.125rem; opacity: 0.45; line-height: 1; }
+.about-row { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+/* 设置页数据组：原版是一个卡片容器内多行 + 分隔线（不是每行一张卡） */
+.set-row { padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: background-color 0.15s ease; }
+.set-row:active { background: var(--fill-hover); }
+.set-row .item-meta { margin-top: 2px; }
+/* 备份页导出/导入行首的蓝色描边图标（原版 BackupView） */
+.backup-row-icon { flex-shrink: 0; width: 28px; display: flex; align-items: center; justify-content: flex-start; }
+.about-div { height: 0.5px; background: var(--border-color); margin-left: 16px; margin-right: 16px; }
+.about-val { color: var(--text-secondary); font-size: 0.875rem; font-weight: 400; }
+.settings-footer { font-style: italic; font-size: var(--font-12); color: var(--text-secondary); text-align: center; margin-top: 12px; margin-bottom: 4px; opacity: 0.8; }
+.lang-state { font-size: var(--font-12); color: var(--text-secondary); flex-shrink: 0; }
+.lang-state.cur { color: var(--color-accent); font-weight: 700; }
+/* 备份页状态行与确认弹窗 */
+.backup-desc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.8125rem; line-height: 1.5; color: var(--glass-label-color); }
+.backup-modal-scrim { position: fixed; inset: 0; z-index: 5000; background: rgba(0,0,0,0.28); display: flex; align-items: flex-end; justify-content: center; padding: 0 14px calc(env(safe-area-inset-bottom) + 14px); box-sizing: border-box; }
+.backup-modal { width: 100%; max-width: 600px; background: var(--glass-overlay-bg); backdrop-filter: var(--glass-overlay-filter); -webkit-backdrop-filter: var(--glass-overlay-filter); border: 0.5px solid var(--glass-overlay-border); border-radius: var(--radius-28); padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); box-sizing: border-box; animation: sheetIn 250ms cubic-bezier(0.34,1.56,0.64,1) both; }
+.backup-modal-title { font-size: var(--font-18); font-weight: 700; text-align: center; margin-bottom: 12px; }
+.backup-modal-msg { font-size: var(--font-13); line-height: 1.45; color: var(--text-secondary); text-align: center; margin-bottom: 12px; }
+.backup-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+.backup-modal-actions .backup-btn { width: 100%; height: 44px; }
+/* 诊断页（日志 UI 按用户指示保持原样） */
+.diag-body { background: #111; color: #7cfc9a; border-radius: var(--radius-12); padding: 12px; font-family: var(--font-family-mono); font-size: 11px; line-height: 1.55; white-space: pre-wrap; word-break: break-all; max-height: 52vh; overflow-y: auto; }
+.diag-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+.diag-actions .backup-btn { flex: 1 1 0; }

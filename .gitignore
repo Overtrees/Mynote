@@ -5,3 +5,7 @@ node_modules/
 # 浏览器工具生成的会话状态，可能含凭据
 .dumate-browser-auth-state/
 .dumate/
+
+# Rust 构建产物
+/rust/target/
+/rust/apps/web/dist/
