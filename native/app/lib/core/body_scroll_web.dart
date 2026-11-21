@@ -1,60 +1,23 @@
-import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
-
-import 'package:flutter/widgets.dart';
-
-import 'body_scroll.dart';
 import 'diag.dart';
 
-/// Web（元素嵌入外壳）：桥接 web/index.html 的宿主脚本。
-bool get bodyScrollSupported => true;
+/// Web（官方全页外壳）：与非 Web 平台一致，页面走内部滚动——
+/// 不再桥接宿主 body 滚动与 env 安全区探针（旧元素嵌入模型已退役，
+/// 2026-11-21 迁移）。bodyScrollY / hostInsets 保留恒零定义，
+/// effectiveInsets 自然退化为引擎 MediaQuery 值（全页外壳下引擎
+/// 读数即浏览器 env 真值）。
+bool get bodyScrollSupported => false;
 
 bool _inited = false;
 
 void initBodyScroll() {
   if (_inited) return;
   _inited = true;
-  try {
-    final cb = (JSNumber y) {
-      bodyScrollY.value = y.toDartDouble;
-    }.toJS;
-    globalContext.setProperty('__mynoteOnScroll'.toJS, cb);
-    final icb = (JSNumber t, JSNumber r, JSNumber b, JSNumber l) {
-      final next = EdgeInsets.fromLTRB(
-        l.toDartDouble,
-        t.toDartDouble,
-        r.toDartDouble,
-        b.toDartDouble,
-      );
-      if (next != hostInsets.value) {
-        hostInsets.value = next;
-        Diag.log(
-          'APP',
-          'host insets t=${next.top.toStringAsFixed(0)} '
-              'b=${next.bottom.toStringAsFixed(0)}',
-        );
-      }
-    }.toJS;
-    globalContext.setProperty('__mynoteOnInsets'.toJS, icb);
-    final sy = globalContext.getProperty('scrollY'.toJS);
-    if (sy is JSNumber) bodyScrollY.value = sy.toDartDouble;
-  } catch (_) {
-    // 桥注册失败时页面退化为内部滚动，不应崩溃
-  }
+  // 滚动模型标记：实机 Diag 里据此核对线上跑的是内部滚动构建
+  Diag.log('APP', 'scroll model: official (internal scroll, stock shell)');
 }
 
-/// 把内容总高告诉宿主页，宿主页据此设置占位层高度（body 滚动范围）。
-void reportContentHeight(double height) {
-  try {
-    final f = globalContext.getProperty('__mynoteSetHeight'.toJS);
-    if (f is JSFunction) f.callAsFunction(null, height.toJS);
-  } catch (_) {}
-}
+/// 宿主桥已退役：内容高度不再需要上报（无宿主根高概念）。
+void reportContentHeight(double height) {}
 
-/// 让宿主页面（body）滚到指定偏移（光标跟随、回顶等）。
-void scrollWindowTo(double y) {
-  try {
-    final f = globalContext.getProperty('scrollTo'.toJS);
-    if (f is JSFunction) f.callAsFunction(null, 0.toJS, y.toJS);
-  } catch (_) {}
-}
+/// 宿主桥已退役：窗口滚动不存在，页面内滚动由各自控制器承担。
+void scrollWindowTo(double y) {}

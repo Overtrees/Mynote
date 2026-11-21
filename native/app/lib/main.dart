@@ -124,7 +124,7 @@ class _MynoteAppState extends ConsumerState<MynoteApp>
     });
     startUpdateChecker();
     startSafeAreaBridge();
-    // v3：注册宿主桥（body 滚动回传 + env/R 安全区 + 内容高上报通道）
+    // 滚动模型标记（全平台内部滚动；Web 实现在 Diag 打一行标记）
     initBodyScroll();
   }
 

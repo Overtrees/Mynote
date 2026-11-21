@@ -3,16 +3,16 @@ import 'package:flutter/widgets.dart';
 export 'body_scroll_stub.dart'
     if (dart.library.js_interop) 'body_scroll_web.dart';
 
-/// v3 滚动模型（元素嵌入 + body 滚动，原版同款）：
-/// Web 外壳结构对齐原版：单一流内根 #root 由内容撑高（= 原版
-/// #memo-list-root），画布 sticky 停靠视口顶部；页面滚动归 body；
-/// 各页面内容是自然高度的一列，按 window.scrollY 平移，不设内部
-/// 滚动面；内容总高由页面实测上报宿主设置根高，body 行程与内容
-/// 高度严格一致。
-/// 安全区：嵌入模式下引擎 MediaQuery.padding 恒为 0（官方已知，
-/// PR #194020），真实值由宿主页 CSS env() 探针桥接（与原版一致，
-/// 只认 env）。
-/// 非 Web 平台全部为空实现，页面走原内部滚动。
+/// 滚动模型（2026-11-21 起全平台统一）：官方全页外壳 + 页面内部
+/// 滚动。旧的元素嵌入 + body 滚动模型（宿主页 #root 撑高文档、
+/// window.scrollY 泵送平移、env 探针桥接安全区）已退役——实测
+/// WebKit 把画布图层裁在布局视口内，该模型在真机上始终留有实心
+/// 色带；内部滚动是框架的标准形态。
+/// 本文件保留 bodyScrollY / hostInsets 两个恒零的兼容定义与
+/// effectiveInsets，各页面调用点无需改动：安全区一律取引擎
+/// MediaQuery（全页外壳 + viewport-fit=cover 下即浏览器 env 真值），
+/// host 侧恒零不再参与。各平台 bodyScrollSupported 均为 false，
+/// BodyScrollColumn 走内部 ListView 路径（见 body_scroll_column.dart）。
 final bodyScrollY = ValueNotifier<double>(0);
 
 /// 宿主页桥接的安全区（env 实测），初始为零。

@@ -445,6 +445,16 @@ class _DiagLogPageState extends State<DiagLogPage>
           scrollWindowTo(1e9);
         });
       });
+    } else {
+      // 内部滚动：回退 ListView 非 reverse 锚顶，进页用本页控制器
+      // 跳到最底，保持与 body 路径一致的落底口径（最新日志在底）
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scroll.hasClients) {
+            _scroll.jumpTo(_scroll.position.maxScrollExtent);
+          }
+        });
+      });
     }
   }
 

@@ -2,10 +2,10 @@ import 'package:flutter/widgets.dart';
 
 import 'body_scroll.dart';
 
-/// 结构对齐原版的页面内容列：内容是自然高度的一列（与原版文档流
-/// 同构），不设内部滚动面。Web（body 滚动）时本列按 bodyScrollY
-/// 平移，并把实测总高上报宿主撑起根高；非 Web 时退化为普通
-/// ListView 内部滚动（原生/测试环境）。
+/// 页面内容列：全平台统一走内部滚动（懒构建 + 大预建区混合方案，fallbackController
+/// 即页面自己的滚动控制器）。下方按 bodyScrollY 平移的分支是旧
+/// body 滚动模型的遗留实现，现无任何平台启用（bodyScrollSupported
+/// 恒 false），保留仅作历史参照。
 class BodyScrollColumn extends StatefulWidget {
   const BodyScrollColumn({
     super.key,
@@ -19,7 +19,7 @@ class BodyScrollColumn extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
   final CrossAxisAlignment crossAxisAlignment;
 
-  /// 非 Web 回退 ListView 的控制器（页面可据此读内部偏移）。
+  /// 内部滚动的控制器（页面可据此读内部偏移）。
   final ScrollController? fallbackController;
 
   static _BodyScrollColumnState? _active;
@@ -51,6 +51,15 @@ class _BodyScrollColumnState extends State<BodyScrollColumn> {
       return ListView(
         controller: widget.fallbackController,
         padding: widget.padding,
+        // 混合滚动（原型手感 + 大批量根治）：物理与官方原型
+        // 一致（回弹 + 内容不足一屏也可拖动）；懒构建打底，
+        // 内存不随条目总数涨；预建区 2000 让卡片在进入屏幕
+        // 前就建好，滚动只剩平移合成（子项由 ListView 默认
+        // 逐个包 RepaintBoundary 独立成层）。
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        cacheExtent: 2000,
         children: widget.children,
       );
     }
